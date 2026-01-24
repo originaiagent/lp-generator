@@ -577,6 +577,29 @@ def render_api_key_status():
             st.warning(f"⚠️ {name}: 未設定")
     
     st.markdown("---")
+    
+    # Supabase接続状態チェック
+    try:
+        import supabase
+        st.success(f"✅ Supabaseライブラリ: インストール済み (v{supabase.__version__})")
+        
+        from modules.data_store import DataStore
+        ds = DataStore()
+        if ds.supabase:
+            st.success("✅ Supabase接続: 接続成功")
+            # 試しにデータ取得
+            try:
+                ds.supabase.table("lp_products").select("count", count="exact").execute()
+                st.caption("通信テスト: OK")
+            except Exception as e:
+                st.error(f"通信テストエラー: {e}")
+        else:
+            st.error("❌ Supabase接続: 未接続（環境変数が足りないか、初期化に失敗）")
+            
+    except ImportError:
+        st.error("❌ Supabaseライブラリ: 未インストール（ローカルモードで動作中・データは永続化されません）")
+    
+    st.markdown("---")
     st.info("APIキーはStreamlit CloudのSecretsで設定してください")
     
     with st.expander("💰 LLMコスト目安 (1Mトークンあたり)"):
