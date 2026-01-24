@@ -579,25 +579,29 @@ def render_api_key_status():
     st.markdown("---")
     
     # Supabase接続状態チェック
-    try:
-        import supabase
-        st.success(f"✅ Supabaseライブラリ: インストール済み (v{supabase.__version__})")
-        
-        from modules.data_store import DataStore
-        ds = DataStore()
-        if ds.supabase:
-            st.success("✅ Supabase接続: 接続成功")
-            # 試しにデータ取得
-            try:
-                ds.supabase.table("lp_products").select("count", count="exact").execute()
-                st.caption("通信テスト: OK")
-            except Exception as e:
-                st.error(f"通信テストエラー: {e}")
-        else:
-            st.error("❌ Supabase接続: 未接続（環境変数が足りないか、初期化に失敗）")
+    from modules.data_store import DataStore
+    ds = DataStore()
+    
+    if ds.use_supabase:
+        st.success("✅ Supabase設定: 有効 (REST APIモード)")
+        # 通信テスト
+        try:
+            # count取得を試みる
+            import requests
+            headers = ds.headers
+            url = f"{ds.base_url}/lp_products?select=id&limit=1"
+            res = requests.get(url, headers=headers, timeout=5)
             
-    except ImportError:
-        st.error("❌ Supabaseライブラリ: 未インストール（ローカルモードで動作中・データは永続化されません）")
+            if res.status_code == 200:
+                st.success("✅ Supabase接続: 成功")
+                st.caption(f"ステータスコード: {res.status_code}")
+            else:
+                st.error(f"❌ Supabase接続: エラー (Code: {res.status_code})")
+                st.caption(res.text)
+        except Exception as e:
+            st.error(f"❌ Supabase接続: 通信エラー ({e})")
+    else:
+        st.error("❌ Supabase設定: 無効（環境変数が設定されていません）")
     
     st.markdown("---")
     st.info("APIキーはStreamlit CloudのSecretsで設定してください")

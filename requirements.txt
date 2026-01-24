@@ -1,13 +1,8 @@
-# Force Rebuild 2024-01-24
 streamlit
 google-generativeai
 anthropic
 openai
 python-pptx
 Pillow
-gotrue
-postgrest
-realtime
-storage3
-supabase
+requests
 python-dotenv

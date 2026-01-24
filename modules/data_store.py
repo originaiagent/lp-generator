@@ -2,11 +2,7 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
-try:
-    from supabase import create_client, Client
-except ImportError:
-    create_client = None
-    Client = None
+import requests
 
 # Supabase設定
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
@@ -17,53 +13,80 @@ class DataStore:
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
         
-        self.supabase: Client = None
+        self.use_supabase = False
+        self.headers = {}
+        self.base_url = ""
+        
         if SUPABASE_URL and SUPABASE_KEY:
-            try:
-                self.supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-            except Exception as e:
-                print(f"Supabase connection failed: {e}")
+            self.use_supabase = True
+            self.base_url = f"{SUPABASE_URL}/rest/v1"
+            self.headers = {
+                "apikey": SUPABASE_KEY,
+                "Authorization": f"Bearer {SUPABASE_KEY}",
+                "Content-Type": "application/json",
+                "Prefer": "return=representation"
+            }
 
     def _get_from_supabase(self, product_id: str):
-        """Supabaseから取得"""
-        if self.supabase:
+        """Supabaseから取得 (REST API)"""
+        if self.use_supabase:
             try:
-                response = self.supabase.table("lp_products").select("*").eq("id", product_id).execute()
-                if response.data and len(response.data) > 0:
-                    return response.data[0]
+                url = f"{self.base_url}/lp_products?id=eq.{product_id}&select=*"
+                response = requests.get(url, headers=self.headers)
+                if response.status_code == 200:
+                    data = response.json()
+                    if data and len(data) > 0:
+                        return data[0]
             except Exception as e:
                 print(f"Supabase get error: {e}")
         return None
     
     def _save_to_supabase(self, product: dict):
-        """Supabaseに保存"""
-        if self.supabase:
+        """Supabaseに保存 (REST API - Upsert)"""
+        if self.use_supabase:
             try:
-                # 辞書をそのまま保存 (テーブルのカラムとキーが一致している前提)
-                self.supabase.table("lp_products").upsert(product).execute()
-                return True
+                url = f"{self.base_url}/lp_products"
+                # on_conflictはurlパラメータで指定（idをキーにする）
+                params = {"on_conflict": "id"}
+                # POSTメソッドでupsertを行う（Prefer: resolution=merge-duplicates はヘッダーで指定可能だが、
+                # SupabaseのREST APIではPOSTに on_conflict パラメータをつけるのが一般的）
+                
+                # Supabase REST APIのUpsert: POST to /table with Prefer: resolution=merge-duplicates
+                headers = self.headers.copy()
+                headers["Prefer"] = "resolution=merge-duplicates,return=representation"
+                
+                response = requests.post(url, headers=headers, json=product)
+                
+                if response.status_code in [200, 201]:
+                    return True
+                else:
+                    print(f"Supabase save failed: {response.status_code} {response.text}")
             except Exception as e:
                 print(f"Supabase save error: {e}")
         return False
     
     def _delete_from_supabase(self, product_id: str):
-        """Supabaseから削除"""
-        if self.supabase:
+        """Supabaseから削除 (REST API)"""
+        if self.use_supabase:
             try:
-                self.supabase.table("lp_products").delete().eq("id", product_id).execute()
-                return True
+                url = f"{self.base_url}/lp_products?id=eq.{product_id}"
+                response = requests.delete(url, headers=self.headers)
+                if response.status_code in [200, 204]:
+                    return True
             except Exception as e:
                 print(f"Supabase delete error: {e}")
         return False
     
     def _get_all_from_supabase(self):
-        """Supabaseから全製品を取得"""
-        if self.supabase:
+        """Supabaseから全製品を取得 (REST API)"""
+        if self.use_supabase:
             try:
-                response = self.supabase.table("lp_products").select("*").execute()
-                if response.data:
+                url = f"{self.base_url}/lp_products?select=*"
+                response = requests.get(url, headers=self.headers)
+                if response.status_code == 200:
+                    data = response.json()
                     # IDをキーにした辞書に変換
-                    products = {item['id']: item for item in response.data if 'id' in item}
+                    products = {item['id']: item for item in data if 'id' in item}
                     return products
             except Exception as e:
                 print(f"Supabase list error: {e}")
