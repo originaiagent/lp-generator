@@ -573,7 +573,7 @@ def render_api_key_status():
             st.warning(f"⚠️ {name}: 未設定")
     
     st.markdown("---")
-    st.info("APIキーはReplitのSecretsで設定してください")
+    st.info("APIキーはStreamlit CloudのSecretsで設定してください")
     
     with st.expander("💰 LLMコスト目安 (1Mトークンあたり)"):
         st.markdown("""
