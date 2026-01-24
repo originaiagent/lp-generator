@@ -2,6 +2,10 @@ from modules.ai_sidebar import render_ai_sidebar
 render_ai_sidebar()
 
 
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import streamlit as st
 import os
 # カスタムCSS読み込み

@@ -5,6 +5,12 @@ try:
 except ImportError:
     pass
 
+import sys
+import os
+
+# プロジェクトルートをパスに追加（Streamlit Cloud対策）
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 # ページ設定
 st.set_page_config(
     page_title="LPジェネレーター",
