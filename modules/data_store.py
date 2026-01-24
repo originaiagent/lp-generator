@@ -2,7 +2,11 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
-from supabase import create_client, Client
+try:
+    from supabase import create_client, Client
+except ImportError:
+    create_client = None
+    Client = None
 
 # Supabase設定
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
