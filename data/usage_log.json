@@ -1,0 +1,77 @@
+{
+  "2026-01-12": {
+    "total": {
+      "input_tokens": 25154,
+      "output_tokens": 25784,
+      "cost_jpy": 292.61
+    },
+    "by_function": {
+      "api_call": {
+        "input": 25154,
+        "output": 25784,
+        "cost": 292.61
+      }
+    },
+    "by_provider": {
+      "gemini": {
+        "input": 25154,
+        "output": 25784,
+        "cost": 292.61
+      }
+    },
+    "image_generation": {
+      "count": 9,
+      "cost_jpy": 187.81
+    }
+  },
+  "2026-01-13": {
+    "total": {
+      "input_tokens": 36570,
+      "output_tokens": 14234,
+      "cost_jpy": 60.37
+    },
+    "by_function": {
+      "api_call": {
+        "input": 36570,
+        "output": 14234,
+        "cost": 60.37
+      }
+    },
+    "by_provider": {
+      "gemini": {
+        "input": 36570,
+        "output": 14234,
+        "cost": 60.37
+      }
+    },
+    "image_generation": {
+      "count": 1,
+      "cost_jpy": 26.64
+    }
+  },
+  "2026-01-14": {
+    "total": {
+      "input_tokens": 10351,
+      "output_tokens": 202,
+      "cost_jpy": 3.46
+    },
+    "by_function": {
+      "api_call": {
+        "input": 10351,
+        "output": 202,
+        "cost": 3.46
+      }
+    },
+    "by_provider": {
+      "gemini": {
+        "input": 10351,
+        "output": 202,
+        "cost": 3.46
+      }
+    },
+    "image_generation": {
+      "count": 0,
+      "cost_jpy": 0
+    }
+  }
+}

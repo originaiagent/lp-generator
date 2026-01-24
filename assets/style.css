@@ -1,0 +1,254 @@
+/* ===== 背景 ===== */
+.stApp {
+    background-color: #F3F4F6 !important;
+}
+
+/* ===== メインコンテンツ ===== */
+.main .block-container {
+    padding: 1rem 2rem 2rem 2rem !important;
+    max-width: 1000px !important;
+}
+
+/* ===== セクション区切り ===== */
+.section-divider {
+    border-top: none !important;
+    margin: 2.5rem 0 0.5rem 0 !important;
+    padding-top: 0 !important;
+}
+
+/* ===== セクション見出し（線で囲む） ===== */
+.step-label {
+    color: #364e96 !important;
+    border: solid 3px #364e96 !important;
+    padding: 0.6em 1em !important;
+    border-radius: 0.5em !important;
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    display: inline-block !important;
+    background: transparent !important;
+    line-height: 1.2 !important;
+}
+
+/* セクション全体のスタイル */
+.section-divider {
+    margin: 2rem 0 1rem 0 !important;
+}
+
+/* ===== セクションカード風 ===== */
+.stVerticalBlock > div:has(.step-label) {
+    background: white !important;
+    border-radius: 12px !important;
+    padding: 1.5rem !important;
+    margin-bottom: 1.5rem !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* ===== 見出し ===== */
+h1 {
+    color: #1F2937 !important;
+    font-weight: 700 !important;
+    font-size: 1.75rem !important;
+    margin-bottom: 1.5rem !important;
+}
+
+h2, h3 {
+    color: #374151 !important;
+    font-weight: 600 !important;
+}
+
+/* ===== ボタン - Primary（アクション必須・緑） ===== */
+.stButton > button[kind="primary"],
+button[data-testid="baseButton-primary"] {
+    background: linear-gradient(180deg, #22C55E 0%, #16A34A 100%) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    padding: 0.75rem 1.5rem !important;
+    box-shadow: 0 4px 6px rgba(22, 163, 74, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+    transition: all 0.15s ease !important;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1) !important;
+}
+
+.stButton > button[kind="primary"]:hover,
+button[data-testid="baseButton-primary"]:hover {
+    background: linear-gradient(180deg, #16A34A 0%, #15803D 100%) !important;
+    box-shadow: 0 6px 10px rgba(22, 163, 74, 0.4), 0 3px 6px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+    transform: translateY(-2px) !important;
+}
+
+.stButton > button[kind="primary"]:active,
+button[data-testid="baseButton-primary"]:active {
+    transform: translateY(0) !important;
+    box-shadow: 0 2px 4px rgba(22, 163, 74, 0.3), inset 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* ===== ボタン - Secondary ===== */
+.stButton > button:not([kind="primary"]),
+button[data-testid="baseButton-secondary"] {
+    background: white !important;
+    color: #4B5563 !important;
+    border: 1px solid #D1D5DB !important;
+    border-radius: 8px !important;
+    font-weight: 500 !important;
+}
+
+.stButton > button:not([kind="primary"]):hover {
+    background: #F9FAFB !important;
+    border-color: #9CA3AF !important;
+}
+
+/* ===== ファイルアップローダー - コンパクト ===== */
+[data-testid="stFileUploader"] {
+    background: white !important;
+    border: 2px dashed #D1D5DB !important;
+    border-radius: 8px !important;
+    padding: 0.75rem !important;
+}
+
+[data-testid="stFileUploader"]:hover {
+    border-color: #6366F1 !important;
+    background: #FAFAFF !important;
+}
+
+[data-testid="stFileUploader"] section {
+    padding: 0.5rem !important;
+}
+
+[data-testid="stFileUploader"] section > div {
+    padding: 0 !important;
+}
+
+/* アップローダーの説明文を小さく */
+[data-testid="stFileUploader"] small {
+    font-size: 0.7rem !important;
+    color: #9CA3AF !important;
+}
+
+/* ===== 入力フィールド ===== */
+.stTextInput > div > div > input,
+.stTextArea > div > div > textarea {
+    border: 1px solid #D1D5DB !important;
+    border-radius: 8px !important;
+    padding: 0.6rem 0.8rem !important;
+}
+
+.stTextInput > div > div > input:focus,
+.stTextArea > div > div > textarea:focus {
+    border-color: #6366F1 !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+}
+
+/* ===== Expander - コンパクト ===== */
+.streamlit-expanderHeader {
+    background: #F9FAFB !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+    padding: 0.6rem 1rem !important;
+    color: #374151 !important;
+}
+
+.streamlit-expanderContent {
+    background: #FAFAFA !important;
+    border-radius: 0 0 8px 8px !important;
+    padding: 1rem !important;
+}
+
+/* ===== アラート ===== */
+.stSuccess > div {
+    background: #ECFDF5 !important;
+    border-left: 4px solid #10B981 !important;
+    border-radius: 0 8px 8px 0 !important;
+    padding: 0.75rem 1rem !important;
+}
+
+.stWarning > div {
+    background: #FFFBEB !important;
+    border-left: 4px solid #F59E0B !important;
+    border-radius: 0 8px 8px 0 !important;
+    padding: 0.75rem 1rem !important;
+}
+
+.stInfo > div {
+    background: #EFF6FF !important;
+    border-left: 4px solid #6366F1 !important;
+    border-radius: 0 8px 8px 0 !important;
+    padding: 0.75rem 1rem !important;
+}
+
+/* ===== 画像サムネイル ===== */
+.stImage {
+    border-radius: 8px !important;
+    overflow: hidden !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* ===== ステータスバッジ ===== */
+.status-complete {
+    background: #10B981 !important;
+    color: white !important;
+    padding: 0.2rem 0.6rem !important;
+    border-radius: 4px !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+}
+
+.status-pending {
+    background: #F59E0B !important;
+    color: white !important;
+    padding: 0.2rem 0.6rem !important;
+    border-radius: 4px !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+}
+
+/* ===== サイドバー ===== */
+[data-testid="stSidebar"] {
+    background: white !important;
+    border-right: 1px solid #E5E7EB !important;
+}
+
+/* ===== 不要な余白削除 ===== */
+.stMarkdown p {
+    margin-bottom: 0.5rem !important;
+}
+
+/* ===== ラベル文字を小さく ===== */
+.stTextInput label,
+.stTextArea label,
+.stSelectbox label,
+.stFileUploader label {
+    font-size: 0.85rem !important;
+    color: #6B7280 !important;
+    font-weight: 500 !important;
+}
+
+/* ===== カラム間のスペース ===== */
+[data-testid="column"] {
+    padding: 0 0.5rem !important;
+}
+
+/* ===== 区切り線 ===== */
+hr {
+    border: none !important;
+    height: 1px !important;
+    background: #E5E7EB !important;
+    margin: 1.5rem 0 !important;
+}
+
+/* ===== セクション見出し ===== */
+.step-header {
+    color: #364e96 !important;
+    border: solid 3px #364e96 !important;
+    padding: 0.6em 1em !important;
+    border-radius: 0.5em !important;
+    font-size: 1.2rem !important;
+    font-weight: 700 !important;
+    display: inline-block !important;
+    background: white !important;
+    line-height: 1.4 !important;
+    box-sizing: border-box !important;
+    margin-bottom: 1rem !important;
+    margin-top: 1.5rem !important;
+}

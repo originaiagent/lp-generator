@@ -1,0 +1,112 @@
+import streamlit as st
+from modules.data_store import DataStore
+
+# ページ設定
+st.set_page_config(page_title="製品一覧", page_icon="📋")
+
+def render_product_list_page():
+    '''製品一覧ページのメイン関数'''
+    st.title('📋 製品一覧')
+    
+    data_store = DataStore()
+    
+    # 新規製品作成フォーム
+    render_create_product_form(data_store)
+    
+    st.divider()
+    
+    # 製品一覧表示
+    products = data_store.list_products()
+    
+    if not products:
+        st.info("製品がありません。新規製品を作成してください。")
+    else:
+        st.subheader("製品一覧")
+        for product in products:
+            render_product_card(product, data_store)
+
+def render_create_product_form(data_store):
+    '''新規製品作成フォーム'''
+    with st.expander("新規製品作成", expanded=False):
+        product_name = st.text_input("製品名", key="new_product_name")
+        
+        if st.button("新規製品作成"):
+            if product_name.strip():
+                with st.spinner("製品を作成中..."):
+                    try:
+                        data_store.create_product(product_name.strip())
+                        st.success(f"製品「{product_name}」を作成しました")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"製品作成に失敗しました: {str(e)}")
+            else:
+                st.error("製品名を入力してください")
+
+def render_product_card(product, data_store):
+    '''製品カード表示'''
+    with st.container(border=True):
+        col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
+        
+        with col1:
+            st.subheader(product['name'])
+            
+            # ステータス表示
+            status = product.get('status', 'draft')
+            if status == 'completed':
+                st.success("✅ 完了")
+            elif status == 'in_progress':
+                st.warning("🔄 進行中")
+            else:
+                st.info("📝 下書き")
+        
+        with col2:
+            if st.button("選択", key=f"select_{product['id']}"):
+                select_product(product['id'])
+        
+        with col3:
+            if st.button("編集", key=f"edit_{product['id']}"):
+                select_product(product['id'])
+                st.switch_page("pages/02_input.py")
+        
+        with col4:
+            if st.button("削除", key=f"delete_{product['id']}", type="secondary"):
+                # 確認ダイアログ
+                if f"confirm_delete_{product['id']}" not in st.session_state:
+                    st.session_state[f"confirm_delete_{product['id']}"] = False
+                
+                if st.session_state[f"confirm_delete_{product['id']}"] == False:
+                    st.session_state[f"confirm_delete_{product['id']}"] = True
+                    st.rerun()
+        
+        # 削除確認
+        if st.session_state.get(f"confirm_delete_{product['id']}", False):
+            st.warning("⚠️ 本当に削除しますか？")
+            col_yes, col_no = st.columns(2)
+            
+            with col_yes:
+                if st.button("はい", key=f"yes_{product['id']}", type="primary"):
+                    with st.spinner("削除中..."):
+                        try:
+                            data_store.delete_product(product['id'])
+                            st.success("製品を削除しました")
+                            # セッション状態をクリア
+                            if st.session_state.get('current_product_id') == product['id']:
+                                st.session_state['current_product_id'] = None
+                            if f"confirm_delete_{product['id']}" in st.session_state:
+                                del st.session_state[f"confirm_delete_{product['id']}"]
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"削除に失敗しました: {str(e)}")
+            
+            with col_no:
+                if st.button("いいえ", key=f"no_{product['id']}"):
+                    st.session_state[f"confirm_delete_{product['id']}"] = False
+                    st.rerun()
+
+def select_product(product_id):
+    '''製品選択'''
+    st.session_state['current_product_id'] = product_id
+    st.success("製品を選択しました")
+
+# メイン関数を呼び出し
+render_product_list_page()

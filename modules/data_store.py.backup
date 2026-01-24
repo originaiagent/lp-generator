@@ -1,0 +1,73 @@
+import json
+import os
+import uuid
+from datetime import datetime
+from typing import Dict, Any, List, Optional
+
+class DataStore:
+    def __init__(self, data_dir: str = "data/products"):
+        self.data_dir = data_dir
+        os.makedirs(data_dir, exist_ok=True)
+    
+    def create_product(self, name: str) -> Dict[str, Any]:
+        product_id = f"prod_{uuid.uuid4().hex[:8]}"
+        timestamp = datetime.now().isoformat()
+        
+        product = {
+            "id": product_id,
+            "name": name,
+            "status": "draft",
+            "created_at": timestamp,
+            "updated_at": timestamp
+        }
+        
+        file_path = os.path.join(self.data_dir, f"{product_id}.json")
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(product, f, ensure_ascii=False, indent=2)
+        
+        return product
+    
+    def get_product(self, product_id: str) -> Dict[str, Any]:
+        file_path = os.path.join(self.data_dir, f"{product_id}.json")
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Product {product_id} not found")
+        
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    
+    def update_product(self, product_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
+        product = self.get_product(product_id)
+        product.update(updates)
+        product["updated_at"] = datetime.now().isoformat()
+        
+        file_path = os.path.join(self.data_dir, f"{product_id}.json")
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(product, f, ensure_ascii=False, indent=2)
+        
+        return product
+    
+    def delete_product(self, product_id: str) -> bool:
+        file_path = os.path.join(self.data_dir, f"{product_id}.json")
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            return True
+        return False
+    
+    def list_products(self, status: Optional[str] = None) -> List[Dict[str, Any]]:
+        products = []
+        
+        if not os.path.exists(self.data_dir):
+            return products
+        
+        for filename in os.listdir(self.data_dir):
+            if filename.endswith('.json'):
+                file_path = os.path.join(self.data_dir, filename)
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        product = json.load(f)
+                        if status is None or product.get("status") == status:
+                            products.append(product)
+                except (json.JSONDecodeError, IOError):
+                    continue
+        
+        return products

@@ -1,0 +1,67 @@
+{
+  "last_updated": "2026-01-12",
+  "usd_to_jpy": 150,
+  "text_generation": {
+    "claude": {
+      "claude-sonnet-4-20250514": {"input": 3.0, "output": 15.0},
+      "claude-3-5-sonnet-20241022": {"input": 3.0, "output": 15.0},
+      "claude-3-5-haiku-20241022": {"input": 0.8, "output": 4.0},
+      "claude-3-opus-20240229": {"input": 15.0, "output": 75.0}
+    },
+    "gpt": {
+      "gpt-5.2": {"input": 1.75, "output": 14.0},
+      "gpt-5.2-pro": {"input": 21.0, "output": 168.0},
+      "gpt-5.2-pro-2025-12-11": {"input": 21.0, "output": 168.0},
+      "gpt-5.2-2025-12-11": {"input": 1.75, "output": 14.0},
+      "gpt-5.2-chat-latest": {"input": 1.75, "output": 14.0},
+      "gpt-5.1": {"input": 1.75, "output": 14.0},
+      "gpt-5.1-2025-11-13": {"input": 1.75, "output": 14.0},
+      "gpt-5.1-chat-latest": {"input": 1.75, "output": 14.0},
+      "gpt-5.1-codex": {"input": 1.75, "output": 14.0},
+      "gpt-5.1-codex-mini": {"input": 0.25, "output": 2.0},
+      "gpt-5.1-codex-max": {"input": 21.0, "output": 168.0},
+      "gpt-5-pro": {"input": 21.0, "output": 168.0},
+      "gpt-5-pro-2025-10-06": {"input": 21.0, "output": 168.0},
+      "gpt-5-search-api": {"input": 1.75, "output": 14.0},
+      "gpt-5-search-api-2025-10-14": {"input": 1.75, "output": 14.0},
+      "gpt-image-1.5": {"input": 5.0, "output": 10.0},
+      "gpt-image-1-mini": {"input": 2.0, "output": 0.0},
+      "chatgpt-image-latest": {"input": 5.0, "output": 10.0},
+      "gpt-4o-mini-transcribe-2025-03-20": {"input": 0.15, "output": 0.6},
+      "gpt-4o-mini-transcribe-2025-12-15": {"input": 0.15, "output": 0.6}
+    },
+    "gemini": {
+      "gemini-3-pro-preview": {"input": 2.0, "output": 12.0},
+      "gemini-3-flash-preview": {"input": 0.5, "output": 3.0},
+      "gemini-2.5-pro": {"input": 1.25, "output": 10.0},
+      "gemini-2.5-flash": {"input": 0.3, "output": 2.5},
+      "gemini-2.0-flash-exp": {"input": 0.1, "output": 0.4},
+      "gemini-2.0-flash-lite-001": {"input": 0.075, "output": 0.3},
+      "gemini-exp-1206": {"input": 0.1, "output": 0.4},
+      "gemini-flash-latest": {"input": 0.1, "output": 0.4},
+      "gemini-flash-lite-latest": {"input": 0.075, "output": 0.3},
+      "gemini-pro-latest": {"input": 1.25, "output": 10.0}
+    }
+  },
+  "image_generation": {
+    "dall-e-3": {"input": 0, "output": 40.0},
+    "dall-e-2": {"input": 0, "output": 20.0},
+    "gpt-image-1.5": {"input": 5.0, "output": 10.0},
+    "gpt-image-1-mini": {"input": 2.0, "output": 0},
+    "nano-banana-pro-preview": {"input": 2.0, "output": 120.0},
+    "gemini-3-pro-image-preview": {"input": 2.0, "output": 120.0},
+    "gemini-2.5-flash-image": {"input": 0.3, "output": 30.0},
+    "gemini-2.5-flash-image-preview": {"input": 0.3, "output": 30.0},
+    "gemini-2.0-flash-exp-image-generation": {"input": 0.1, "output": 30.0},
+    "imagen-4.0-ultra-generate-001": {"input": 0, "output": 60.0},
+    "imagen-4.0-ultra-generate-preview-06-06": {"input": 0, "output": 60.0},
+    "imagen-4.0-generate-001": {"input": 0, "output": 40.0},
+    "imagen-4.0-generate-preview-06-06": {"input": 0, "output": 40.0},
+    "imagen-4.0-fast-generate-001": {"input": 0, "output": 20.0}
+  },
+  "pricing_urls": {
+    "anthropic": "https://www.anthropic.com/pricing",
+    "openai": "https://openai.com/api/pricing/",
+    "google": "https://ai.google.dev/pricing"
+  }
+}

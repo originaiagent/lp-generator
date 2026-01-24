@@ -1,0 +1,57 @@
+{
+  "default_provider": "openai",
+  "task_models": {
+    "default": "gemini-3-flash-preview",
+    "image_analysis": "gemini-3-pro-preview",
+    "image_analysis_provider": "gemini"
+  },
+  "image_generation": {
+    "provider": "gemini",
+    "model": "gemini-3-pro-image-preview",
+    "size": "1024x1024"
+  },
+  "available_models": {
+    "gemini": [
+      "gemini-2.0-flash",
+      "gemini-2.0-pro"
+    ],
+    "openai": [
+      "gpt-4o",
+      "gpt-4o-mini"
+    ],
+    "anthropic": [
+      "claude-3-opus",
+      "claude-3-sonnet"
+    ]
+  },
+  "api_keys": {
+    "gemini": {
+      "status": "not_configured"
+    },
+    "openai": {
+      "status": "not_configured"
+    },
+    "anthropic": {
+      "status": "not_configured"
+    }
+  },
+  "image_provider": "gemini",
+  "llm_provider": "gemini",
+  "llm_model": "gemini-3-flash-preview",
+  "image_model": "gemini-3-pro-image-preview",
+  "ai_pricing": {
+    "claude": {
+      "input": 3.0,
+      "output": 15.0
+    },
+    "gpt": {
+      "input": 2.5,
+      "output": 10.0
+    },
+    "gemini": {
+      "input": 0.075,
+      "output": 0.3
+    }
+  },
+  "usd_to_jpy": 150
+}

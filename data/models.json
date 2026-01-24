@@ -1,0 +1,246 @@
+{
+  "llm": {
+    "anthropic": [
+      {
+        "id": "claude-sonnet-4-20250514",
+        "name": "Claude Sonnet 4",
+        "desc": "最新、バランス型"
+      },
+      {
+        "id": "claude-3-5-sonnet-20241022",
+        "name": "Claude 3.5 Sonnet",
+        "desc": "高性能"
+      },
+      {
+        "id": "claude-3-5-haiku-20241022",
+        "name": "Claude 3.5 Haiku",
+        "desc": "高速、低コスト"
+      },
+      {
+        "id": "claude-3-opus-20240229",
+        "name": "Claude 3 Opus",
+        "desc": "最高性能"
+      }
+    ],
+    "openai": [
+      {
+        "id": "chatgpt-image-latest",
+        "name": "CHATGPT IMAGE LATEST",
+        "desc": "OpenAI"
+      },
+      {
+        "id": "gpt-4o-mini-transcribe-2025-03-20",
+        "name": "GPT 4O MINI TRANSCRIBE 2025 03 20",
+        "desc": "OpenAI"
+      },
+      {
+        "id": "gpt-4o-mini-transcribe-2025-12-15",
+        "name": "GPT 4O MINI TRANSCRIBE 2025 12 15",
+        "desc": "OpenAI"
+      },
+      {
+        "id": "gpt-5.2-chat-latest",
+        "name": "GPT 5.2 CHAT LATEST",
+        "desc": "OpenAI"
+      },
+      {
+        "id": "gpt-5.2-pro",
+        "name": "GPT 5.2 PRO",
+        "desc": "OpenAI"
+      },
+      {
+        "id": "gpt-5.2-pro-2025-12-11",
+        "name": "GPT 5.2 PRO 2025 12 11",
+        "desc": "OpenAI"
+      },
+      {
+        "id": "gpt-5.2",
+        "name": "GPT 5.2",
+        "desc": "OpenAI"
+      },
+      {
+        "id": "gpt-5.2-2025-12-11",
+        "name": "GPT 5.2 2025 12 11",
+        "desc": "OpenAI"
+      },
+      {
+        "id": "gpt-image-1.5",
+        "name": "GPT IMAGE 1.5",
+        "desc": "OpenAI"
+      },
+      {
+        "id": "gpt-5.1-codex-max",
+        "name": "GPT 5.1 CODEX MAX",
+        "desc": "OpenAI"
+      },
+      {
+        "id": "gpt-5.1-codex-mini",
+        "name": "GPT 5.1 CODEX MINI",
+        "desc": "OpenAI"
+      },
+      {
+        "id": "gpt-5.1-codex",
+        "name": "GPT 5.1 CODEX",
+        "desc": "OpenAI"
+      },
+      {
+        "id": "gpt-5.1",
+        "name": "GPT 5.1",
+        "desc": "OpenAI"
+      },
+      {
+        "id": "gpt-5.1-2025-11-13",
+        "name": "GPT 5.1 2025 11 13",
+        "desc": "OpenAI"
+      },
+      {
+        "id": "gpt-5.1-chat-latest",
+        "name": "GPT 5.1 CHAT LATEST",
+        "desc": "OpenAI"
+      },
+      {
+        "id": "gpt-5-search-api-2025-10-14",
+        "name": "GPT 5 SEARCH API 2025 10 14",
+        "desc": "OpenAI"
+      },
+      {
+        "id": "gpt-5-search-api",
+        "name": "GPT 5 SEARCH API",
+        "desc": "OpenAI"
+      },
+      {
+        "id": "gpt-5-pro",
+        "name": "GPT 5 PRO",
+        "desc": "OpenAI"
+      },
+      {
+        "id": "gpt-5-pro-2025-10-06",
+        "name": "GPT 5 PRO 2025 10 06",
+        "desc": "OpenAI"
+      },
+      {
+        "id": "gpt-image-1-mini",
+        "name": "GPT IMAGE 1 MINI",
+        "desc": "OpenAI"
+      }
+    ],
+    "gemini": [
+      {
+        "id": "gemini-3-pro-preview",
+        "name": "Gemini 3 Pro",
+        "desc": "最新、最高性能"
+      },
+      {
+        "id": "gemini-3-flash-preview",
+        "name": "Gemini 3 Flash",
+        "desc": "最新、高速"
+      },
+      {
+        "id": "gemini-2.5-pro",
+        "name": "Gemini 2.5 Pro",
+        "desc": "高性能"
+      },
+      {
+        "id": "gemini-2.5-flash",
+        "name": "Gemini 2.5 Flash",
+        "desc": "バランス型"
+      },
+      {
+        "id": "gemini-2.0-flash-exp",
+        "name": "Gemini 2.0 Flash",
+        "desc": "高速"
+      },
+      {
+        "id": "gemini-2.0-flash-lite-001",
+        "name": "Gemini 2.0 Flash Lite",
+        "desc": "軽量、低コスト"
+      },
+      {
+        "id": "gemini-exp-1206",
+        "name": "Gemini 1206",
+        "desc": "Gemini"
+      },
+      {
+        "id": "gemini-flash-latest",
+        "name": "Gemini Flash latest",
+        "desc": "Gemini"
+      },
+      {
+        "id": "gemini-flash-lite-latest",
+        "name": "Gemini Flash Lite latest",
+        "desc": "軽量、低コスト"
+      },
+      {
+        "id": "gemini-pro-latest",
+        "name": "Gemini Pro latest",
+        "desc": "Gemini"
+      }
+    ]
+  },
+  "image": {
+    "openai": [
+      {
+        "id": "dall-e-3",
+        "name": "DALL-E 3",
+        "desc": "高品質画像生成"
+      },
+      {
+        "id": "dall-e-2",
+        "name": "DALL-E 2",
+        "desc": "低コスト"
+      }
+    ],
+    "gemini": [
+      {
+        "id": "nano-banana-pro-preview",
+        "name": "Nano Banana Pro",
+        "desc": "最高品質（推奨）"
+      },
+      {
+        "id": "imagen-4.0-ultra-generate-preview-06-06",
+        "name": "Imagen 4.0 Ultra Generate Preview 06 06",
+        "desc": "最高品質"
+      },
+      {
+        "id": "imagen-4.0-ultra-generate-001",
+        "name": "Imagen 4.0 Ultra",
+        "desc": "最高品質"
+      },
+      {
+        "id": "imagen-4.0-generate-preview-06-06",
+        "name": "Imagen 4.0 Generate Preview 06 06",
+        "desc": "高品質"
+      },
+      {
+        "id": "imagen-4.0-generate-001",
+        "name": "Imagen 4.0",
+        "desc": "高品質"
+      },
+      {
+        "id": "gemini-3-pro-image-preview",
+        "name": "Gemini 3 Pro Image",
+        "desc": "画像生成"
+      },
+      {
+        "id": "gemini-2.0-flash-exp-image-generation",
+        "name": "Gemini 2.0 Flash Exp Image Generation",
+        "desc": "画像生成"
+      },
+      {
+        "id": "gemini-2.5-flash-image-preview",
+        "name": "Gemini 2.5 Flash Image",
+        "desc": "画像生成"
+      },
+      {
+        "id": "gemini-2.5-flash-image",
+        "name": "Gemini 2.5 Flash Image",
+        "desc": "画像生成"
+      },
+      {
+        "id": "imagen-4.0-fast-generate-001",
+        "name": "Imagen 4.0 Fast",
+        "desc": "高速"
+      }
+    ]
+  }
+}

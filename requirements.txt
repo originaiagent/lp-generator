@@ -1,0 +1,7 @@
+streamlit
+google-generativeai
+anthropic
+openai
+python-pptx
+Pillow
+replit

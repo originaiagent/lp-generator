@@ -1,0 +1,5 @@
+{
+  "image_analysis": "この画像を分析してください。製品名: {product_name}",
+  "general_analysis": "以下の内容について分析してください: {content}",
+  "summary": "{text}を要約してください。"
+}
