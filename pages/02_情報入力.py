@@ -402,10 +402,9 @@ def organize_keyword_data(product, data_store, product_id):
 
             if data_store.update_product(product_id, product):
                 st.success("キーワード分析完了！")
+                st.rerun()
             else:
-                st.error("DB更新失敗")
-            
-            st.rerun()
+                st.error("DB更新失敗: 保存できませんでした。Supabaseのセットアップを確認してください。")
             
         except Exception as e:
             st.error(f"分析エラー: {e}")
@@ -463,10 +462,9 @@ def organize_sheet_data(product, data_store, product_id):
 
             if data_store.update_product(product_id, product):
                  st.success("整理完了！")
+                 st.rerun()
             else:
-                 st.error("DB更新失敗")
-            
-            st.rerun()
+                 st.error("DB更新失敗: 保存できませんでした。Supabaseのセットアップを確認してください。")
             
         except Exception as e:
             st.error(f"整理エラー: {e}")
