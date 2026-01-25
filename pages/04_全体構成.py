@@ -56,7 +56,7 @@ def render_input_summary(product):
     """入力情報サマリー（折りたたみ）"""
     with st.expander("📋 入力情報サマリー（クリックで展開）", expanded=False):
         # LP分析結果サマリー
-        lp_analyses = product.get('lp_analyses', [])
+        lp_analyses = product.get('lp_analyses') or []
         if lp_analyses:
             st.markdown(f"**📊 LP分析:** {len(lp_analyses)}枚分析済み")
             for i, analysis in enumerate(lp_analyses):
@@ -67,7 +67,7 @@ def render_input_summary(product):
                     st.write(f"  - {i+1}枚目: {page_type}（テキスト{text_count}個）")
         
         # トンマナ分析結果サマリー
-        tone = product.get('tone_manner', {})
+        tone = product.get('tone_manner') or {}
         if isinstance(tone, dict) and "result" in tone:
             tone_result = tone["result"]
             style = tone_result.get("overall_style", {}).get("impression", "未分析")
@@ -81,7 +81,7 @@ def render_input_summary(product):
             st.write(f"**製品名:** {product.get('name', '未設定')}")
             st.write(f"**説明:** {product.get('description', '未設定')[:100] if product.get('description') else '未設定'}")
             
-            images = product.get('product_images', [])
+            images = product.get('product_images') or []
             st.write(f"**製品画像:** {len(images)}枚")
             
             if product.get('product_sheet_data'):
@@ -101,7 +101,7 @@ def render_input_summary(product):
                 st.info("「入力情報」ページで競合分析を実行してください")
         
         st.markdown('<div class="step-header">🎨 参考LP分析</div>', unsafe_allow_html=True)
-        ref_images = product.get('reference_lp_images', [])
+        ref_images = product.get('reference_lp_images') or []
         lp_analyses = product.get("lp_analyses") or []
         
         st.write(f"**参考画像:** {len(ref_images)}枚")
@@ -130,7 +130,7 @@ def render_appeal_analysis(product, data_store, product_id):
     
     # 分析結果表示
     from modules.trace_viewer import show_trace
-    raw_appeals = product.get("appeal_points", {})
+    raw_appeals = product.get("appeal_points") or {}
     
     if isinstance(raw_appeals, dict) and "result" in raw_appeals:
         appeals = raw_appeals["result"]
@@ -144,8 +144,8 @@ def render_appeal_analysis(product, data_store, product_id):
         with col1:
             st.markdown("**💪 自社の訴求ポイント**")
             st.caption("製品情報シートから抽出")
-            selected = product.get('selected_appeals', [])
-            own_appeals = appeals.get('own_appeals', [])
+            selected = product.get('selected_appeals') or []
+            own_appeals = appeals.get('own_appeals') or []
             
             for i, item in enumerate(own_appeals):
                 name = item.get('name', '')
@@ -166,7 +166,7 @@ def render_appeal_analysis(product, data_store, product_id):
         with col2:
             st.markdown("**🔍 競合の訴求ポイント**")
             st.caption("競合分析から抽出（参考にする場合はチェック）")
-            competitor_appeals = appeals.get('competitor_appeals', [])
+            competitor_appeals = appeals.get('competitor_appeals') or []
             for i, item in enumerate(competitor_appeals):
                 name = item.get('name', '')
                 desc = item.get('description', '')
@@ -180,7 +180,7 @@ def render_appeal_analysis(product, data_store, product_id):
                 st.caption(f"　{desc}")
             
             st.markdown("**✨ 差別化ポイント**")
-            diff_appeals = appeals.get('differentiation', [])
+            diff_appeals = appeals.get('differentiation') or []
             for i, item in enumerate(diff_appeals):
                 name = item.get('name', '')
                 reason = item.get('reason', '')
@@ -245,7 +245,7 @@ def extract_appeal_points(product, data_store, product_id):
                         effect = elem.get("effect", "")
                         content_text = str(elem.get("content", ""))[:30]
                         elem_type = elem.get("element_type", elem.get("type", ""))
-                        items = elem.get("items", [])
+                        items = elem.get("items") or []
                         if aim:
                             if items:
                                 lp_info += f"\n- [{elem_type}] {len(items)}項目 (狙い:{aim}, 効果:{effect})"
@@ -304,7 +304,7 @@ def render_page_structure(product, data_store, product_id):
     st.markdown('<div class="step-header">📄 ページ構成</div>', unsafe_allow_html=True)
     
     # 全体の流れを表示
-    raw_structure = product.get('structure', {})
+    raw_structure = product.get('structure') or {}
     if isinstance(raw_structure, dict) and "result" in raw_structure:
         structure = raw_structure["result"]
         overview = structure.get("overview", "")
@@ -312,8 +312,8 @@ def render_page_structure(product, data_store, product_id):
             st.info(f"📋 **全体の流れ:** {overview}")
     
     # 構成自動生成ボタン
-    selected = product.get('selected_appeals', [])
-    lp_analyses = product.get('lp_analyses', [])
+    selected = product.get('selected_appeals') or []
+    lp_analyses = product.get('lp_analyses') or []
     
     if lp_analyses:
         st.success(f"✅ 参考LP {len(lp_analyses)}枚 / 訴求ポイント {len(selected)}個選択済み")
@@ -351,7 +351,7 @@ def render_page_structure(product, data_store, product_id):
     
     # 現在の構成表示
     from modules.trace_viewer import show_trace
-    raw_structure = product.get('structure', {})
+    raw_structure = product.get('structure') or {}
     
     # トレース形式対応
     if isinstance(raw_structure, dict) and "result" in raw_structure:
@@ -424,10 +424,10 @@ def generate_structure_from_elements(product, data_store, product_id):
             confirmed = product.get('confirmed_elements', [])
             
             # LP分析結果からページ構成情報を抽出
-            lp_analyses = product.get('lp_analyses', [])
+            lp_analyses = product.get('lp_analyses') or []
             
             # 選択された訴求ポイント
-            selected_appeals = product.get('selected_appeals', [])
+            selected_appeals = product.get('selected_appeals') or []
             
             input_refs = {
                 "製品名": product.get('name', '未設定'),
