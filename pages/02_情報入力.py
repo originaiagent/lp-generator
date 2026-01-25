@@ -812,12 +812,14 @@ def analyze_all_competitors(product_id, data_store):
         for i in range(st.session_state.competitor_count):
             comp_name = st.session_state.get(f"comp_name_{i}", f"競合{i+1}")
             file_paths = st.session_state.get(f"comp_files_paths_{i}", [])
+            file_urls = st.session_state.get(f"comp_file_urls_{i}", [])
             comp_text = st.session_state.get(f"comp_text_{i}", "")
             
-            if file_paths or comp_text.strip():
+            if file_paths or file_urls or comp_text.strip():
                 targets.append({
                     "name": comp_name,
                     "files": file_paths,
+                    "file_urls": file_urls,
                     "text": comp_text
                 })
         
@@ -839,6 +841,8 @@ def analyze_all_competitors(product_id, data_store):
                 target["files"], 
                 target["text"]
             )
+            # URLを書き戻し（分析結果に含まれないため）
+            result["file_urls"] = target.get("file_urls", [])
             results.append(result)
         
         progress_bar.progress(1.0)
