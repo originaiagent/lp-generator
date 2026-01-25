@@ -6,3 +6,5 @@ python-pptx
 Pillow
 requests
 python-dotenv
+supabase>=2.0.0
+gotrue>=2.0.0
