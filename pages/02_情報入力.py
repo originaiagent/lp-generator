@@ -359,6 +359,12 @@ def organize_keyword_data(product, data_store, product_id):
     from modules.prompt_manager import PromptManager
     from modules.trace_viewer import save_with_trace
     
+    st.info("キーワード分析を開始します...")
+    
+    # ProductがNoneの場合のガード
+    if not product:
+        product = {}
+
     with st.spinner("キーワード重要度を分析中..."):
         try:
             settings_manager = SettingsManager()
@@ -367,7 +373,7 @@ def organize_keyword_data(product, data_store, product_id):
             prompt_manager = PromptManager()
             
             # シートデータを文字列化
-            sheet_data = product.get("review_sheet_data", {})
+            sheet_data = product.get("review_sheet_data") or {}
             raw_text = ""
             if isinstance(sheet_data, dict):
                 data_type = sheet_data.get("type", "")
@@ -422,6 +428,12 @@ def organize_sheet_data(product, data_store, product_id):
     from modules.prompt_manager import PromptManager
     from modules.trace_viewer import save_with_trace
     
+    st.info("シート整理を開始します...")
+
+    # ProductがNoneの場合のガード
+    if not product:
+        product = {}
+    
     with st.spinner("シート内容を整理中..."):
         try:
             settings_manager = SettingsManager()
@@ -430,7 +442,7 @@ def organize_sheet_data(product, data_store, product_id):
             prompt_manager = PromptManager()
             
             # シートデータを文字列化
-            sheet_data = product.get("product_sheet_data", {})
+            sheet_data = product.get("product_sheet_data") or {}
             raw_text = ""
             if isinstance(sheet_data, dict):
                 data_type = sheet_data.get("type", "")
