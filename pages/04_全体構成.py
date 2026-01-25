@@ -538,8 +538,11 @@ def generate_structure_from_elements(product, data_store, product_id):
             st.success("構成を生成しました！")
             st.rerun()
         else:
-            st.error("DBへの保存に失敗しました。")
+            error_msg = f"DBへの保存に失敗しました。{data_store.last_error or ''}"
+            st.error(error_msg)
             debug_area.error("❌ DB保存失敗")
+            if data_store.last_error:
+                st.code(data_store.last_error)
         
     except json.JSONDecodeError as e:
         st.error(f"JSON解析エラー: {e}")
