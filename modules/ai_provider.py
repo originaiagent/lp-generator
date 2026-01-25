@@ -9,9 +9,9 @@ class AIProvider:
         self.settings = settings
         self.current_provider = settings.get("default_provider", "gemini")
         self.current_model = settings.get("default_model", "gemini-1.5-flash")
-        self.anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
-        self.openai_api_key = os.getenv("OPENAI_API_KEY")
-        self.google_api_key = os.getenv("GOOGLE_API_KEY")
+        self.anthropic_api_key = (os.getenv("ANTHROPIC_API_KEY") or "").strip().strip('"').strip("'")
+        self.openai_api_key = (os.getenv("OPENAI_API_KEY") or "").strip().strip('"').strip("'")
+        self.google_api_key = (os.getenv("GOOGLE_API_KEY") or "").strip().strip('"').strip("'")
     
     def ask(self, prompt: str, task: str = "chat", images: List[str] = None) -> str:
         # タスク別プロバイダ対応
