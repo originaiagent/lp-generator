@@ -17,23 +17,39 @@ class DataStore:
         self.use_supabase = False
         self.headers = {}
         self.base_url = ""
+        self.supabase: Client = None
+        self.service_key = os.environ.get("SUPABASE_SERVICE_KEY")
         
-        if SUPABASE_URL and SUPABASE_KEY:
-            self.use_supabase = True
-            self.base_url = f"{SUPABASE_URL}/rest/v1"
-            self.headers = {
-                "apikey": SUPABASE_KEY,
-                "Authorization": f"Bearer {SUPABASE_KEY}",
-                "Content-Type": "application/json",
-                "Prefer": "return=representation"
-            }
+        # 環境変数から設定を取得
+        base_url = os.environ.get("SUPABASE_URL")
+        api_key = os.environ.get("SUPABASE_KEY")
+
+        if base_url and (api_key or self.service_key):
             try:
-                self.supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+                # サービスキーがあれば優先的に使用（RLS回避用）
+                key_to_use = self.service_key if self.service_key else api_key
+                self.supabase = create_client(base_url, key_to_use)
+                self.use_supabase = True
+                self.base_url = f"{base_url}/rest/v1"
+                
+                # ヘッダー情報を取得（手動構築ではなくクライアントから取得）
+                if self.supabase.options and self.supabase.options.headers:
+                     self.headers = self.supabase.options.headers
+                else:
+                     # フォールバック
+                     self.headers = {
+                        "apikey": key_to_use,
+                        "Authorization": f"Bearer {key_to_use}",
+                        "Content-Type": "application/json"
+                     }
+                     
+                if self.service_key:
+                    print("Using Supabase Service Role Key (Admin Access)")
+                    
             except Exception as e:
-                print(f"Supabase client init error: {e}")
+                print(f"Supabase connection/init error: {e}")
+                self.use_supabase = False
                 self.supabase = None
-        else:
-            self.supabase = None
 
     def _get_from_supabase(self, product_id: str):
         """Supabaseから取得 (REST API)"""
