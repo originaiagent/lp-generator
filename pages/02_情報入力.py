@@ -250,10 +250,16 @@ def render_competitor_analysis(data_store, product_id):
     # 各競合の入力エリア
     for i in range(st.session_state.competitor_count):
         with st.expander(f"🏢 競合{i+1}", expanded=False):
+            # キーとデフォルト値の準備
+            name_key = f"comp_name_{i}"
+            default_name = f"競合{i+1}"
+            if name_key not in st.session_state:
+                st.session_state[name_key] = default_name
+
             comp_name = st.text_input(
                 "競合名",
-                value=st.session_state.get(f"comp_name_{i}", f"競合{i+1}"),
-                key=f"comp_name_{i}",
+                # value引数は削除（session_state優先）
+                key=name_key,
                 placeholder="例: A社、B社",
                 on_change=save_competitor_data,
                 args=(product_id, data_store)
@@ -309,12 +315,15 @@ def render_competitor_analysis(data_store, product_id):
                     if len(saved_files) > 6:
                         st.caption(f"他 {len(saved_files) - 6}枚")
             
-            with col2:
-                st.markdown("**📝 テキスト情報**")
+                # キーの準備
+                text_key = f"comp_text_{i}"
+                if text_key not in st.session_state:
+                    st.session_state[text_key] = ""
+
                 comp_text = st.text_area(
                     "競合のLP情報をコピペ",
                     height=150,
-                    key=f"comp_text_{i}",
+                    key=text_key,
                     placeholder="競合商品ページから情報をコピー&ペースト...",
                     label_visibility="collapsed",
                     on_change=save_competitor_data,
