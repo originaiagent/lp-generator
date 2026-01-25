@@ -880,25 +880,44 @@ def render_reference_images_upload(data_store, product_id):
             data_store.update_product(product_id, product)
     
         
-        # アップロード済み参考LP画像表示
+        # アップロード済み参考LP画像表示（クラウドURL優先）
         product = data_store.get_product(product_id)
+        # URLリストとローカルパスリストを統合して表示対象にする
+        display_images = []
+        
+        # URLがあればそれを優先
+        if product and product.get("reference_lp_image_urls"):
+            display_images.extend([{"type": "url", "path": url} for url in product["reference_lp_image_urls"]])
+        
+        # ローカルパスも（URLに含まれていないものがあれば）
         if product and product.get("reference_lp_images"):
+            # URLのファイル名と比較して重複を除く簡易ロジック
+            url_filenames = [u.split("/")[-1] for u in product.get("reference_lp_image_urls", [])]
+            for img in product["reference_lp_images"]:
+                if Path(img).name not in url_filenames and Path(img).exists():
+                     display_images.append({"type": "local", "path": img})
+
+        if display_images:
             st.markdown("**📁 アップロード済み:**")
             cols = st.columns(4)
-            for i, img in enumerate(product["reference_lp_images"]):
+            for i, img_info in enumerate(display_images):
                 with cols[i % 4]:
-                    if Path(img).exists():
-                        st.image(img, width=100)
+                    img_path = img_info["path"]
+                    try:
+                        st.image(img_path, width=100)
                         if st.button("🗑️", key=f"del_lp_{i}"):
-                            product["reference_lp_images"].remove(img)
-                            # 分析結果も削除
-                            if "lp_analyses_dict" in product:
-                                img_name = Path(img).name
-                                if img_name in product["lp_analyses_dict"]:
-                                    del product["lp_analyses_dict"][img_name]
-                                product["lp_analyses"] = list(product["lp_analyses_dict"].values())
+                            # 削除ロジック：URLとローカルパス両方から削除を試みる
+                            if img_info["type"] == "url":
+                                if img_path in product.get("reference_lp_image_urls", []):
+                                    product["reference_lp_image_urls"].remove(img_path)
+                            else:
+                                if img_path in product.get("reference_lp_images", []):
+                                    product["reference_lp_images"].remove(img_path)
+                            
                             data_store.update_product(product_id, product)
                             st.rerun()
+                    except:
+                        st.error(f"非表示: {Path(img_path).name}")
         
         # LP分析結果表示
         from modules.trace_viewer import show_trace
@@ -1003,19 +1022,38 @@ def render_reference_images_upload(data_store, product_id):
             
             data_store.update_product(product_id, product)
         
-        # アップロード済みトンマナ画像表示
+        # アップロード済みトンマナ画像表示（クラウドURL優先）
         product = data_store.get_product(product_id)
+        tm_display_images = []
+        
+        if product and product.get("tone_manner_image_urls"):
+            tm_display_images.extend([{"type": "url", "path": url} for url in product["tone_manner_image_urls"]])
+            
         if product and product.get("tone_manner_images"):
+            url_filenames = [u.split("/")[-1] for u in product.get("tone_manner_image_urls", [])]
+            for img in product["tone_manner_images"]:
+                if Path(img).name not in url_filenames and Path(img).exists():
+                     tm_display_images.append({"type": "local", "path": img})
+
+        if tm_display_images:
             st.markdown("**📁 アップロード済み:**")
             cols = st.columns(4)
-            for i, img in enumerate(product["tone_manner_images"]):
+            for i, img_info in enumerate(tm_display_images):
                 with cols[i % 4]:
-                    if Path(img).exists():
-                        st.image(img, width=100)
+                    img_path = img_info["path"]
+                    try:
+                        st.image(img_path, width=100)
                         if st.button("🗑️", key=f"del_tone_{i}"):
-                            product["tone_manner_images"].remove(img)
+                            if img_info["type"] == "url":
+                                if img_path in product.get("tone_manner_image_urls", []):
+                                    product["tone_manner_image_urls"].remove(img_path)
+                            else:
+                                if img_path in product.get("tone_manner_images", []):
+                                    product["tone_manner_images"].remove(img_path)
                             data_store.update_product(product_id, product)
                             st.rerun()
+                    except:
+                        st.error("表示エラー")
         
         # トンマナ分析結果表示
         from modules.trace_viewer import show_trace
