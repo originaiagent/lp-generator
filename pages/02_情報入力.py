@@ -317,40 +317,41 @@ def handle_competitor_upload(product_id, data_store, comp_idx):
             st.rerun()
 
 
-def save_competitor_data(product_id, data_store):
-    """入力中の競合データをDBに保存（分析前の一時保存）"""
+def save_competitor_field(product_id, data_store, comp_idx, field_name):
+    """特定の競合の特定フィールドだけをDBに保存"""
+    # セッションから対応するキー名を取得
+    session_key = f"comp_{field_name}_{comp_idx}"
+    if field_name == "files":
+        session_key = f"comp_files_paths_{comp_idx}"
+    elif field_name == "file_urls":
+        session_key = f"comp_file_urls_{comp_idx}"
+        
+    new_value = st.session_state.get(session_key)
+    if new_value is None:
+        return
+
+    # DBから最新状態を取得してマージ
     product = data_store.get_product(product_id) or {}
     current_data = product.get("competitor_analysis_v2") or {}
-    competitors = current_data.get("competitors", [])
-    
-    # セッションステートからデータを収集して更新
-    count = st.session_state.get("competitor_count", 1)
-    
-    # 既存リストと新しいカウントの整合性を取る
-    new_competitors = []
-    for i in range(count):
-        # 既存データがあれば引き継ぐ
-        comp_data = competitors[i] if i < len(competitors) else {}
-        
-        if not comp_data:
-            comp_data = {"name": f"競合{i+1}", "text": "", "files": [], "file_urls": []}
+    competitors = (current_data.get("competitors") or []).copy()
 
-        # セッションの最新値で上書き（キーが存在する場合のみ更新）
-        if f"comp_name_{i}" in st.session_state:
-            comp_data["name"] = st.session_state[f"comp_name_{i}"]
-        if f"comp_text_{i}" in st.session_state:
-            comp_data["text"] = st.session_state[f"comp_text_{i}"]
-        if f"comp_files_paths_{i}" in st.session_state:
-            comp_data["files"] = st.session_state[f"comp_files_paths_{i}"]
-        if f"comp_file_urls_{i}" in st.session_state:
-            comp_data["file_urls"] = st.session_state[f"comp_file_urls_{i}"]
-        
-        new_competitors.append(comp_data)
-            
-    current_data["competitors"] = new_competitors
+    # インデックスの整合性確保
+    while len(competitors) <= comp_idx:
+        competitors.append({
+            "name": f"競合{len(competitors)+1}", 
+            "text": "", 
+            "files": [], 
+            "file_urls": []
+        })
+
+    # 該当する競合の指定フィールドだけを更新
+    competitors[comp_idx][field_name] = new_value
+
+    current_data["competitors"] = competitors
     product["competitor_analysis_v2"] = current_data
+    
     if data_store.update_product(product_id, product):
-        st.toast("競合情報を保存しました", icon="💾")
+        st.toast(f"保存完了: {competitors[comp_idx].get('name', '競合')}")
 
 def render_competitor_analysis(data_store, product_id):
     '''競合情報分析セクション'''
@@ -416,8 +417,8 @@ def render_competitor_analysis(data_store, product_id):
                 # value引数は削除（session_state優先）
                 key=name_key,
                 placeholder="例: A社、B社",
-                on_change=save_competitor_data,
-                args=(product_id, data_store)
+                on_change=save_competitor_field,
+                args=(product_id, data_store, i, "name")
             )
             
             col1, col2 = st.columns(2)
@@ -480,8 +481,8 @@ def render_competitor_analysis(data_store, product_id):
                     key=text_key,
                     placeholder="競合商品ページから情報をコピー&ペースト...",
                     label_visibility="collapsed",
-                    on_change=save_competitor_data,
-                    args=(product_id, data_store)
+                    on_change=save_competitor_field,
+                    args=(product_id, data_store, i, "text")
                 )
     
     st.markdown("---")
