@@ -801,9 +801,11 @@ def render_reference_images_upload(data_store, product_id):
                         uploaded_file.seek(0)
                         file_bytes = uploaded_file.read()
                         remote_path = f"{product_id}/reference_lp/{uploaded_file.name}"
-                        url = data_store.upload_image(file_bytes, remote_path, bucket_name="product-images")
+                        # バケット名を統一
+                        url = data_store.upload_image(file_bytes, remote_path, bucket_name="lp-generator-images")
                         if url and url not in remote_urls:
                             remote_urls.append(url)
+                            st.toast(f"クラウド保存完了: {uploaded_file.name}", icon="☁️")
                     except Exception as e:
                         print(f"Ref Upload failed: {e}")
                 product['reference_lp_image_urls'] = remote_urls
@@ -915,6 +917,23 @@ def render_reference_images_upload(data_store, product_id):
                 if path not in existing:
                     existing.append(path)
             product['tone_manner_images'] = existing
+            
+            # Supabaseへアップロード（トンマナ用）
+            if data_store.use_supabase:
+                remote_urls = product.get('tone_manner_image_urls', [])
+                for uploaded_file in tone_images:
+                    try:
+                        uploaded_file.seek(0)
+                        file_bytes = uploaded_file.read()
+                        remote_path = f"{product_id}/tone_manner/{uploaded_file.name}"
+                        url = data_store.upload_image(file_bytes, remote_path, bucket_name="lp-generator-images")
+                        if url and url not in remote_urls:
+                            remote_urls.append(url)
+                            st.toast(f"クラウド保存完了: {uploaded_file.name}", icon="☁️")
+                    except Exception as e:
+                        print(f"Tone Upload failed: {e}")
+                product['tone_manner_image_urls'] = remote_urls
+            
             data_store.update_product(product_id, product)
         
         # アップロード済みトンマナ画像表示
