@@ -200,7 +200,15 @@ def delete_competitor(product_id, data_store, delete_idx):
     if 0 <= delete_idx < len(competitors):
         # 1. DBデータから削除
         deleted = competitors.pop(delete_idx)
+        
+        # 削除後のリストに基づいて再集計（AI呼び出しなしで済みます）
+        from modules.image_analyzer import ImageAnalyzer
+        # summarize_all_competitorsはAIプロバイダを使用しないためNoneで初期化可
+        analyzer = ImageAnalyzer(None, None) 
+        new_summary = analyzer.summarize_all_competitors(competitors)
+        current_data["summary"] = new_summary
         current_data["competitors"] = competitors
+        
         product["competitor_analysis_v2"] = current_data
         data_store.update_product(product_id, product)
         
