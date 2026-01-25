@@ -162,7 +162,10 @@ class DataStore:
         
         # Supabase DBに保存（Streamlit Cloud対応）
         if self.use_supabase:
-            self._save_to_supabase(product)
+            if not self._save_to_supabase(product):
+                import streamlit as st
+                st.error("データベースへの保存に失敗しました。再試行してください。")
+                return False
         
         # ローカルファイルにも保存（バックアップ）
         file_path = self.data_dir / f"{product_id}.json"

@@ -207,7 +207,8 @@ def save_competitor_data(product_id, data_store):
             
     current_data["competitors"] = new_competitors
     product["competitor_analysis_v2"] = current_data
-    data_store.update_product(product_id, product)
+    if data_store.update_product(product_id, product):
+        st.toast("競合情報を保存しました", icon="💾")
 
 def render_competitor_analysis(data_store, product_id):
     '''競合情報分析セクション'''
@@ -677,13 +678,15 @@ def save_product_sheet(product_id, data_store):
     product = data_store.get_product(product_id)
     if product and "edit_organized" in st.session_state:
         product["product_sheet_organized"] = st.session_state.edit_organized
-        data_store.update_product(product_id, product)
+        if data_store.update_product(product_id, product):
+            st.toast("製品シート情報を保存しました", icon="💾")
 
 def save_keyword_sheet(product_id, data_store):
     product = data_store.get_product(product_id)
     if product and "edit_keyword" in st.session_state:
         product["keyword_organized"] = st.session_state.edit_keyword
-        data_store.update_product(product_id, product)
+        if data_store.update_product(product_id, product):
+            st.toast("キーワード情報を保存しました", icon="💾")
 
 def render_sheets_upload(data_store, product_id):
     '''各種シートアップロード'''
