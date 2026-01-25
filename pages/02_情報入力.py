@@ -332,11 +332,18 @@ def save_competitor_data(product_id, data_store):
         # 既存データがあれば引き継ぐ
         comp_data = competitors[i] if i < len(competitors) else {}
         
-        # セッションの最新値で上書き
-        comp_data["name"] = st.session_state.get(f"comp_name_{i}", f"競合{i+1}")
-        comp_data["text"] = st.session_state.get(f"comp_text_{i}", "")
-        comp_data["files"] = st.session_state.get(f"comp_files_paths_{i}", [])
-        comp_data["file_urls"] = st.session_state.get(f"comp_file_urls_{i}", [])
+        if not comp_data:
+            comp_data = {"name": f"競合{i+1}", "text": "", "files": [], "file_urls": []}
+
+        # セッションの最新値で上書き（キーが存在する場合のみ更新）
+        if f"comp_name_{i}" in st.session_state:
+            comp_data["name"] = st.session_state[f"comp_name_{i}"]
+        if f"comp_text_{i}" in st.session_state:
+            comp_data["text"] = st.session_state[f"comp_text_{i}"]
+        if f"comp_files_paths_{i}" in st.session_state:
+            comp_data["files"] = st.session_state[f"comp_files_paths_{i}"]
+        if f"comp_file_urls_{i}" in st.session_state:
+            comp_data["file_urls"] = st.session_state[f"comp_file_urls_{i}"]
         
         new_competitors.append(comp_data)
             
@@ -352,7 +359,9 @@ def render_competitor_analysis(data_store, product_id):
     st.caption("競合ごとに画像・テキストをアップロード → 訴求要素を自動抽出")
     
     # セッション初期化（保存データがあれば復元）
-    if "competitor_count" not in st.session_state:
+    # プロダクトIDが変わった場合も初期化を行う
+    if "competitor_count" not in st.session_state or st.session_state.get("last_product_id") != product_id:
+        st.session_state.last_product_id = product_id
         # DBから保存済みデータを取得
         product = data_store.get_product(product_id)
         saved_competitors = []
