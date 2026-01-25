@@ -122,7 +122,7 @@ def render_product_images_upload(data_store, product_id):
                     remote_path = f"{product_id}/product_images/{uploaded_file.name}"
                     
                     # アップロード試行
-                    url = data_store.upload_image(file_bytes, remote_path, bucket_name="product-dev-images")
+                    url = data_store.upload_image(file_bytes, remote_path, bucket_name="lp-generator-images")
                     
                     if url:
                         if url not in remote_urls:
