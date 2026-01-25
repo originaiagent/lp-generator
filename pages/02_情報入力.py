@@ -120,14 +120,27 @@ def render_product_images_upload(data_store, product_id):
                     uploaded_file.seek(0)
                     file_bytes = uploaded_file.read()
                     remote_path = f"{product_id}/product_images/{uploaded_file.name}"
+                    
+                    # アップロード試行
                     url = data_store.upload_image(file_bytes, remote_path, bucket_name="product-images")
-                    if url and url not in remote_urls:
-                        remote_urls.append(url)
+                    
+                    if url:
+                        if url not in remote_urls:
+                            remote_urls.append(url)
+                            st.toast(f"クラウド保存完了: {uploaded_file.name}", icon="☁️")
+                    else:
+                        st.error(f"アップロード失敗: URLが取得できませんでした ({uploaded_file.name})")
+                        
                 except Exception as e:
-                    print(f"Upload failed: {e}")
+                    st.error(f"Upload failed for {uploaded_file.name}: {e}")
+            
             product['product_image_urls'] = remote_urls
 
-        data_store.update_product(product_id, product)
+        # データベース更新
+        if data_store.update_product(product_id, product):
+            st.success("製品情報を更新しました")
+        else:
+            st.error("データベースの更新に失敗しました")
     
     # アップロード済み画像を表示
     product = data_store.get_product(product_id)
