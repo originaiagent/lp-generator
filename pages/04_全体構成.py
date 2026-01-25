@@ -432,100 +432,123 @@ def generate_structure_from_elements(product, data_store, product_id):
     """確定要素から構成を自動生成"""
     from modules.trace_viewer import save_with_trace
     from modules.prompt_manager import PromptManager
+    import traceback
     
-    with st.spinner("構成を生成中..."):
-        try:
-            settings_manager = SettingsManager()
-            settings = settings_manager.get_settings()
-            ai_provider = AIProvider(settings)
-            prompt_manager = PromptManager()
-            
-            confirmed = product.get('confirmed_elements', [])
-            
-            # LP分析結果からページ構成情報を抽出
-            lp_analyses = product.get('lp_analyses') or []
-            
-            # 選択された訴求ポイント
-            selected_appeals = product.get('selected_appeals') or []
-            
-            input_refs = {
-                "製品名": product.get('name', '未設定'),
-                "整理済み情報": "あり" if product.get('product_sheet_organized') else "なし",
-                "訴求ポイント": f"{len(selected_appeals)}個",
-                "参考LP": f"{len(lp_analyses)}枚"
-            }
-            page_count = len(lp_analyses)
-            lp_summary = ""
-            for i, analysis in enumerate(lp_analyses):
-                if isinstance(analysis, dict) and "result" in analysis:
-                    result = analysis["result"]
-                    lp_summary += f"\n\n【{i+1}枚目】種別: {result.get('page_type', '不明')}"
-                    if result.get('main_message'):
-                        lp_summary += f"\nメッセージ: {result.get('main_message')}"
-                    if result.get('page_role'):
-                        lp_summary += f"\n役割: {result.get('page_role')}"
-                    texts = result.get("texts", [])
-                    if texts:
-                        lp_summary += f"\nテキスト要素:"
-                        for t in texts[:5]:
-                            lp_summary += f"\n  - {t.get('type')}: {t.get('content', '')[:50]}"
-                            if t.get('aim'):
-                                lp_summary += f" → {t.get('aim')}"
-            
-            # 選択された訴求ポイント
-            selected_appeals = product.get('selected_appeals', [])
-            appeals_str = ', '.join(selected_appeals) if selected_appeals else "未選択"
-            
-            prompt = prompt_manager.get_prompt("structure_generation", {
-                "page_count": page_count,
-                "product_name": product.get('name', ''),
-                "product_description": product.get('description', ''),
-                "lp_analysis_summary": lp_summary if lp_summary else "なし",
-                "selected_appeals": appeals_str
-            })
-            
-            result = ai_provider.ask(prompt, "structure_generation")
-            
-            if "```json" in result:
-                result = result.split("```json")[1].split("```")[0]
-            elif "```" in result:
-                result = result.split("```")[1].split("```")[0]
-            
-            structure = json.loads(result.strip())
-            
-            # システム側でページIDを確定的に付与（UUIDベース）
-            import uuid
-            if 'pages' in structure:
-                for i, page in enumerate(structure['pages']):
-                    page['id'] = f"pg_{uuid.uuid4().hex[:8]}"
-                    page['order'] = i + 1
-                    page['reference_page'] = i + 1
-            
-            traced = save_with_trace(
-                result=structure,
-                prompt_id="structure_generation",
-                prompt_used=prompt,
-                input_refs=input_refs,
-                model=settings.get("llm_model", "unknown")
-            )
-            
-            product['structure'] = traced
-            
-            # 構成再生成時は関連データをクリア
-            product['page_details'] = {}
-            product['page_contents'] = {}
-            product['generated_lp_images'] = {}
-            product['generated_versions'] = {}
-            product['custom_prompts'] = {}
-            
-            data_store.update_product(product_id, product)
+    debug_area = st.empty()
+    debug_area.info("⏳ 準備中...")
+    
+    try:
+        settings_manager = SettingsManager()
+        settings = settings_manager.get_settings()
+        ai_provider = AIProvider(settings)
+        prompt_manager = PromptManager()
+        
+        confirmed = product.get('confirmed_elements', [])
+        
+        # LP分析結果からページ構成情報を抽出
+        lp_analyses = product.get('lp_analyses') or []
+        
+        # 選択された訴求ポイント
+        selected_appeals = product.get('selected_appeals') or []
+        
+        input_refs = {
+            "製品名": product.get('name', '未設定'),
+            "整理済み情報": "あり" if product.get('product_sheet_organized') else "なし",
+            "訴求ポイント": f"{len(selected_appeals)}個",
+            "参考LP": f"{len(lp_analyses)}枚"
+        }
+        page_count = len(lp_analyses)
+        lp_summary = ""
+        for i, analysis in enumerate(lp_analyses):
+            if isinstance(analysis, dict) and "result" in analysis:
+                result = analysis["result"]
+                lp_summary += f"\n\n【{i+1}枚目】種別: {result.get('page_type', '不明')}"
+                if result.get('main_message'):
+                    lp_summary += f"\nメッセージ: {result.get('main_message')}"
+                if result.get('page_role'):
+                    lp_summary += f"\n役割: {result.get('page_role')}"
+                texts = result.get("texts", [])
+                if texts:
+                    lp_summary += f"\nテキスト要素:"
+                    for t in texts[:5]:
+                        lp_summary += f"\n  - {t.get('type')}: {t.get('content', '')[:50]}"
+                        if t.get('aim'):
+                            lp_summary += f" → {t.get('aim')}"
+        
+        # 訴求ポイント
+        appeals_str = ', '.join(selected_appeals) if selected_appeals else "未選択"
+        
+        debug_area.info(f"🧠 AIに依頼中... (訴求ポイント: {len(selected_appeals)}個 / 参考LP: {page_count}枚)")
+        
+        from modules.prompt_manager import PromptManager
+        prompt_manager = PromptManager()
+        prompt = prompt_manager.get_prompt("structure_generation", {
+            "page_count": page_count,
+            "product_name": product.get('name', ''),
+            "product_description": product.get('description', ''),
+            "lp_analysis_summary": lp_summary if lp_summary else "なし",
+            "selected_appeals": appeals_str
+        })
+        
+        result = ai_provider.ask(prompt, "structure_generation")
+        
+        if not result:
+            st.error("AIからのレスポンスが空でした。再度お試しください。")
+            debug_area.error("❌ AIレスポンスが空")
+            return
+        
+        debug_area.info("📝 結果を解析中...")
+        
+        if "```json" in result:
+            result = result.split("```json")[1].split("```")[0]
+        elif "```" in result:
+            result = result.split("```")[1].split("```")[0]
+        
+        structure = json.loads(result.strip())
+        
+        # システム側でページIDを確定的に付与（UUIDベース）
+        import uuid
+        if 'pages' in structure:
+            for i, page in enumerate(structure['pages']):
+                page['id'] = f"pg_{uuid.uuid4().hex[:8]}"
+                page['order'] = i + 1
+                page['reference_page'] = i + 1
+        
+        traced = save_with_trace(
+            result=structure,
+            prompt_id="structure_generation",
+            prompt_used=prompt,
+            input_refs=input_refs,
+            model=settings.get("llm_model", "unknown")
+        )
+        
+        product['structure'] = traced
+        
+        debug_area.info("💾 DBに保存中...")
+        
+        # 構成再生成時は関連データをクリア
+        product['page_details'] = {}
+        product['page_contents'] = {}
+        product['generated_lp_images'] = {}
+        product['generated_versions'] = {}
+        product['custom_prompts'] = {}
+        
+        if data_store.update_product(product_id, product):
+            debug_area.success("✅ 生成完了！")
             st.success("構成を生成しました！")
             st.rerun()
-            
-        except json.JSONDecodeError as e:
-            st.error(f"JSON解析エラー: {e}")
-        except Exception as e:
-            st.error(f"生成エラー: {e}")
+        else:
+            st.error("DBへの保存に失敗しました。")
+            debug_area.error("❌ DB保存失敗")
+        
+    except json.JSONDecodeError as e:
+        st.error(f"JSON解析エラー: {e}")
+        st.code(result) # 解析失敗したJSONを表示
+        debug_area.error("❌ JSON解析失敗")
+    except Exception as e:
+        st.error(f"生成エラー: {e}")
+        st.code(traceback.format_exc())
+        debug_area.error(f"❌ エラー: {str(e)}")
 
 # メイン実行
 render_structure_page()
