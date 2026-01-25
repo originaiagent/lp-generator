@@ -161,6 +161,7 @@ def render_product_images_upload(data_store, product_id):
             # マスクしてキー表示
             key = data_store.headers.get("apikey", "")
             st.write(f"Supabase Key: {key[:5]}...{key[-5:]}" if key else "None")
+            st.write(f"Using Service Key: {bool(data_store.service_key)}")
     
     # Supabase Storage URLを優先して表示（Streamlit Cloud対応）
     image_urls = product.get("product_image_urls", []) if product else []
