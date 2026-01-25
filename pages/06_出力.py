@@ -328,7 +328,7 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                 # 参照LP
                 if ref_image_path and Path(ref_image_path).exists():
                     st.markdown("**📷 参照LP**")
-                    st.image(ref_image_path, use_container_width=True)
+                    st.image(ref_image_path, width="stretch")
                 
                 # トーンマナー簡易表示
                 if tone_manner:
@@ -359,13 +359,13 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                     
                     with img_col:
                         if v_path and Path(v_path).exists():
-                            st.image(v_path, use_container_width=True)
+                            st.image(v_path, width="stretch")
                         else:
                             st.warning("画像ファイルが見つかりません")
                     
                     with btn_col:
                         # 再生成ボタン
-                        if st.button("🔄 再生成", key=f"regen_{page_id}_{v_id}", use_container_width=True):
+                        if st.button("🔄 再生成", key=f"regen_{page_id}_{v_id}", width="stretch"):
                             # カスタムプロンプトがあれば使用
                             custom_prompt = product_data.get('custom_prompts', {}).get(page_id, {}).get('image_prompt')
                             regenerate_pattern(
@@ -376,7 +376,7 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                         
                         # 採用ボタン
                         if not is_selected:
-                            if st.button("⭐ 採用", key=f"select_{page_id}_{v_id}", use_container_width=True):
+                            if st.button("⭐ 採用", key=f"select_{page_id}_{v_id}", width="stretch"):
                                 for v in versions:
                                     v['is_selected'] = (v['id'] == v_id)
                                 versions_data['selected'] = v_id
@@ -387,11 +387,11 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                                 st.rerun()
                         
                         # プロンプト確認
-                        if st.button("🔍 プロンプト", key=f"view_prompt_{page_id}_{v_id}", use_container_width=True):
+                        if st.button("🔍 プロンプト", key=f"view_prompt_{page_id}_{v_id}", width="stretch"):
                             st.session_state[f'show_prompt_{page_id}_{v_id}'] = True
                         
                         # 削除ボタン
-                        if st.button("🗑️ 削除", key=f"delete_{page_id}_{v_id}", use_container_width=True):
+                        if st.button("🗑️ 削除", key=f"delete_{page_id}_{v_id}", width="stretch"):
                             versions.remove(version)
                             if is_selected and versions:
                                 versions[0]['is_selected'] = True
@@ -436,7 +436,7 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
             
             np_col1, np_col2, np_col3 = st.columns([2, 2, 1])
             with np_col1:
-                if st.button("🚀 生成開始", key=f"start_gen_{page_id}", use_container_width=True, type="primary"):
+                if st.button("🚀 生成開始", key=f"start_gen_{page_id}", width="stretch", type="primary"):
                     st.session_state[new_pattern_key] = False
                     generate_lp_page(
                         ai_provider, prompt_manager,
@@ -445,7 +445,7 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                         custom_prompt=new_pattern_prompt
                     )
             with np_col2:
-                if st.button("🗑️ キャンセル", key=f"cancel_new_{page_id}", use_container_width=True):
+                if st.button("🗑️ キャンセル", key=f"cancel_new_{page_id}", width="stretch"):
                     st.session_state[new_pattern_key] = False
                     st.rerun()
             with np_col3:
@@ -459,7 +459,7 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
             # 新規パターン追加ボタン
             add_col1, add_col2, add_col3 = st.columns([2, 1, 1])
             with add_col1:
-                if st.button("➕ 新規パターン追加", key=f"add_pattern_{page_id}", use_container_width=True):
+                if st.button("➕ 新規パターン追加", key=f"add_pattern_{page_id}", width="stretch"):
                     st.session_state[new_pattern_key] = True
                     st.rerun()
             with add_col3:
@@ -737,7 +737,7 @@ def render_design_instruction_section(output_generator, product_data):
     
     instr_col1, instr_col2 = st.columns([6, 1])
     with instr_col1:
-        instr_clicked = st.button("📝 指示書を生成", use_container_width=True)
+        instr_clicked = st.button("📝 指示書を生成", width="stretch")
     with instr_col2:
         if st.button("💰", key="cost_instruction", help="直前の生成コスト"):
             if 'last_api_usage' in st.session_state and st.session_state.last_api_usage:
@@ -768,7 +768,7 @@ def render_download_section(output_generator, product_data):
                 data=st.session_state['generated_instruction'],
                 file_name=f"{product_data.get('name', 'product')}_instruction.txt",
                 mime="text/plain",
-                use_container_width=True
+                width="stretch"
             )
         else:
             st.info("指示書を生成してください")

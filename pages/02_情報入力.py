@@ -155,14 +155,19 @@ def render_product_images_upload(data_store, product_id):
         cols = st.columns(4)
         for i, img_url in enumerate(image_urls):
             with cols[i % 4]:
+                # 画像表示（失敗しても警告のみ）
                 try:
-                    st.image(img_url, use_container_width=True)
-                    if st.button("🗑️", key=f"del_prod_img_url_{i}"):
+                    st.image(img_url, caption=f"Image {i+1}", width="stretch")
+                except Exception as e:
+                    st.warning(f"読込失敗: {e}")
+                
+                # 削除ボタンは常に表示
+                if st.button("🗑️", key=f"del_prod_img_url_{i}"):
+                    if img_url in product.get("product_image_urls", []):
                         product["product_image_urls"].remove(img_url)
                         data_store.update_product(product_id, product)
                         st.rerun()
-                except Exception as e:
-                    st.warning(f"画像読み込みエラー: {e}")
+
     elif local_images:
         # フォールバック：ローカルファイル（ローカル開発時用）
         st.markdown("**📁 アップロード済み画像 (ローカル):**")
@@ -174,13 +179,16 @@ def render_product_images_upload(data_store, product_id):
                     resolved_path = Path.cwd() / img_path
                 
                 if resolved_path.exists():
-                    st.image(str(resolved_path), use_container_width=True)
-                    if st.button("🗑️", key=f"del_prod_img_{i}"):
+                    st.image(str(resolved_path), caption=resolved_path.name, width="stretch")
+                else:
+                    st.warning(f"ファイルなし: {img_path}")
+                
+                # 削除ボタンは常に表示
+                if st.button("🗑️", key=f"del_prod_img_{i}"):
+                    if img_path in product.get("product_images", []):
                         product["product_images"].remove(img_path)
                         data_store.update_product(product_id, product)
                         st.rerun()
-                else:
-                    st.warning(f"ファイルなし: {img_path}")
 
 
 def save_competitor_data(product_id, data_store):
@@ -334,7 +342,7 @@ def render_competitor_analysis(data_store, product_id):
     st.markdown("---")
     
     # 一括分析ボタン
-    if st.button("🔍 一括分析", type="primary", use_container_width=True, key="analyze_all_competitors"):
+    if st.button("🔍 一括分析", type="primary", width="stretch", key="analyze_all_competitors"):
         analyze_all_competitors(product_id, data_store)
     
     # 分析結果表示
@@ -825,6 +833,105 @@ def render_sheets_upload(data_store, product_id):
                     organize_keyword_data(product, data_store, product_id)
 
 
+
+def handle_lp_upload(product_id, data_store):
+    """参考LP画像アップロード時のコールバック処理"""
+    if "uploader_key_lp" not in st.session_state:
+        st.session_state.uploader_key_lp = 0
+    
+    key = f"lp_images_{st.session_state.uploader_key_lp}"
+    lp_images = st.session_state.get(key)
+    
+    if lp_images:
+        upload_dir = Path(f"data/uploads/{product_id}/reference_lp")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        
+        image_paths = []
+        for uploaded_file in lp_images:
+            file_path = upload_dir / uploaded_file.name
+            with open(file_path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
+            image_paths.append(str(file_path))
+            # コールバック内でのst.success等は次回レンダリング時に消える可能性があるためtoastを使用
+            st.toast(f"アップロード完了: {uploaded_file.name}")
+        
+        # 最新の製品情報を取得
+        product = data_store.get_product(product_id) or {}
+        
+        # 既存の画像リストに追加
+        existing = product.get('reference_lp_images', [])
+        for path in image_paths:
+            if path not in existing:
+                existing.append(path)
+        product['reference_lp_images'] = existing
+        
+        # Supabaseへアップロード
+        if data_store.use_supabase:
+            remote_urls = product.get('reference_lp_image_urls', [])
+            for uploaded_file in lp_images:
+                try:
+                    uploaded_file.seek(0)
+                    file_bytes = uploaded_file.read()
+                    remote_path = f"{product_id}/reference_lp/{uploaded_file.name}"
+                    url = data_store.upload_image(file_bytes, remote_path, bucket_name="lp-generator-images")
+                    if url and url not in remote_urls:
+                        remote_urls.append(url)
+                except Exception as e:
+                    print(f"Ref Upload failed: {e}")
+            product['reference_lp_image_urls'] = remote_urls
+
+        data_store.update_product(product_id, product)
+        
+        # 次回レンダリング時にフォームをクリアするためにキーを更新
+        st.session_state.uploader_key_lp += 1
+
+
+def handle_tone_upload(product_id, data_store):
+    """トンマナ画像アップロード時のコールバック処理"""
+    if "uploader_key_tone" not in st.session_state:
+        st.session_state.uploader_key_tone = 0
+        
+    key = f"tone_images_{st.session_state.uploader_key_tone}"
+    tone_images = st.session_state.get(key)
+    
+    if tone_images:
+        upload_dir = Path(f"data/uploads/{product_id}/tone_manner")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        
+        image_paths = []
+        for uploaded_file in tone_images:
+            file_path = upload_dir / uploaded_file.name
+            with open(file_path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
+            image_paths.append(str(file_path))
+            st.toast(f"アップロード完了: {uploaded_file.name}")
+        
+        product = data_store.get_product(product_id) or {}
+        
+        existing = product.get('tone_manner_images', [])
+        for path in image_paths:
+            if path not in existing:
+                existing.append(path)
+        product['tone_manner_images'] = existing
+        
+        if data_store.use_supabase:
+            remote_urls = product.get('tone_manner_image_urls', [])
+            for uploaded_file in tone_images:
+                try:
+                    uploaded_file.seek(0)
+                    file_bytes = uploaded_file.read()
+                    remote_path = f"{product_id}/tone_manner/{uploaded_file.name}"
+                    url = data_store.upload_image(file_bytes, remote_path, bucket_name="lp-generator-images")
+                    if url and url not in remote_urls:
+                        remote_urls.append(url)
+                except Exception as e:
+                    print(f"Tone Upload failed: {e}")
+            product['tone_manner_image_urls'] = remote_urls
+        
+        data_store.update_product(product_id, product)
+        
+        st.session_state.uploader_key_tone += 1
+
 def render_reference_images_upload(data_store, product_id):
     '''参考画像アップロード'''
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
@@ -834,53 +941,20 @@ def render_reference_images_upload(data_store, product_id):
     
     with col1:
         st.write("**参考LP画像**")
+        
+        # セッションステートでアップローダーのキーを管理
+        if "uploader_key_lp" not in st.session_state:
+            st.session_state.uploader_key_lp = 0
+            
         lp_images = st.file_uploader(
             "参考LP画像をアップロードしてください",
             type=['png', 'jpg', 'jpeg'],
             accept_multiple_files=True,
-            key="lp_images"
+            key=f"lp_images_{st.session_state.uploader_key_lp}",
+            on_change=handle_lp_upload,
+            args=(product_id, data_store)
         )
-        
-        if lp_images:
-            upload_dir = Path(f"data/uploads/{product_id}/reference_lp")
-            upload_dir.mkdir(parents=True, exist_ok=True)
-            
-            image_paths = []
-            for uploaded_file in lp_images:
-                file_path = upload_dir / uploaded_file.name
-                with open(file_path, "wb") as f:
-                    f.write(uploaded_file.getbuffer())
-                image_paths.append(str(file_path))
-                st.success(f"アップロード完了: {uploaded_file.name}")
-            
-            product = data_store.get_product(product_id)
-            if not product:
-                product = {}
-            # 既存の画像リストに追加
-            existing = product.get('reference_lp_images', [])
-            for path in image_paths:
-                if path not in existing:
-                    existing.append(path)
-            product['reference_lp_images'] = existing
-            
-            # Supabaseへアップロード
-            if data_store.use_supabase:
-                remote_urls = product.get('reference_lp_image_urls', [])
-                for uploaded_file in lp_images:
-                    try:
-                        uploaded_file.seek(0)
-                        file_bytes = uploaded_file.read()
-                        remote_path = f"{product_id}/reference_lp/{uploaded_file.name}"
-                        # バケット名を統一
-                        url = data_store.upload_image(file_bytes, remote_path, bucket_name="lp-generator-images")
-                        if url and url not in remote_urls:
-                            remote_urls.append(url)
-                            st.toast(f"クラウド保存完了: {uploaded_file.name}", icon="☁️")
-                    except Exception as e:
-                        print(f"Ref Upload failed: {e}")
-                product['reference_lp_image_urls'] = remote_urls
 
-            data_store.update_product(product_id, product)
     
         
         # アップロード済み参考LP画像表示（クラウドURL優先）
@@ -906,21 +980,36 @@ def render_reference_images_upload(data_store, product_id):
             for i, img_info in enumerate(display_images):
                 with cols[i % 4]:
                     img_path = img_info["path"]
+                    caption_text = Path(img_path).name if img_info["type"] == "local" else img_path.split('/')[-1].split('?')[0]
+                    
+                    # 画像表示（失敗してもエラー表示のみ）
                     try:
-                        st.image(img_path, width=100)
-                        if st.button("🗑️", key=f"del_lp_{i}"):
-                            # 削除ロジック：URLとローカルパス両方から削除を試みる
-                            if img_info["type"] == "url":
-                                if img_path in product.get("reference_lp_image_urls", []):
-                                    product["reference_lp_image_urls"].remove(img_path)
-                            else:
-                                if img_path in product.get("reference_lp_images", []):
-                                    product["reference_lp_images"].remove(img_path)
-                            
-                            data_store.update_product(product_id, product)
-                            st.rerun()
-                    except:
-                        st.error(f"非表示: {Path(img_path).name}")
+                        st.image(img_path, caption=caption_text, width=100)
+                    except Exception as e:
+                        st.warning(f"読込失敗: {caption_text}")
+                    
+                    # 削除ボタンは常に表示（画像表示の成否に関わらず）
+                    if st.button("🗑️", key=f"del_lp_{i}"):
+                        # 最新の製品情報を再取得して削除処理を行う
+                        current_product = data_store.get_product(product_id) or {}
+                        target_filename = caption_text
+                        
+                        # URLリストから削除
+                        if "reference_lp_image_urls" in current_product:
+                            current_product["reference_lp_image_urls"] = [
+                                u for u in current_product["reference_lp_image_urls"] 
+                                if u.split('/')[-1].split('?')[0] != target_filename
+                            ]
+                        
+                        # ローカルリストから削除
+                        if "reference_lp_images" in current_product:
+                            current_product["reference_lp_images"] = [
+                                p for p in current_product["reference_lp_images"] 
+                                if Path(p).name != target_filename
+                            ]
+                        
+                        data_store.update_product(product_id, current_product)
+                        st.rerun()
         
         # LP分析結果表示
         from modules.trace_viewer import show_trace
@@ -978,52 +1067,19 @@ def render_reference_images_upload(data_store, product_id):
     
     with col2:
         st.write("**トンマナ参考画像**")
+        
+        if "uploader_key_tone" not in st.session_state:
+            st.session_state.uploader_key_tone = 0
+            
         tone_images = st.file_uploader(
             "トンマナ参考画像をアップロードしてください",
             type=['png', 'jpg', 'jpeg'],
             accept_multiple_files=True,
-            key="tone_images"
+            key=f"tone_images_{st.session_state.uploader_key_tone}",
+            on_change=handle_tone_upload,
+            args=(product_id, data_store)
         )
-        
-        if tone_images:
-            upload_dir = Path(f"data/uploads/{product_id}/tone_manner")
-            upload_dir.mkdir(parents=True, exist_ok=True)
-            
-            image_paths = []
-            for uploaded_file in tone_images:
-                file_path = upload_dir / uploaded_file.name
-                with open(file_path, "wb") as f:
-                    f.write(uploaded_file.getbuffer())
-                image_paths.append(str(file_path))
-                st.success(f"アップロード完了: {uploaded_file.name}")
-            
-            product = data_store.get_product(product_id)
-            if not product:
-                product = {}
-            # 既存の画像リストに追加
-            existing = product.get('tone_manner_images', [])
-            for path in image_paths:
-                if path not in existing:
-                    existing.append(path)
-            product['tone_manner_images'] = existing
-            
-            # Supabaseへアップロード（トンマナ用）
-            if data_store.use_supabase:
-                remote_urls = product.get('tone_manner_image_urls', [])
-                for uploaded_file in tone_images:
-                    try:
-                        uploaded_file.seek(0)
-                        file_bytes = uploaded_file.read()
-                        remote_path = f"{product_id}/tone_manner/{uploaded_file.name}"
-                        url = data_store.upload_image(file_bytes, remote_path, bucket_name="lp-generator-images")
-                        if url and url not in remote_urls:
-                            remote_urls.append(url)
-                            st.toast(f"クラウド保存完了: {uploaded_file.name}", icon="☁️")
-                    except Exception as e:
-                        print(f"Tone Upload failed: {e}")
-                product['tone_manner_image_urls'] = remote_urls
-            
-            data_store.update_product(product_id, product)
+
         
         # アップロード済みトンマナ画像表示（クラウドURL優先）
         product = data_store.get_product(product_id)
@@ -1044,19 +1100,34 @@ def render_reference_images_upload(data_store, product_id):
             for i, img_info in enumerate(tm_display_images):
                 with cols[i % 4]:
                     img_path = img_info["path"]
+                    caption_text = Path(img_path).name if img_info["type"] == "local" else img_path.split('/')[-1].split('?')[0]
+                    
+                    # 画像表示（失敗してもエラー表示のみ）
                     try:
-                        st.image(img_path, width=100)
-                        if st.button("🗑️", key=f"del_tone_{i}"):
-                            if img_info["type"] == "url":
-                                if img_path in product.get("tone_manner_image_urls", []):
-                                    product["tone_manner_image_urls"].remove(img_path)
-                            else:
-                                if img_path in product.get("tone_manner_images", []):
-                                    product["tone_manner_images"].remove(img_path)
-                            data_store.update_product(product_id, product)
-                            st.rerun()
-                    except:
-                        st.error("表示エラー")
+                        st.image(img_path, caption=caption_text, width=100)
+                    except Exception as e:
+                        st.warning(f"読込失敗: {caption_text}")
+                    
+                    # 削除ボタンは常に表示（画像表示の成否に関わらず）
+                    if st.button("🗑️", key=f"del_tone_{i}"):
+                        # 最新の製品情報を再取得して削除処理を行う
+                        current_product = data_store.get_product(product_id) or {}
+                        target_filename = caption_text
+                        
+                        if "tone_manner_image_urls" in current_product:
+                            current_product["tone_manner_image_urls"] = [
+                                u for u in current_product["tone_manner_image_urls"] 
+                                if u.split('/')[-1].split('?')[0] != target_filename
+                            ]
+                            
+                        if "tone_manner_images" in current_product:
+                            current_product["tone_manner_images"] = [
+                                p for p in current_product["tone_manner_images"] 
+                                if Path(p).name != target_filename
+                            ]
+                            
+                        data_store.update_product(product_id, current_product)
+                        st.rerun()
         
         # トンマナ分析結果表示
         from modules.trace_viewer import show_trace
@@ -1098,23 +1169,66 @@ def render_reference_images_upload(data_store, product_id):
                 st.write(tone)
     
     
-    if st.button("🎨 トンマナ画像を分析", type="primary", use_container_width=True):
+    if st.button("🎨 トンマナ画像を分析", type="primary", width="stretch"):
         product = data_store.get_product(product_id)
         if product and product.get("tone_manner_images"):
             analyze_tone_manner_images(product["tone_manner_images"], product_id, data_store)
         else:
             st.warning("トンマナ画像をアップロードしてください")
-    if st.button('🔍 参考画像から構成を分析', type='primary', use_container_width=True):
+    # ボタンを押したら直接分析を実行
+    if st.button('🔍 参考画像から構成を分析', type='primary', width="stretch", key="btn_analyze_structure"):
+        import traceback
+        
+        st.info("分析プロセスを開始しました...")
         product = data_store.get_product(product_id)
-        if product and 'reference_lp_images' in product:
+        
+        # 画像ソースの特定（URLとローカルを統合）
+        urls = product.get('reference_lp_image_urls', [])
+        local = product.get('reference_lp_images', [])
+        
+        # URL優先、ファイル名で重複排除（簡易的）
+        seen_names = set()
+        image_sources = []
+        
+        for url in urls:
+            name = url.split('/')[-1].split('?')[0]
+            if name not in seen_names:
+                image_sources.append(url)
+                seen_names.add(name)
+        
+        for path in local:
+            name = Path(path).name
+            if name not in seen_names:
+                image_sources.append(path)
+                seen_names.add(name)
+
+        # デバッグ情報の表示
+        with st.expander("🛠️ デバッグ情報", expanded=True):
+            st.write(f"Product ID: {product_id}")
+            st.write(f"Product Exists: {bool(product)}")
+            st.write(f"URLs ({len(urls)}):", urls)
+            st.write(f"Local ({len(local)}):", local)
+            st.write(f"Final Sources ({len(image_sources)}):", image_sources)
+
+        if not image_sources:
+            st.error("❌ 分析対象の画像が見つかりません。画像をアップロードしてください。")
+            st.stop()
+        
+        try:
+            # 依存オブジェクトの初期化
             settings_manager = SettingsManager()
             settings = settings_manager.get_settings()
             ai_provider = AIProvider(settings)
             prompt_manager = PromptManager()
             image_analyzer = ImageAnalyzer(ai_provider, prompt_manager)
-            analyze_reference_images(image_analyzer, product['reference_lp_images'], product_id, data_store)
-        else:
-            st.warning("参考LP画像がアップロードされていません")
+            
+            # 分析実行
+            st.write(f"対象画像: {len(image_sources)}枚 - 分析中...")
+            analyze_reference_images(image_analyzer, image_sources, product_id, data_store)
+            
+        except Exception as e:
+            st.error(f"分析中にエラーが発生しました: {e}")
+            st.code(traceback.format_exc())
 
 
 def analyze_tone_manner_images(image_paths, product_id, data_store):
@@ -1224,7 +1338,7 @@ def reanalyze_lp_image(product, data_store, product_id, index):
             )
             
             # 更新
-            lp_analyses = product.get('lp_analyses', [])
+            lp_analyses = product.get('lp_analyses') or []
             while len(lp_analyses) <= index:
                 lp_analyses.append({})
             lp_analyses[index] = traced
@@ -1252,16 +1366,72 @@ def analyze_reference_images(image_analyzer, image_paths, product_id, data_store
             ai_provider = AIProvider(settings)
             prompt_manager = PromptManager()
             
+            # 既存の分析結果を取得
+            product = data_store.get_product(product_id)
+            existing_analyses = product.get('lp_analyses_dict', {}) if product else {}
+            
             analyses = []
+            status_text = st.empty()
+            progress_bar = st.progress(0)
+            
             for i, image_path in enumerate(image_paths):
-                if os.path.exists(image_path):
-                    st.write(f"分析中: {i+1}/{len(image_paths)}枚目...")
-                    
+                file_name = image_path.split('/')[-1].split('?')[0] if image_path.startswith('http') else Path(image_path).name
+                
+                # 既に分析済みならスキップ
+                if file_name in existing_analyses:
+                    st.write(f"✅ 分析済み（スキップ）: {file_name}")
+                    analyses.append(existing_analyses[file_name])
+                    progress_bar.progress((i + 1) / len(image_paths))
+                    continue
+
+                status_text.text(f"分析中: {i+1}/{len(image_paths)}枚目... ({file_name})")
+                progress_bar.progress((i) / len(image_paths))
+                
+                # パスによる存在確認（URLでない、かつローカルファイルが存在しない場合）
+                if not image_path.startswith("http") and not os.path.exists(image_path):
+                    st.error(f"画像ファイルが見つかりません: {Path(image_path).name}")
+                    st.warning("クラウド環境では過去のアップロードファイルが保持されない場合があります。お手数ですが、再度画像をアップロードし直してください。")
+                    continue
+                
+                try:
                     # プロンプト取得
                     prompt = prompt_manager.get_prompt("lp_image_analysis", {})
                     
+                    target_path = image_path
+                    is_temp = False
+                    
+                    # URLの場合は一時ファイルにダウンロード
+                    if image_path.startswith("http"):
+                        try:
+                            import requests
+                            import tempfile
+                            
+                            response = requests.get(image_path, timeout=30)
+                            if response.status_code == 200:
+                                suffix = "." + image_path.split("/")[-1].split("?")[0].split(".")[-1]
+                                if len(suffix) > 5 or "/" in suffix: # 拡張子取得失敗時のフォールバック
+                                    suffix = ".jpg"
+                                    
+                                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                                    tmp.write(response.content)
+                                    target_path = tmp.name
+                                    is_temp = True
+                            else:
+                                st.warning(f"画像ダウンロード失敗（Status {response.status_code}）: {file_name}")
+                                continue
+                        except Exception as dl_err:
+                            st.warning(f"画像ダウンロードエラー: {dl_err}")
+                            continue
+
                     # 画像分析（Vision API）
-                    result = ai_provider.analyze_image(image_path, prompt)
+                    result = ai_provider.analyze_image(target_path, prompt)
+                    
+                    # 一時ファイルの削除
+                    if is_temp and os.path.exists(target_path):
+                        try:
+                            os.unlink(target_path)
+                        except:
+                            pass
                     
                     # JSON抽出
                     try:
@@ -1281,30 +1451,46 @@ def analyze_reference_images(image_analyzer, image_paths, product_id, data_store
                         input_refs={"画像": Path(image_path).name, "順番": i+1},
                         model=settings.get("llm_model", "unknown")
                     )
+                    
+                    # メモリ上のリストに追加
                     analyses.append(traced)
-            
-            if analyses:
-                product = data_store.get_product(product_id)
-                if not product:
-                    product = {}
-                # 画像パスをキーにした辞書形式で保存（重複を防ぐ）
-                existing = product.get('lp_analyses_dict', {})
-                for analysis in analyses:
-                    if isinstance(analysis, dict) and 'trace' in analysis:
-                        img_name = analysis['trace'].get('input_refs', {}).get('画像', '')
-                        if img_name:
-                            existing[img_name] = analysis
-                product['lp_analyses_dict'] = existing
-                # リスト形式も維持（表示用）
-                product['lp_analyses'] = list(existing.values())
-                data_store.update_product(product_id, product)
-                
-                st.success(f"{len(analyses)}枚のLP画像を分析しました")
-                st.rerun()
-            else:
-                st.error("画像の分析に失敗しました")
+                    
+                    # 【重要】1枚ごとに即時保存
+                    product = data_store.get_product(product_id)
+                    if product is None:
+                        product = {}
+
+                    current_dict = product.get('lp_analyses_dict')
+                    if current_dict is None:
+                        current_dict = {}
+
+                    current_dict[file_name] = traced
+                    
+                    product['lp_analyses_dict'] = current_dict
+                    product['lp_analyses'] = list(current_dict.values())
+                    
+                    if data_store.update_product(product_id, product):
+                         existing_analyses[file_name] = traced # ループ内キャッシュも更新
+                    else:
+                         # 保存失敗時もエラーを出さず続行（ログ出力等は検討）
+                         pass
+                         
+                except Exception as e:
+                    st.warning(f"画像分析スキップ（{Path(image_path).name}）: {e}")
+                    # エラー時も一時ファイルがあれば削除
+                    if 'is_temp' in locals() and is_temp and 'target_path' in locals() and os.path.exists(target_path):
+                        try:
+                            os.unlink(target_path)
+                        except:
+                            pass
+
+            # 最終的な完了処理
+            st.session_state.processing_reference_analysis = False
+            st.success(f"全{len(image_paths)}枚の処理が完了しました")
+            st.rerun()
                 
         except Exception as e:
+            st.session_state.processing_reference_analysis = False
             st.error(f"分析エラー: {e}")
 
 # ページ実行

@@ -103,7 +103,8 @@ def check_method_calls(file_path: str) -> Tuple[bool, str]:
         problem_patterns = {
             r'settings_manager\.save_settings': "SettingsManager.save_settings() は存在しない。update_settings() を使用",
             r'\.save_settings\(': "save_settings() は存在しない可能性。update_settings() を確認",
-            r'use_column_width': "use_column_width は非推奨。use_container_width を使用",
+            r'use_column_width': "use_column_width は非推奨。width='stretch' または width='content' を使用",
+            r'use_container_width': "use_container_width は非推奨。width='stretch' または width='content' を使用",
             r'st\.experimental_rerun': "st.experimental_rerun() は非推奨。st.rerun() を使用",
         }
         
@@ -258,7 +259,7 @@ update_settings(dict) - 設定更新
 ※ save_settings() は存在しない！
 
 === Streamlit ===
-use_container_width (not use_column_width)
+width='stretch' or width='content' (not use_container_width)
 st.rerun() (not st.experimental_rerun())
 """
 

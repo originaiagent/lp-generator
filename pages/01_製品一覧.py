@@ -34,7 +34,7 @@ st.subheader("➕ 新規製品作成")
 with st.form("new_product_form"):
     product_name = st.text_input("製品名", placeholder="例: 新商品A")
     product_description = st.text_area("製品概要", placeholder="製品の簡単な説明を入力")
-    submitted = st.form_submit_button("作成", use_container_width=True)
+    submitted = st.form_submit_button("作成", width="stretch")
     
     if submitted and product_name:
         product = data_store.create_product(product_name)
@@ -66,7 +66,7 @@ if products:
             
             with col2:
                 product_id = product.get('id', product.get('name', f'unknown_{idx}'))
-                if st.button("選択", key=f"select_{idx}_{product_id}", use_container_width=True):
+                if st.button("選択", key=f"select_{idx}_{product_id}", width="stretch"):
                     st.session_state['current_product_id'] = product_id
                     st.session_state['current_product_name'] = product.get('name', '名称未設定')
                     st.success(f"「{product.get('name')}」を選択しました")
@@ -90,7 +90,7 @@ if products:
                             st.session_state[confirm_key] = False
                             st.rerun()
                 else:
-                    if st.button("削除", key=delete_key, use_container_width=True):
+                    if st.button("削除", key=delete_key, width="stretch"):
                         st.session_state[confirm_key] = True
                         st.rerun()
             

@@ -98,5 +98,30 @@
       "count": 0,
       "cost_jpy": 0
     }
+  },
+  "2026-01-25": {
+    "total": {
+      "input_tokens": 2705,
+      "output_tokens": 575,
+      "cost_jpy": 1.82
+    },
+    "by_function": {
+      "api_call": {
+        "input": 2705,
+        "output": 575,
+        "cost": 1.82
+      }
+    },
+    "by_provider": {
+      "gemini": {
+        "input": 2705,
+        "output": 575,
+        "cost": 1.82
+      }
+    },
+    "image_generation": {
+      "count": 0,
+      "cost_jpy": 0
+    }
   }
 }

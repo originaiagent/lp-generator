@@ -19,11 +19,11 @@ def render_ai_sidebar():
     with st.sidebar:
         st.markdown("---")
         if st.session_state.show_ai_chat:
-            if st.button("✕ AIを閉じる", use_container_width=True):
+            if st.button("✕ AIを閉じる", width="stretch"):
                 st.session_state.show_ai_chat = False
                 st.rerun()
         else:
-            if st.button("🤖 AIアシスタント", use_container_width=True, type="primary"):
+            if st.button("🤖 AIアシスタント", width="stretch", type="primary"):
                 st.session_state.show_ai_chat = True
                 st.rerun()
     
@@ -126,12 +126,12 @@ def render_chat_panel():
         st.markdown("---")
         col1, col2, col3 = st.columns([1, 1, 3])
         with col1:
-            if st.button("✅ この変更を適用", type="primary", use_container_width=True, key="apply_edit"):
+            if st.button("✅ この変更を適用", type="primary", width="stretch", key="apply_edit"):
                 apply_edit_proposal(st.session_state.pending_edit)
                 del st.session_state.pending_edit
                 st.rerun()
         with col2:
-            if st.button("❌ キャンセル", use_container_width=True, key="cancel_edit"):
+            if st.button("❌ キャンセル", width="stretch", key="cancel_edit"):
                 del st.session_state.pending_edit
                 st.rerun()
     

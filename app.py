@@ -57,19 +57,19 @@ st.subheader("🚀 クイックスタート")
 step_col1, step_col2, step_col3, step_col4 = st.columns(4)
 
 with step_col1:
-    if st.button("1️⃣ 製品作成", use_container_width=True):
+    if st.button("1️⃣ 製品作成", width="stretch"):
         st.switch_page("pages/01_product_list.py")
 
 with step_col2:
-    if st.button("2️⃣ 情報入力", use_container_width=True):
+    if st.button("2️⃣ 情報入力", width="stretch"):
         st.switch_page("pages/02_input.py")
 
 with step_col3:
-    if st.button("3️⃣ モデル設定", use_container_width=True):
+    if st.button("3️⃣ モデル設定", width="stretch"):
         st.switch_page("pages/03_model.py")
 
 with step_col4:
-    if st.button("4️⃣ 構成設計", use_container_width=True):
+    if st.button("4️⃣ 構成設計", width="stretch"):
         st.switch_page("pages/04_structure.py")
 
 # 現在のプロジェクト状況

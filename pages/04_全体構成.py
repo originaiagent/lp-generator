@@ -102,7 +102,7 @@ def render_input_summary(product):
         
         st.markdown('<div class="step-header">🎨 参考LP分析</div>', unsafe_allow_html=True)
         ref_images = product.get('reference_lp_images', [])
-        lp_analyses = product.get("lp_analyses", [])
+        lp_analyses = product.get("lp_analyses") or []
         
         st.write(f"**参考画像:** {len(ref_images)}枚")
         st.write(f"**分析済み:** {len(lp_analyses)}件")
@@ -118,7 +118,7 @@ def render_appeal_analysis(product, data_store, product_id):
     # 分析実行ボタン
     col_btn, col_cost = st.columns([6, 1])
     with col_btn:
-        if st.button("🔍 訴求ポイントを抽出", type="primary", use_container_width=True):
+        if st.button("🔍 訴求ポイントを抽出", type="primary", width="stretch"):
             extract_appeal_points(product, data_store, product_id)
     with col_cost:
         if st.button("💰", key="cost_appeal", help="直前の生成コスト"):
@@ -337,7 +337,7 @@ def render_page_structure(product, data_store, product_id):
         
         col_btn2, col_cost2 = st.columns([6, 1])
         with col_btn2:
-            if st.button("🚀 構成を自動生成", use_container_width=True, type="primary"):
+            if st.button("🚀 構成を自動生成", width="stretch", type="primary"):
                 generate_structure_from_elements(product, data_store, product_id)
         with col_cost2:
             if st.button("💰", key="cost_structure", help="直前の生成コスト"):

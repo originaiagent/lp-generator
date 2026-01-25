@@ -1,3 +1,4 @@
+
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -8,6 +9,7 @@ render_ai_sidebar()
 
 import streamlit as st
 import os
+import time
 # カスタムCSS読み込み
 def load_css():
     css_file = "assets/style.css"
@@ -27,6 +29,7 @@ from modules.model_generator import ModelGenerator
 from modules.ai_provider import AIProvider
 from modules.prompt_manager import PromptManager
 from modules.settings_manager import SettingsManager
+from modules.data_store import DataStore
 
 def render_model_page():
     st.title('👤 モデル設定')
@@ -39,12 +42,28 @@ def render_model_page():
     ai_provider = AIProvider(settings)
     prompt_manager = PromptManager()
     model_generator = ModelGenerator(ai_provider, prompt_manager)
+    data_store = DataStore()
     
-    # セッション状態初期化
-    if 'model_images' not in st.session_state:
-        st.session_state.model_images = [None] * 5
-    if 'model_prompts' not in st.session_state:
-        st.session_state.model_prompts = [None] * 5
+    # 製品情報のロード
+    product_id = st.session_state.get('current_product_id')
+    product = data_store.get_product(product_id)
+    if not product:
+        st.error("製品データが見つかりません")
+        st.stop()
+        
+    # セッション状態初期化（製品データがあればそこから復元）
+    if 'model_images' not in st.session_state or all(x is None for x in st.session_state.model_images):
+        saved_images = product.get('model_images', [])
+        # 5枠確保
+        if len(saved_images) < 5:
+            saved_images.extend([None] * (5 - len(saved_images)))
+        st.session_state.model_images = saved_images
+
+    if 'model_prompts' not in st.session_state or all(x is None for x in st.session_state.model_prompts):
+        saved_prompts = product.get('model_prompts', [])
+        if len(saved_prompts) < 5:
+            saved_prompts.extend([None] * (5 - len(saved_prompts)))
+        st.session_state.model_prompts = saved_prompts
     
     # モデル数選択
     num_models = st.slider('モデル人数', 1, 5, 3)
@@ -58,13 +77,13 @@ def render_model_page():
     
     for i, tab in enumerate(tabs):
         with tab:
-            render_model_config(i, options, model_generator)
+            render_model_config(i, options, model_generator, data_store, product_id)
     
     st.markdown("---")
     
     # 一括生成ボタン
     if st.button('🎨 選択中のモデルを全て生成', type='primary', key='generate_all_btn'):
-        generate_all_models(model_generator, num_models)
+        generate_all_models(model_generator, num_models, data_store, product_id)
     
     # プロンプト確認セクション
     with st.expander("🔍 生成プロンプト確認（AIが最適化）", expanded=False):
@@ -74,7 +93,7 @@ def render_model_page():
                 st.code(st.session_state.model_prompts[i], language=None)
                 st.markdown("---")
 
-def render_model_config(index: int, options: dict, model_generator):
+def render_model_config(index: int, options: dict, model_generator, data_store, product_id):
     """各モデルの設定UI"""
     
     col1, col2 = st.columns([2, 1])
@@ -111,9 +130,23 @@ def render_model_config(index: int, options: dict, model_generator):
         )
         
         if uploaded_file:
-            image_bytes = uploaded_file.read()
-            st.session_state.model_images[index] = base64.b64encode(image_bytes).decode()
-            st.success('画像をアップロードしました')
+            # 手動アップロード処理
+            try:
+                file_bytes = uploaded_file.read()
+                filename = f"{product_id}/models/manual_{index}_{int(time.time())}.png"
+                if data_store.use_supabase:
+                    url = data_store.upload_image(file_bytes, filename)
+                    if url:
+                        update_product_model(index, url, None, data_store, product_id)
+                        st.success('画像をアップロード・保存しました')
+                        st.rerun()
+                else:
+                    # ローカルのみ (Base64で一時保持...しかし永続化のためにはファイルに保存すべきだが、今回はSupabase優先)
+                    # フォールバック: セッションステートのみ
+                     st.session_state.model_images[index] = base64.b64encode(file_bytes).decode()
+                     st.warning("Supabase未接続のため、画像は一時的な保存となります。")
+            except Exception as e:
+                st.error(f"アップロードエラー: {e}")
         
         # ボタン
         bc1, bc2, bc3 = st.columns(3)
@@ -125,7 +158,7 @@ def render_model_config(index: int, options: dict, model_generator):
                     'gender': gender,
                     'atmosphere': atmosphere,
                     'clothing': clothing
-                }, custom_prompt)
+                }, custom_prompt, data_store, product_id)
         with bc2:
             if st.button('📋 プロンプト確認', key=f'model_preview_btn_{index}'):
                 preview_prompt(model_generator, index, {
@@ -139,22 +172,64 @@ def render_model_config(index: int, options: dict, model_generator):
             if st.button('🗑️ クリア', key=f'model_clear_btn_{index}'):
                 st.session_state.model_images[index] = None
                 st.session_state.model_prompts[index] = None
+                # DBからも削除（None更新）
+                update_product_model(index, None, None, data_store, product_id)
                 st.rerun()
     
     with col2:
         st.subheader("プレビュー")
-        if st.session_state.model_images[index]:
+        img_data = st.session_state.model_images[index]
+        if img_data:
             try:
-                image_bytes = base64.b64decode(st.session_state.model_images[index])
-                st.image(image_bytes, use_container_width=True)
+                if img_data.startswith("http"):
+                    st.image(img_data, width="stretch")
+                else:
+                    # Base64 legacy support
+                    image_bytes = base64.b64decode(img_data)
+                    st.image(image_bytes, width="stretch")
             except:
-                st.info("画像を生成してください")
+                st.info("画像の読み込みに失敗しました")
         else:
             st.info("画像を生成してください")
         
         if st.session_state.model_prompts[index]:
             with st.expander("プロンプト", expanded=False):
                 st.code(st.session_state.model_prompts[index], language=None)
+
+def update_product_model(index, image_url, prompt, data_store, product_id):
+    """製品データのモデル情報を更新して保存"""
+    product = data_store.get_product(product_id)
+    if not product:
+        return
+    
+    if 'model_images' not in product:
+        product['model_images'] = [None] * 5
+    if 'model_prompts' not in product:
+        product['model_prompts'] = [None] * 5
+    
+    # 配列サイズ確保
+    while len(product['model_images']) <= index:
+        product['model_images'].append(None)
+    while len(product['model_prompts']) <= index:
+        product['model_prompts'].append(None)
+        
+    if image_url is not None: # Noneを渡した場合はクリア
+        product['model_images'][index] = image_url
+    else:
+        product['model_images'][index] = None
+        
+    if prompt is not None:
+        product['model_prompts'][index] = prompt
+    elif image_url is None: # 画像クリア時はプロンプトもクリアするか? 引数依存
+        pass
+
+    data_store.update_product(product_id, product)
+    
+    # セッションステートも同期
+    st.session_state.model_images[index] = product['model_images'][index]
+    if prompt:
+        st.session_state.model_prompts[index] = prompt
+
 
 def preview_prompt(model_generator, index: int, attributes: dict, custom_notes: str):
     """プロンプトのみをプレビュー（AIで最適化）"""
@@ -168,8 +243,8 @@ def preview_prompt(model_generator, index: int, attributes: dict, custom_notes: 
         except Exception as e:
             st.error(f'エラー: {str(e)}')
 
-def generate_single_model(model_generator, index: int, attributes: dict, custom_notes: str):
-    """単一モデル生成（AIでプロンプト最適化 + 画像生成）"""
+def generate_single_model(model_generator, index: int, attributes: dict, custom_notes: str, data_store, product_id):
+    """単一モデル生成（AIでプロンプト最適化 + 画像生成 + 保存）"""
     with st.spinner(f'モデル{index+1}を生成中... (AIプロンプト最適化 + 画像生成で1-2分)'):
         try:
             # AIでプロンプトを最適化
@@ -179,18 +254,33 @@ def generate_single_model(model_generator, index: int, attributes: dict, custom_
             # 画像生成
             from modules.image_generator import ImageGenerator
             image_gen = ImageGenerator()
-            image_data = image_gen.generate(prompt)
+            image_base64 = image_gen.generate(prompt)
             
-            if image_data:
-                st.session_state.model_images[index] = image_data
-                st.success(f'モデル{index+1}を生成しました')
+            if image_base64:
+                # クラウドに保存
+                if data_store.use_supabase:
+                    try:
+                        img_bytes = base64.b64decode(image_base64)
+                        filename = f"{product_id}/models/model_{index}_{int(time.time())}.png"
+                        url = data_store.upload_image(img_bytes, filename)
+                        if url:
+                            update_product_model(index, url, prompt, data_store, product_id)
+                            st.success(f'モデル{index+1}を生成・保存しました')
+                            st.rerun()
+                            return
+                    except Exception as e:
+                        st.error(f"保存エラー: {e}")
+                
+                # フォールバック（Base64のままセッションへ）
+                st.session_state.model_images[index] = image_base64
+                st.warning("生成されましたが、クラウドへの保存に失敗しました。")
                 st.rerun()
             else:
                 st.error('画像生成に失敗しました')
         except Exception as e:
             st.error(f'エラー: {str(e)}')
 
-def generate_all_models(model_generator, num_models: int):
+def generate_all_models(model_generator, num_models: int, data_store, product_id):
     """全モデル一括生成"""
     progress = st.progress(0)
     
@@ -209,17 +299,31 @@ def generate_all_models(model_generator, num_models: int):
         # 既存画像がなければ生成
         if not st.session_state.model_images[i]:
             try:
-                # AIでプロンプト最適化
+                # プロンプト
                 prompt = model_generator.generate_optimized_prompt(attributes, custom_notes)
-                st.session_state.model_prompts[i] = prompt
                 
-                # 画像生成
+                # 生成
                 from modules.image_generator import ImageGenerator
                 image_gen = ImageGenerator()
-                image_data = image_gen.generate(prompt)
+                image_base64 = image_gen.generate(prompt)
                 
-                if image_data:
-                    st.session_state.model_images[i] = image_data
+                if image_base64:
+                    # 保存
+                    if data_store.use_supabase:
+                        try:
+                            img_bytes = base64.b64decode(image_base64)
+                            filename = f"{product_id}/models/model_{i}_{int(time.time())}.png"
+                            url = data_store.upload_image(img_bytes, filename)
+                            if url:
+                                update_product_model(i, url, prompt, data_store, product_id)
+                                continue
+                        except:
+                            pass
+                    
+                    # フォールバック
+                    st.session_state.model_images[i] = image_base64
+                    st.session_state.model_prompts[i] = prompt
+
             except Exception as e:
                 st.error(f'モデル{i+1}生成エラー: {str(e)}')
     

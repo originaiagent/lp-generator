@@ -66,7 +66,7 @@ st.markdown("---")
 # 詳細生成ボタン
 btn_c1, btn_c2 = st.columns([6, 1])
 with btn_c1:
-    gen_content = st.button("🤖 AIでコンテンツ生成", type="primary", use_container_width=True)
+    gen_content = st.button("🤖 AIでコンテンツ生成", type="primary", width="stretch")
 with btn_c2:
     if st.button("💰", key="cost_content", help="直前の生成コスト"):
         if 'last_api_usage' in st.session_state and st.session_state.last_api_usage:
@@ -335,7 +335,7 @@ if visual_elements:
             elem["description"] = new_desc
 
 # 保存ボタン
-if st.button("💾 保存", use_container_width=True, key="save_parsed", type="primary"):
+if st.button("💾 保存", width="stretch", key="save_parsed", type="primary"):
     if 'page_contents' not in product:
         product['page_contents'] = {}
     
@@ -374,7 +374,7 @@ elif page_content and not parsed_data:
         key=f"content_{page_id}"
     )
     
-    if st.button("💾 保存", use_container_width=True, key="save_legacy", type="primary"):
+    if st.button("💾 保存", width="stretch", key="save_legacy", type="primary"):
         if 'page_contents' not in product:
             product['page_contents'] = {}
         product['page_contents'][page_id] = {

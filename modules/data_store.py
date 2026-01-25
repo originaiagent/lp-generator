@@ -74,7 +74,15 @@ class DataStore:
         try:
             url = f"{self.base_url}/lp_products"
             headers = {**self.headers, "Prefer": "resolution=merge-duplicates"}
-            response = requests.post(url, headers=headers, json=product)
+            
+            # スキーマに存在しないローカル専用フィールドを除外
+            data_to_save = product.copy()
+            exclude_keys = ["review_sheet_data"] # 随時追加。DBカラムにあるものは除外しない
+            for key in exclude_keys:
+                if key in data_to_save:
+                    del data_to_save[key]
+            
+            response = requests.post(url, headers=headers, json=data_to_save)
             
             if response.status_code not in [200, 201]:
                 self.last_error = f"Status: {response.status_code}, Body: {response.text}"
@@ -113,21 +121,49 @@ class DataStore:
         return None
     
     def get_product(self, product_id: str) -> dict:
+        product_data = None
+        
         # Supabase Cloudを優先（Streamlit Cloud対応）
         if self.use_supabase:
-            supabase_data = self._get_from_supabase(product_id)
-            if supabase_data:
-                return supabase_data
+            product_data = self._get_from_supabase(product_id)
         
-        # フォールバック：ローカルファイル
+        # ローカルファイルからデータを取得（バックアップまたは補完用）
+        local_data = None
         file_path = self.data_dir / f"{product_id}.json"
         if file_path.exists():
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
-                    return json.load(f)
+                    local_data = json.load(f)
             except Exception as e:
                 print(f"Local file read error: {e}")
-                return None
+
+        # Supabaseデータがある場合でも、ローカルデータで特定のフィールドを補完する
+        # (Supabaseのスキーマ変更などが間に合っていない場合への対策)
+        if product_data:
+            if local_data:
+                # 補完したいフィールド（Supabaseに無い可能性があるもの、またはローカルパス）
+                merge_keys = [
+                    "lp_analyses", "lp_analyses_dict", "review_sheet_data", "tone_manner",
+                    "reference_lp_images", "tone_manner_images", # ローカルパスも補完
+                    "product_images", "model_images", "model_prompts",
+                    "reference_lp_image_urls", "tone_manner_image_urls", "product_image_urls"
+                ]
+                for key in merge_keys:
+                    if (key not in product_data or not product_data[key]) and (key in local_data and local_data[key]):
+                        product_data[key] = local_data[key]
+            
+            # None対策: リスト型フィールドがNoneの場合は[]に変換
+            list_keys = ["reference_lp_images", "reference_lp_image_urls", "lp_analyses", "tone_manner_images", "tone_manner_image_urls"]
+            for key in list_keys:
+                if key in product_data and product_data[key] is None:
+                    product_data[key] = []
+
+            return product_data
+        
+        # Supabaseになければローカルデータを返す
+        if local_data:
+            return local_data
+            
         return None
     
     def create_product(self, name: str) -> dict:

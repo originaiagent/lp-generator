@@ -23,8 +23,8 @@ def info_card(content: str):
 
 def primary_button(label: str, key: str = None, use_container_width: bool = True):
     """目立つボタン（必須アクション用）"""
-    return st.button(label, key=key, type="primary", use_container_width=use_container_width)
+    return st.button(label, key=key, type="primary", width="stretch" if use_container_width else "content")
 
 def secondary_button(label: str, key: str = None, use_container_width: bool = True):
     """控えめボタン（確認用）"""
-    return st.button(label, key=key, type="secondary", use_container_width=use_container_width)
+    return st.button(label, key=key, type="secondary", width="stretch" if use_container_width else "content")

@@ -43,7 +43,7 @@ with col_list:
         is_selected = st.session_state.selected_prompt_id == p_id
         btn_type = "primary" if is_selected else "secondary"
         
-        if st.button(f"{'✅ ' if is_selected else ''}{p_name}", key=f"btn_{p_id}", use_container_width=True, type=btn_type):
+        if st.button(f"{'✅ ' if is_selected else ''}{p_name}", key=f"btn_{p_id}", width="stretch", type=btn_type):
             st.session_state.selected_prompt_id = p_id
             st.rerun()
         st.markdown("---")
@@ -66,12 +66,12 @@ with col_edit:
         
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("💾 保存", type="primary", use_container_width=True):
+            if st.button("💾 保存", type="primary", width="stretch"):
                 prompt_manager.update_prompt(p_id, new_template)
                 st.success("保存しました！")
                 st.rerun()
         with col2:
-            if st.button("🔄 デフォルトに戻す", use_container_width=True):
+            if st.button("🔄 デフォルトに戻す", width="stretch"):
                 prompt_manager.reset_to_default(p_id)
                 st.success("リセットしました！")
                 st.rerun()

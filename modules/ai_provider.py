@@ -273,17 +273,38 @@ class AIProvider:
         ])
 
     def analyze_image(self, image_path: str, prompt: str) -> str:
-        """画像を分析（Vision API）"""
+        """画像を分析（Vision API）- ローカルパスまたはURL対応"""
         import base64
+        import requests
         
-        # 画像をBase64エンコード
-        with open(image_path, "rb") as f:
-            image_data = base64.b64encode(f.read()).decode("utf-8")
-        
-        # 画像の拡張子からMIMEタイプを判定
-        ext = image_path.lower().split('.')[-1]
-        mime_types = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "gif": "image/gif"}
-        mime_type = mime_types.get(ext, "image/jpeg")
+        # URLの場合はダウンロード
+        if image_path.startswith("http"):
+            try:
+                headers = {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+                }
+                response = requests.get(image_path, headers=headers, timeout=30)
+                response.raise_for_status()
+                image_data = base64.b64encode(response.content).decode("utf-8")
+                # URLからContent-Typeを推測、またはデフォルト
+                content_type = response.headers.get("Content-Type", "image/jpeg")
+                if "png" in content_type:
+                    mime_type = "image/png"
+                elif "gif" in content_type:
+                    mime_type = "image/gif"
+                else:
+                    mime_type = "image/jpeg"
+            except Exception as e:
+                return f"画像ダウンロードエラー: {e}"
+        else:
+            # ローカルファイルを読み込み
+            with open(image_path, "rb") as f:
+                image_data = base64.b64encode(f.read()).decode("utf-8")
+            
+            # 画像の拡張子からMIMEタイプを判定
+            ext = image_path.lower().split('.')[-1]
+            mime_types = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "gif": "image/gif"}
+            mime_type = mime_types.get(ext, "image/jpeg")
         
         provider = self.settings.get("llm_provider", "gemini")
         
@@ -303,10 +324,18 @@ class AIProvider:
         task_models = self.settings.get("task_models", {})
         model_name = task_models.get("image_analysis", self.settings.get("llm_model", "gemini-2.0-flash"))
         model = genai.GenerativeModel(model_name)
-        response = model.generate_content([
-            {"mime_type": mime_type, "data": image_data},
-            prompt
-        ])
+        
+        # inline_data形式で構築
+        parts = [prompt]
+        parts.append({
+            "inline_data": {
+                "mime_type": mime_type,
+                "data": image_data
+            }
+        })
+        
+        response = model.generate_content(parts)
+        
         # トークン使用量を記録
         if hasattr(response, 'usage_metadata'):
             input_tokens = getattr(response.usage_metadata, 'prompt_token_count', 0)

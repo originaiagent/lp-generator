@@ -20,14 +20,14 @@ API_RETRIES = 3
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
 
 UI_PAGES = {
-    "product_list": "pages/01_product_list.py",
-    "input": "pages/02_input.py",
-    "model": "pages/03_model.py",
-    "structure": "pages/04_structure.py",
-    "page_detail": "pages/05_page_detail.py",
-    "output": "pages/06_output.py",
-    "prompt": "pages/07_prompt.py",
-    "settings": "pages/08_settings.py",
+    "product_list": "pages/01_製品一覧.py",
+    "input": "pages/02_情報入力.py",
+    "model": "pages/03_モデル設定.py",
+    "structure": "pages/04_全体構成.py",
+    "page_detail": "pages/05_ページ詳細.py",
+    "output": "pages/06_出力.py",
+    "prompt": "pages/07_プロンプト管理.py",
+    "settings": "pages/08_設定.py",
 }
 
 BACKEND_MODULES = [
@@ -88,7 +88,9 @@ def check_import(file_path: str) -> Tuple[bool, str]:
         
         # 非推奨API
         if "use_column_width" in code:
-            issues.append("use_column_width is deprecated, use use_container_width")
+            issues.append("use_column_width is deprecated, use width='stretch' or width='content'")
+        if "use_container_width" in code:
+            issues.append("use_container_width is deprecated, use width='stretch' or width='content'")
         
         if issues:
             return False, "\n".join(issues)
@@ -183,7 +185,7 @@ from modules.prompt_optimizer import PromptOptimizer
 optimizer = PromptOptimizer()  # 引数なしOK
 
 === Streamlit注意点 ===
-- use_column_width → use_container_width
+- use_column_width/use_container_width → width='stretch' or width='content'
 - st.experimental_rerun() → st.rerun()
 - キーは一意にする: key=f'unique_{index}'
 """
