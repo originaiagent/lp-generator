@@ -280,3 +280,21 @@ class DataStore:
             print(f"Supabase storage upload error: {e}")
             return None
 
+    def delete_image(self, file_path: str, bucket_name: str = "lp-generator-images") -> bool:
+        """Supabase Storageからファイルを削除する"""
+        if not self.supabase:
+            return False
+        
+        try:
+            # 引数のパスからスラッシュ等を除去して整形（必要に応じて）
+            # もしフルURLが渡された場合は、パス部分だけを抽出する
+            path_to_delete = file_path
+            if "storage/v1/object/public/" in file_path:
+                path_to_delete = file_path.split(f"{bucket_name}/")[-1]
+            
+            res = self.supabase.storage.from_(bucket_name).remove([path_to_delete])
+            return True
+        except Exception as e:
+            print(f"Supabase storage delete error: {e}")
+            return False
+

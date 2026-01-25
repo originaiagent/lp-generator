@@ -164,6 +164,8 @@ def render_product_images_upload(data_store, product_id):
                 # 削除ボタンは常に表示
                 if st.button("🗑️", key=f"del_prod_img_url_{i}"):
                     if img_url in (product.get("product_image_urls") or []):
+                        # Storageから削除
+                        data_store.delete_image(img_url)
                         product["product_image_urls"].remove(img_url)
                         data_store.update_product(product_id, product)
                         st.rerun()
@@ -200,6 +202,10 @@ def delete_competitor(product_id, data_store, delete_idx):
     if 0 <= delete_idx < len(competitors):
         # 1. DBデータから削除
         deleted = competitors.pop(delete_idx)
+        
+        # 1.5 Storageから実ファイルを削除
+        for url in (deleted.get("file_urls") or []):
+            data_store.delete_image(url)
         
         if not competitors:
             # 競合が0になった場合は分析データ全体をクリア
@@ -682,7 +688,7 @@ def organize_sheet_data(product, data_store, product_id):
                 result=result,
                 prompt_id="sheet_organize",
                 prompt_used=prompt,
-                input_refs={"ファイル": product.get("product_sheet", "")},
+                input_refs={"ファイル": (product.get("product_sheet") or "")},
                 model=settings.get("llm_model", "unknown")
             )
             
@@ -981,7 +987,7 @@ def render_sheets_upload(data_store, product_id):
                     st.rerun()
             
             # 整理済みデータがあれば表示
-            organized = product.get("product_sheet_organized", "")
+            organized = product.get("product_sheet_organized") or ""
             if organized:
                 st.success("✅ 整理済み")
                 with st.expander("📋 整理済み内容を確認・編集", expanded=False):
@@ -1046,7 +1052,7 @@ def render_sheets_upload(data_store, product_id):
                     st.rerun()
             
             # キーワード整理済みデータがあれば表示
-            keyword_org = product.get("keyword_organized", "")
+            keyword_org = product.get("keyword_organized") or ""
             if keyword_org:
                 st.success("✅ キーワード整理済み")
                 with st.expander("📊 キーワード重要度（確認・編集）", expanded=False):
@@ -1229,10 +1235,14 @@ def render_reference_images_upload(data_store, product_id):
                         
                         # URLリストから削除
                         if "reference_lp_image_urls" in current_product:
-                            current_product["reference_lp_image_urls"] = [
-                                u for u in current_product["reference_lp_image_urls"] 
-                                if u.split('/')[-1].split('?')[0] != target_filename
-                            ]
+                            urls = current_product.get("reference_lp_image_urls") or []
+                            # 削除対象のURLを特定
+                            target_url = next((u for u in urls if u.split('/')[-1].split('?')[0] == target_filename), None)
+                            if target_url:
+                                # Storageから実ファイルを削除
+                                data_store.delete_image(target_url)
+                                urls.remove(target_url)
+                            current_product["reference_lp_image_urls"] = urls
                         
                         # ローカルリストから削除
                         if "reference_lp_images" in current_product:
@@ -1251,7 +1261,7 @@ def render_reference_images_upload(data_store, product_id):
                             # lp_analyses リストも再構築（画像の並び順に合わせる）
                             # reference_lp_images が最新の並び順を持っている
                             new_lp_analyses = []
-                            for img_path in current_product.get("reference_lp_images", []):
+                            for img_path in (current_product.get("reference_lp_images") or []):
                                 fname = Path(img_path).name
                                 if fname in analyses_dict:
                                     new_lp_analyses.append(analyses_dict[fname])
@@ -1364,10 +1374,13 @@ def render_reference_images_upload(data_store, product_id):
                         target_filename = caption_text
                         
                         if "tone_manner_image_urls" in current_product:
-                            current_product["tone_manner_image_urls"] = [
-                                u for u in current_product["tone_manner_image_urls"] 
-                                if u.split('/')[-1].split('?')[0] != target_filename
-                            ]
+                            urls = current_product.get("tone_manner_image_urls") or []
+                            target_url = next((u for u in urls if u.split('/')[-1].split('?')[0] == target_filename), None)
+                            if target_url:
+                                # Storageから実ファイルを削除
+                                data_store.delete_image(target_url)
+                                urls.remove(target_url)
+                            current_product["tone_manner_image_urls"] = urls
                             
                         if "tone_manner_images" in current_product:
                             current_product["tone_manner_images"] = [
@@ -1716,7 +1729,7 @@ def analyze_reference_images(image_analyzer, image_paths, product_id, data_store
                     if product is None:
                         product = {}
 
-                    current_dict = product.get('lp_analyses_dict')
+                    current_dict = product.get('lp_analyses_dict') or {}
                     if current_dict is None:
                         current_dict = {}
 
