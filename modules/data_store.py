@@ -207,9 +207,6 @@ class DataStore:
         # Supabase DBに保存（Streamlit Cloud対応）
         if self.use_supabase:
             if not self._save_to_supabase(product):
-                import streamlit as st
-                error_msg = self.last_error if self.last_error else "Unknown error"
-                st.error(f"データベース保存エラー: {error_msg}")
                 return False
         
         # ローカルファイルにも保存（バックアップ）

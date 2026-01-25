@@ -404,7 +404,8 @@ def organize_keyword_data(product, data_store, product_id):
                 st.success("キーワード分析完了！")
                 st.rerun()
             else:
-                st.error("DB更新失敗: 保存できませんでした。Supabaseのセットアップを確認してください。")
+                error_detail = getattr(data_store, 'last_error', '不明なエラー')
+                st.error(f"DB更新失敗: {error_detail}")
             
         except Exception as e:
             st.error(f"分析エラー: {e}")
@@ -464,7 +465,8 @@ def organize_sheet_data(product, data_store, product_id):
                  st.success("整理完了！")
                  st.rerun()
             else:
-                 st.error("DB更新失敗: 保存できませんでした。Supabaseのセットアップを確認してください。")
+                 error_detail = getattr(data_store, 'last_error', '不明なエラー')
+                 st.error(f"DB更新失敗: {error_detail}")
             
         except Exception as e:
             st.error(f"整理エラー: {e}")
