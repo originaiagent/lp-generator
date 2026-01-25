@@ -400,7 +400,9 @@ def organize_keyword_data(product, data_store, product_id):
                 st.error("プロンプト 'keyword_organize' が見つかりません。設定を確認してください。")
                 return
 
+            st.write("AI分析を実行中...", len(prompt))
             result = ai_provider.ask(prompt, "keyword_organize")
+            st.write("AI分析完了: 結果文字数", len(str(result)))
             
             traced = save_with_trace(
                 result=result,
@@ -412,13 +414,19 @@ def organize_keyword_data(product, data_store, product_id):
             
             product["keyword_organized"] = result
             product["keyword_organize_trace"] = traced
-            data_store.update_product(product_id, product)
             
-            st.success("キーワード分析完了！")
-            st.rerun()
+            if data_store.update_product(product_id, product):
+                st.success("キーワード分析完了！DB更新成功")
+            else:
+                st.error("DB更新失敗")
+            
+            # デバッグのため一時的にrerun無効化
+            # st.rerun()
             
         except Exception as e:
             st.error(f"分析エラー: {e}")
+            import traceback
+            st.code(traceback.format_exc())
 
 
 def organize_sheet_data(product, data_store, product_id):
@@ -471,7 +479,9 @@ def organize_sheet_data(product, data_store, product_id):
                 st.error("プロンプト 'sheet_organize' が見つかりません。設定を確認してください。")
                 return
 
+            st.write("AI分析を実行中...", len(prompt))
             result = ai_provider.ask(prompt, "sheet_organize")
+            st.write("AI分析完了: 結果文字数", len(str(result)))
             
             # トレース付きで保存
             traced = save_with_trace(
@@ -484,13 +494,19 @@ def organize_sheet_data(product, data_store, product_id):
             
             product["product_sheet_organized"] = result
             product["product_sheet_organize_trace"] = traced
-            data_store.update_product(product_id, product)
             
-            st.success("整理完了！")
-            st.rerun()
+            if data_store.update_product(product_id, product):
+                 st.success("整理完了！DB更新成功")
+            else:
+                 st.error("DB更新失敗")
+            
+            # デバッグのため一時的にrerun無効化
+            # st.rerun()
             
         except Exception as e:
             st.error(f"整理エラー: {e}")
+            import traceback
+            st.code(traceback.format_exc())
 
 
 def analyze_competitor_text(text, product_id, data_store):
