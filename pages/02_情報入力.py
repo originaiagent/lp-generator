@@ -1424,6 +1424,7 @@ def analyze_reference_images(image_analyzer, image_paths, product_id, data_store
                             continue
 
                     # 画像分析（Vision API）
+                    # 画像分析（Vision API）
                     result = ai_provider.analyze_image(target_path, prompt)
                     
                     # 一時ファイルの削除
@@ -1432,6 +1433,11 @@ def analyze_reference_images(image_analyzer, image_paths, product_id, data_store
                             os.unlink(target_path)
                         except:
                             pass
+
+                    # 結果チェック
+                    if not result:
+                        st.warning(f"画像分析に失敗しました（結果なし）: {file_name}")
+                        continue
                     
                     # JSON抽出
                     try:
@@ -1440,7 +1446,8 @@ def analyze_reference_images(image_analyzer, image_paths, product_id, data_store
                         elif "```" in result:
                             result = result.split("```")[1].split("```")[0]
                         parsed = json.loads(result.strip())
-                    except:
+                    except Exception as e:
+                        st.warning(f"JSON解析エラー: {file_name} - {e}")
                         parsed = {"raw": result, "parse_error": True}
                     
                     # トレース付きで保存
