@@ -1368,7 +1368,7 @@ def analyze_reference_images(image_analyzer, image_paths, product_id, data_store
             
             # 既存の分析結果を取得
             product = data_store.get_product(product_id)
-            existing_analyses = product.get('lp_analyses_dict', {}) if product else {}
+            existing_analyses = (product.get('lp_analyses_dict') or {}) if product else {}
             
             analyses = []
             status_text = st.empty()
