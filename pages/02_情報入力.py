@@ -189,9 +189,25 @@ def render_competitor_analysis(data_store, product_id):
     st.markdown('<div class="step-header">🔍 競合情報</div>', unsafe_allow_html=True)
     st.caption("競合ごとに画像・テキストをアップロード → 訴求要素を自動抽出")
     
-    # セッション初期化
+    # セッション初期化（保存データがあれば復元）
     if "competitor_count" not in st.session_state:
-        st.session_state.competitor_count = 1
+        # DBから保存済みデータを取得
+        product = data_store.get_product(product_id)
+        saved_competitors = []
+        if product and "competitor_analysis_v2" in product:
+            saved_competitors = product["competitor_analysis_v2"].get("competitors", [])
+        
+        if saved_competitors:
+            st.session_state.competitor_count = len(saved_competitors)
+            for i, comp in enumerate(saved_competitors):
+                st.session_state[f"comp_name_{i}"] = comp.get("name", f"競合{i+1}")
+                st.session_state[f"comp_text_{i}"] = comp.get("text", "")
+                
+                # ファイルパスの復元（注意: ローカルパスなので環境またぎでは見えないが、同一環境なら見える）
+                if "files" in comp:
+                    st.session_state[f"comp_files_paths_{i}"] = comp["files"]
+        else:
+            st.session_state.competitor_count = 1
     
     # 競合追加ボタン
     col_add, col_space = st.columns([1, 3])
