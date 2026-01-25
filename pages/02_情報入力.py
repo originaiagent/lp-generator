@@ -145,23 +145,6 @@ def render_product_images_upload(data_store, product_id):
     # アップロード済み画像を表示
     product = data_store.get_product(product_id)
     
-    # デバッグ情報表示
-    with st.expander("🔧 デバッグ情報", expanded=False):
-        st.write(f"Product ID: {product_id}")
-        st.write(f"Product exists: {product is not None}")
-        if product:
-            st.write(f"product_image_urls count: {len(product.get('product_image_urls', []))}")
-            st.write(f"product_images count: {len(product.get('product_images', []))}")
-            st.write(f"URLs: {product.get('product_image_urls', [])[:2]}")
-        
-        # Supabase接続状態
-        st.write(f"Supabase Enabled: {data_store.use_supabase}")
-        if data_store.use_supabase:
-            st.write(f"Supabase URL: {data_store.base_url}")
-            # マスクしてキー表示
-            key = data_store.headers.get("apikey", "")
-            st.write(f"Supabase Key: {key[:5]}...{key[-5:]}" if key else "None")
-            st.write(f"Using Service Key: {bool(data_store.service_key)}")
     
     # Supabase Storage URLを優先して表示（Streamlit Cloud対応）
     image_urls = product.get("product_image_urls", []) if product else []
