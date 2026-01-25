@@ -157,6 +157,16 @@ JSONの値は必ず日本語で出力してください。"""
             if os.path.exists(self.prompts_file):
                 with open(self.prompts_file, 'r', encoding='utf-8') as f:
                     self.prompts = json.load(f)
+                
+                # デフォルトプロンプトの不足分をマージ
+                updated = False
+                for key, value in self.DEFAULT_PROMPTS.items():
+                    if key not in self.prompts:
+                        self.prompts[key] = value.copy()
+                        updated = True
+                
+                if updated:
+                    self._save_prompts()
             else:
                 self.prompts = {k: v.copy() for k, v in self.DEFAULT_PROMPTS.items()}
                 self._save_prompts()
