@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 import requests
+from supabase import create_client, Client
 
 # Supabase設定
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
@@ -26,43 +27,40 @@ class DataStore:
                 "Content-Type": "application/json",
                 "Prefer": "return=representation"
             }
+            try:
+                self.supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+            except Exception as e:
+                print(f"Supabase client init error: {e}")
+                self.supabase = None
+        else:
+            self.supabase = None
 
     def _get_from_supabase(self, product_id: str):
         """Supabaseから取得 (REST API)"""
-        if self.use_supabase:
-            try:
-                url = f"{self.base_url}/lp_products?id=eq.{product_id}&select=*"
-                response = requests.get(url, headers=self.headers)
-                if response.status_code == 200:
-                    data = response.json()
-                    if data and len(data) > 0:
-                        return data[0]
-            except Exception as e:
-                print(f"Supabase get error: {e}")
+        if not self.use_supabase:
+            return None
+        try:
+            url = f"{self.base_url}/lp_products?id=eq.{product_id}"
+            response = requests.get(url, headers=self.headers)
+            if response.status_code == 200:
+                data = response.json()
+                if data and len(data) > 0:
+                    return data[0]
+        except Exception as e:
+            print(f"Supabase get error: {e}")
         return None
     
     def _save_to_supabase(self, product: dict):
         """Supabaseに保存 (REST API - Upsert)"""
-        if self.use_supabase:
-            try:
-                url = f"{self.base_url}/lp_products"
-                # on_conflictはurlパラメータで指定（idをキーにする）
-                params = {"on_conflict": "id"}
-                # POSTメソッドでupsertを行う（Prefer: resolution=merge-duplicates はヘッダーで指定可能だが、
-                # SupabaseのREST APIではPOSTに on_conflict パラメータをつけるのが一般的）
-                
-                # Supabase REST APIのUpsert: POST to /table with Prefer: resolution=merge-duplicates
-                headers = self.headers.copy()
-                headers["Prefer"] = "resolution=merge-duplicates,return=representation"
-                
-                response = requests.post(url, headers=headers, json=product)
-                
-                if response.status_code in [200, 201]:
-                    return True
-                else:
-                    print(f"Supabase save failed: {response.status_code} {response.text}")
-            except Exception as e:
-                print(f"Supabase save error: {e}")
+        if not self.use_supabase:
+            return False
+        try:
+            url = f"{self.base_url}/lp_products"
+            headers = {**self.headers, "Prefer": "resolution=merge-duplicates"}
+            response = requests.post(url, headers=headers, json=product)
+            return response.status_code in [200, 201]
+        except Exception as e:
+            print(f"Supabase save error: {e}")
         return False
     
     def _delete_from_supabase(self, product_id: str):
@@ -79,33 +77,33 @@ class DataStore:
     
     def _get_all_from_supabase(self):
         """Supabaseから全製品を取得 (REST API)"""
-        if self.use_supabase:
-            try:
-                url = f"{self.base_url}/lp_products?select=*"
-                response = requests.get(url, headers=self.headers)
-                if response.status_code == 200:
-                    data = response.json()
-                    # IDをキーにした辞書に変換
-                    products = {item['id']: item for item in data if 'id' in item}
-                    return products
-            except Exception as e:
-                print(f"Supabase list error: {e}")
+        if not self.use_supabase:
+            return None
+        try:
+            url = f"{self.base_url}/lp_products"
+            response = requests.get(url, headers=self.headers)
+            if response.status_code == 200:
+                return response.json()
+        except Exception as e:
+            print(f"Supabase get all error: {e}")
         return None
     
     def get_product(self, product_id: str) -> dict:
-        # まずSupabaseから取得を試みる
-        product = self._get_from_supabase(product_id)
-        if product:
-            return product
+        # Supabase Cloudを優先（Streamlit Cloud対応）
+        if self.use_supabase:
+            supabase_data = self._get_from_supabase(product_id)
+            if supabase_data:
+                return supabase_data
         
-        # ファイルから取得 (Supabase接続失敗時やデータがない場合のフォールバック)
+        # フォールバック：ローカルファイル
         file_path = self.data_dir / f"{product_id}.json"
         if file_path.exists():
-            with open(file_path, 'r', encoding='utf-8') as f:
-                product = json.load(f)
-                # Supabaseにも保存（同期試行）
-                self._save_to_supabase(product)
-                return product
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except Exception as e:
+                print(f"Local file read error: {e}")
+                return None
         return None
     
     def create_product(self, name: str) -> dict:
@@ -130,10 +128,11 @@ class DataStore:
         
         product_id = product['id']
         
-        # Supabaseに保存
-        self._save_to_supabase(product)
+        # Supabase DBに保存（Streamlit Cloud対応）
+        if self.use_supabase:
+            self._save_to_supabase(product)
         
-        # ファイルにも保存（バックアップ）
+        # ローカルファイルにも保存（バックアップ）
         file_path = self.data_dir / f"{product_id}.json"
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(product, f, ensure_ascii=False, indent=2, default=str)
@@ -142,11 +141,14 @@ class DataStore:
     
     def update_product(self, product_id: str, product: dict) -> bool:
         product['updated_at'] = datetime.now().isoformat()
+        if 'id' not in product:
+            product['id'] = product_id
         
-        # Supabaseに保存
-        self._save_to_supabase(product)
+        # Supabase DBに保存（Streamlit Cloud対応）
+        if self.use_supabase:
+            self._save_to_supabase(product)
         
-        # ファイルにも保存
+        # ローカルファイルにも保存（バックアップ）
         file_path = self.data_dir / f"{product_id}.json"
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(product, f, ensure_ascii=False, indent=2, default=str)
@@ -164,21 +166,54 @@ class DataStore:
         return False
     
     def list_products(self) -> list:
-        # Supabaseから取得を試みる
-        db_products = self._get_all_from_supabase()
-        if db_products:
-            return list(db_products.values())
+        # Supabaseから取得を試みる（Streamlit Cloud対応）
+        if self.use_supabase:
+            db_products = self._get_all_from_supabase()
+            if db_products:
+                return db_products  # リストをそのまま返す
         
-        # ファイルから取得 (Supabase失敗時)
+        # フォールバック：ファイルから取得
         products = []
         for file_path in self.data_dir.glob("*.json"):
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     product = json.load(f)
                     products.append(product)
-                    # Supabaseにも保存（同期試行）
-                    if 'id' in product:
-                        self._save_to_supabase(product)
             except Exception:
                 continue
         return products
+
+    def upload_image(self, file_data, file_name: str, bucket_name: str = "images") -> str:
+        """Supabase Storageに画像をアップロードし、公開URLを返す"""
+        if not self.supabase:
+            return None
+        
+        try:
+            # バケットの存在確認と作成
+            buckets = self.supabase.storage.list_buckets()
+            bucket_exists = any(b.name == bucket_name for b in buckets)
+            
+            if not bucket_exists:
+                self.supabase.storage.create_bucket(bucket_name, options={"public": True})
+            
+            # ファイルのアップロード
+            # 重複を避けるためにタイムスタンプなどを付与するか、呼び出し元で制御
+            # ここでは単純に上書き(upsert)設定
+            file_options = {"upsert": "true", "content-type": "image/jpeg"} # 簡易的にjpegとする
+            if file_name.lower().endswith(".png"):
+                 file_options["content-type"] = "image/png"
+            
+            res = self.supabase.storage.from_(bucket_name).upload(
+                path=file_name,
+                file=file_data,
+                file_options=file_options
+            )
+            
+            # 公開URLを取得
+            public_url = self.supabase.storage.from_(bucket_name).get_public_url(file_name)
+            return public_url
+            
+        except Exception as e:
+            print(f"Supabase storage upload error: {e}")
+            return None
+

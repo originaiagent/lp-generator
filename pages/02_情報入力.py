@@ -87,7 +87,7 @@ def render_product_images_upload(data_store, product_id):
     )
     
     if uploaded_files:
-        upload_dir = Path(f"data/uploads/{product_id}/product_images")
+        upload_dir = Path(f"data/uploads/{product_id}/product_images").resolve()
         upload_dir.mkdir(parents=True, exist_ok=True)
         
         image_paths = []
@@ -95,25 +95,87 @@ def render_product_images_upload(data_store, product_id):
             file_path = upload_dir / uploaded_file.name
             with open(file_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
-            image_paths.append(str(file_path))
+            image_paths.append(str(file_path))  # 絶対パスとして保存
             st.success(f"アップロード完了: {uploaded_file.name}")
         
         # データを更新
         product = data_store.get_product(product_id)
         if not product:
             product = {}
-        product['product_images'] = image_paths
+        
+        # 既存リストとマージ
+        existing_images = product.get('product_images', [])
+        for path in image_paths:
+            if path not in existing_images:
+                existing_images.append(path)
+        product['product_images'] = existing_images
+        
+        # Supabaseへアップロード
+        if data_store.use_supabase:
+            remote_urls = product.get('product_image_urls', [])
+            # 今回アップロードされたファイルをSync
+            for uploaded_file in uploaded_files:
+                try:
+                    # ファイルポインタを戻す
+                    uploaded_file.seek(0)
+                    file_bytes = uploaded_file.read()
+                    remote_path = f"{product_id}/product_images/{uploaded_file.name}"
+                    url = data_store.upload_image(file_bytes, remote_path, bucket_name="product-images")
+                    if url and url not in remote_urls:
+                        remote_urls.append(url)
+                except Exception as e:
+                    print(f"Upload failed: {e}")
+            product['product_image_urls'] = remote_urls
+
         data_store.update_product(product_id, product)
     
     # アップロード済み画像を表示
     product = data_store.get_product(product_id)
-    if product and product.get("product_images"):
-        st.markdown("**📁 アップロード済み画像:**")
+    
+    # デバッグ情報表示
+    with st.expander("🔧 デバッグ情報", expanded=False):
+        st.write(f"Product ID: {product_id}")
+        st.write(f"Product exists: {product is not None}")
+        if product:
+            st.write(f"product_image_urls count: {len(product.get('product_image_urls', []))}")
+            st.write(f"product_images count: {len(product.get('product_images', []))}")
+            st.write(f"URLs: {product.get('product_image_urls', [])[:2]}")
+    
+    # Supabase Storage URLを優先して表示（Streamlit Cloud対応）
+    image_urls = product.get("product_image_urls", []) if product else []
+    local_images = product.get("product_images", []) if product else []
+    
+    if image_urls:
+        st.markdown("**📁 アップロード済み画像 (クラウド):**")
         cols = st.columns(4)
-        for i, img_path in enumerate(product["product_images"]):
+        for i, img_url in enumerate(image_urls):
             with cols[i % 4]:
-                if Path(img_path).exists():
-                    st.image(img_path, use_container_width=True)
+                try:
+                    st.image(img_url, use_container_width=True)
+                    if st.button("🗑️", key=f"del_prod_img_url_{i}"):
+                        product["product_image_urls"].remove(img_url)
+                        data_store.update_product(product_id, product)
+                        st.rerun()
+                except Exception as e:
+                    st.warning(f"画像読み込みエラー: {e}")
+    elif local_images:
+        # フォールバック：ローカルファイル（ローカル開発時用）
+        st.markdown("**📁 アップロード済み画像 (ローカル):**")
+        cols = st.columns(4)
+        for i, img_path in enumerate(local_images):
+            with cols[i % 4]:
+                resolved_path = Path(img_path)
+                if not resolved_path.is_absolute():
+                    resolved_path = Path.cwd() / img_path
+                
+                if resolved_path.exists():
+                    st.image(str(resolved_path), use_container_width=True)
+                    if st.button("🗑️", key=f"del_prod_img_{i}"):
+                        product["product_images"].remove(img_path)
+                        data_store.update_product(product_id, product)
+                        st.rerun()
+                else:
+                    st.warning(f"ファイルなし: {img_path}")
 
 
 def render_competitor_analysis(data_store, product_id):
@@ -725,6 +787,22 @@ def render_reference_images_upload(data_store, product_id):
                 if path not in existing:
                     existing.append(path)
             product['reference_lp_images'] = existing
+            
+            # Supabaseへアップロード
+            if data_store.use_supabase:
+                remote_urls = product.get('reference_lp_image_urls', [])
+                for uploaded_file in lp_images:
+                    try:
+                        uploaded_file.seek(0)
+                        file_bytes = uploaded_file.read()
+                        remote_path = f"{product_id}/reference_lp/{uploaded_file.name}"
+                        url = data_store.upload_image(file_bytes, remote_path, bucket_name="product-images")
+                        if url and url not in remote_urls:
+                            remote_urls.append(url)
+                    except Exception as e:
+                        print(f"Ref Upload failed: {e}")
+                product['reference_lp_image_urls'] = remote_urls
+
             data_store.update_product(product_id, product)
     
         
