@@ -191,6 +191,75 @@ def render_product_images_upload(data_store, product_id):
                         st.rerun()
 
 
+def handle_competitor_upload(product_id, data_store, comp_idx):
+    """競合画像アップロード時のコールバック処理"""
+    if f"uploader_key_comp_{comp_idx}" not in st.session_state:
+        st.session_state[f"uploader_key_comp_{comp_idx}"] = 0
+    
+    key = f"comp_files_{comp_idx}_{st.session_state[f'uploader_key_comp_{comp_idx}']}"
+    uploaded_files = st.session_state.get(key)
+    
+    if uploaded_files:
+        upload_dir = Path(f"data/uploads/{product_id}/competitors/comp_{comp_idx}")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        
+        image_paths = []
+        for uf in uploaded_files:
+            file_path = upload_dir / uf.name
+            with open(file_path, "wb") as f:
+                f.write(uf.getbuffer())
+            image_paths.append(str(file_path))
+            st.toast(f"競合{comp_idx+1}: アップロード中... {uf.name}")
+        
+        # 最新の製品情報を取得
+        product = data_store.get_product(product_id) or {}
+        current_data = product.get("competitor_analysis_v2") or {}
+        competitors = current_data.get("competitors") or []
+        
+        # 整合性確保（リストが短い場合は拡張）
+        while len(competitors) <= comp_idx:
+            competitors.append({})
+        
+        comp_data = competitors[comp_idx]
+        
+        # ローカルパス保存
+        existing_files = (comp_data.get("files") or [])
+        for path in image_paths:
+            if path not in existing_files:
+                existing_files.append(path)
+        comp_data["files"] = existing_files
+        
+        # Supabase保存
+        if data_store.use_supabase:
+            remote_urls = (comp_data.get("file_urls") or [])
+            for uf in uploaded_files:
+                try:
+                    uf.seek(0)
+                    file_bytes = uf.read()
+                    remote_path = f"{product_id}/competitors/comp_{comp_idx}/{uf.name}"
+                    url = data_store.upload_image(file_bytes, remote_path, bucket_name="lp-generator-images")
+                    if url and url not in remote_urls:
+                        remote_urls.append(url)
+                except Exception as e:
+                    st.error(f"Supabaseアップロード失敗: {e}")
+            comp_data["file_urls"] = remote_urls
+        
+        competitors[comp_idx] = comp_data
+        current_data["competitors"] = competitors
+        product["competitor_analysis_v2"] = current_data
+        
+        # DB保存
+        if data_store.update_product(product_id, product):
+            # Session Stateの同期
+            st.session_state[f"comp_files_paths_{comp_idx}"] = comp_data["files"]
+            st.session_state[f"comp_file_urls_{comp_idx}"] = comp_data.get("file_urls", [])
+            
+            # アップローダーをクリア
+            st.session_state[f"uploader_key_comp_{comp_idx}"] += 1
+            st.toast(f"競合{comp_idx+1}: すべての画像を保存しました", icon="✅")
+            st.rerun()
+
+
 def save_competitor_data(product_id, data_store):
     """入力中の競合データをDBに保存（分析前の一時保存）"""
     product = data_store.get_product(product_id) or {}
@@ -210,6 +279,7 @@ def save_competitor_data(product_id, data_store):
         comp_data["name"] = st.session_state.get(f"comp_name_{i}", f"競合{i+1}")
         comp_data["text"] = st.session_state.get(f"comp_text_{i}", "")
         comp_data["files"] = st.session_state.get(f"comp_files_paths_{i}", [])
+        comp_data["file_urls"] = st.session_state.get(f"comp_file_urls_{i}", [])
         
         new_competitors.append(comp_data)
             
@@ -238,9 +308,13 @@ def render_competitor_analysis(data_store, product_id):
                 st.session_state[f"comp_name_{i}"] = comp.get("name", f"競合{i+1}")
                 st.session_state[f"comp_text_{i}"] = comp.get("text", "")
                 
-                # ファイルパスの復元（注意: ローカルパスなので環境またぎでは見えないが、同一環境なら見える）
+                # ファイルパスの復元
                 if "files" in comp:
-                    st.session_state[f"comp_files_paths_{i}"] = comp["files"]
+                    st.session_state[f"comp_files_paths_{i}"] = (comp.get("files") or [])
+                
+                # Supabase URLの復元
+                if "file_urls" in comp:
+                    st.session_state[f"comp_file_urls_{i}"] = (comp.get("file_urls") or [])
         else:
             st.session_state.competitor_count = 1
     
@@ -280,49 +354,48 @@ def render_competitor_analysis(data_store, product_id):
                 st.markdown("**📁 画像（最大30枚）**")
                 
                 # 保存済みファイルを確認
-                saved_dir = Path(f"data/uploads/{product_id}/competitors/comp_{i}")
-                saved_files = []
-                if saved_dir.exists():
-                    saved_files = list(saved_dir.glob("*.jpg")) + list(saved_dir.glob("*.jpeg")) + list(saved_dir.glob("*.png"))
-                    saved_files = [str(f) for f in saved_files]
+                # 1. URL優先
+                saved_urls = st.session_state.get(f"comp_file_urls_{i}") or []
+                # 2. ローカルパス（フォールバック）
+                saved_local = st.session_state.get(f"comp_files_paths_{i}") or []
+
+                # ダイナミックキーによるリセット対応
+                if f"uploader_key_comp_{i}" not in st.session_state:
+                    st.session_state[f"uploader_key_comp_{i}"] = 0
+                
+                uploader_key = f"comp_files_{i}_{st.session_state[f'uploader_key_comp_{i}']}"
                 
                 uploaded_files = st.file_uploader(
                     "LP画像をアップロード",
                     type=['png', 'jpg', 'jpeg'],
                     accept_multiple_files=True,
-                    key=f"comp_files_{i}",
-                    label_visibility="collapsed"
+                    key=uploader_key,
+                    label_visibility="collapsed",
+                    on_change=handle_competitor_upload,
+                    args=(product_id, data_store, i)
                 )
                 
-                if uploaded_files:
-                    if len(uploaded_files) > 30:
-                        st.warning("最大30枚までです")
-                        uploaded_files = uploaded_files[:30]
-                    
-                    upload_dir = Path(f"data/uploads/{product_id}/competitors/comp_{i}")
-                    upload_dir.mkdir(parents=True, exist_ok=True)
-                    
-                    file_paths = []
-                    for uf in uploaded_files:
-                        file_path = upload_dir / uf.name
-                        with open(file_path, "wb") as f:
-                            f.write(uf.getbuffer())
-                        file_paths.append(str(file_path))
-                    
-                    st.success(f"{len(file_paths)}枚アップロード済み")
-                    st.session_state[f"comp_files_paths_{i}"] = file_paths
-                    saved_files = file_paths  # 新規アップロード優先
+                # 表示用リストの統合
+                display_images = []
+                # URLを優先
+                for url in saved_urls:
+                    display_images.append({"type": "url", "path": url})
                 
-                # 保存済み or 新規アップロードを表示
-                if saved_files:
-                    st.session_state[f"comp_files_paths_{i}"] = saved_files
-                    st.caption(f"📷 {len(saved_files)}枚")
+                # ローカルパス（URLに無いもののみ追加する簡易チェック）
+                seen_names = set([u.split("/")[-1] for u in saved_urls])
+                for lp in saved_local:
+                    if Path(lp).name not in seen_names and Path(lp).exists():
+                        display_images.append({"type": "local", "path": lp})
+                
+                # 表示
+                if display_images:
+                    st.caption(f"📷 {len(display_images)}枚")
                     preview_cols = st.columns(6)
-                    for idx, fp in enumerate(saved_files[:6]):
+                    for idx, img in enumerate(display_images[:6]):
                         with preview_cols[idx % 6]:
-                            st.image(fp, width=80)
-                    if len(saved_files) > 6:
-                        st.caption(f"他 {len(saved_files) - 6}枚")
+                            st.image(img["path"], width=80)
+                    if len(display_images) > 6:
+                        st.caption(f"他 {len(display_images) - 6}枚")
             
                 # キーの準備
                 text_key = f"comp_text_{i}"
