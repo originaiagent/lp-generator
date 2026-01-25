@@ -400,8 +400,26 @@ def organize_keyword_data(product, data_store, product_id):
                 st.error("プロンプト 'keyword_organize' が見つかりません。設定を確認してください。")
                 return
 
+            st.write("DEBUG: AI結果取得中...")
+            result = ai_provider.ask(prompt, "keyword_organize")
+            st.write(f"DEBUG: AI結果 = {result[:100] if result else 'None'}")
+            
+            traced = save_with_trace(
+                result=result,
+                prompt_id="keyword_organize",
+                prompt_used=prompt,
+                input_refs={"ファイル": (product.get("review_sheet") or "")},
+                model=settings.get("llm_model", "unknown")
+            )
+            
+            product["keyword_organized"] = result
+            product["keyword_organize_trace"] = traced
+
+            st.write("DEBUG: DB保存開始")
             if data_store.update_product(product_id, product):
                 st.success("キーワード分析完了！")
+                import time
+                time.sleep(5)
                 st.rerun()
             else:
                 error_detail = getattr(data_store, 'last_error', '不明なエラー')
@@ -417,7 +435,9 @@ def organize_sheet_data(product, data_store, product_id):
     from modules.ai_provider import AIProvider
     from modules.prompt_manager import PromptManager
     from modules.trace_viewer import save_with_trace
+    import time
     
+    st.write("DEBUG: 関数開始")
     st.info("シート整理を開始します...")
 
     # ProductがNoneの場合のガード
@@ -433,6 +453,7 @@ def organize_sheet_data(product, data_store, product_id):
             
             # シートデータを文字列化
             sheet_data = product.get("product_sheet_data") or {}
+            st.write(f"DEBUG: sheet_data = {str(sheet_data)[:100]}...")
             raw_text = ""
             if isinstance(sheet_data, dict):
                 data_type = sheet_data.get("type", "")
@@ -453,16 +474,36 @@ def organize_sheet_data(product, data_store, product_id):
             else:
                 raw_text = str(sheet_data)
             
+            st.write(f"DEBUG: raw_text長さ = {len(raw_text)}")
+            
             prompt = prompt_manager.get_prompt("sheet_organize", {
                 "raw_data": raw_text[:3000]
             })
+            st.write(f"DEBUG: prompt取得 = {bool(prompt)}")
             
             if not prompt:
                 st.error("プロンプト 'sheet_organize' が見つかりません。設定を確認してください。")
                 return
 
+            result = ai_provider.ask(prompt, "sheet_organize")
+            st.write(f"DEBUG: AI結果 = {result[:100] if result else 'None'}")
+            
+            # トレース付きで保存
+            traced = save_with_trace(
+                result=result,
+                prompt_id="sheet_organize",
+                prompt_used=prompt,
+                input_refs={"ファイル": product.get("product_sheet", "")},
+                model=settings.get("llm_model", "unknown")
+            )
+            
+            product["product_sheet_organized"] = result
+            product["product_sheet_organize_trace"] = traced
+            
+            st.write("DEBUG: DB保存開始")
             if data_store.update_product(product_id, product):
                  st.success("整理完了！")
+                 time.sleep(5)
                  st.rerun()
             else:
                  error_detail = getattr(data_store, 'last_error', '不明なエラー')
