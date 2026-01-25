@@ -81,7 +81,7 @@ def render_input_summary(product):
             st.write(f"**製品名:** {product.get('name', '未設定')}")
             st.write(f"**説明:** {product.get('description', '未設定')[:100] if product.get('description') else '未設定'}")
             
-            images = product.get('product_images') or []
+            images = (product.get('product_image_urls') or product.get('product_images') or [])
             st.write(f"**製品画像:** {len(images)}枚")
             
             if product.get('product_sheet_data'):
@@ -113,7 +113,7 @@ def render_input_summary(product):
                 st.info("「情報入力」ページで競合分析を実行してください")
         
         st.markdown('<div class="step-header">🎨 参考LP分析</div>', unsafe_allow_html=True)
-        ref_images = product.get('reference_lp_images') or []
+        ref_images = (product.get('reference_lp_image_urls') or product.get('reference_lp_images') or [])
         lp_analyses = product.get("lp_analyses") or []
         
         st.write(f"**参考画像:** {len(ref_images)}枚")
