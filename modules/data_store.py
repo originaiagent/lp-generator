@@ -214,6 +214,8 @@ class DataStore:
             return public_url
             
         except Exception as e:
+            import streamlit as st
+            st.error(f"Supabase storage upload error details: {str(e)}")
             print(f"Supabase storage upload error: {e}")
             return None
 
