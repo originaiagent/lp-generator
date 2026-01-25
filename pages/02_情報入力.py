@@ -390,6 +390,10 @@ def organize_keyword_data(product, data_store, product_id):
                 "raw_data": raw_text[:3000]
             })
             
+            if not prompt:
+                st.error("プロンプト 'keyword_organize' が見つかりません。設定を確認してください。")
+                return
+
             result = ai_provider.ask(prompt, "keyword_organize")
             
             traced = save_with_trace(
@@ -451,6 +455,10 @@ def organize_sheet_data(product, data_store, product_id):
                 "raw_data": raw_text[:3000]
             })
             
+            if not prompt:
+                st.error("プロンプト 'sheet_organize' が見つかりません。設定を確認してください。")
+                return
+
             result = ai_provider.ask(prompt, "sheet_organize")
             
             # トレース付きで保存
