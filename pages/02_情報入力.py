@@ -191,6 +191,51 @@ def render_product_images_upload(data_store, product_id):
                         st.rerun()
 
 
+def delete_competitor(product_id, data_store, delete_idx):
+    """競合を削除し、インデックスを詰め直す"""
+    product = data_store.get_product(product_id) or {}
+    current_data = product.get("competitor_analysis_v2") or {}
+    competitors = current_data.get("competitors") or []
+    
+    if 0 <= delete_idx < len(competitors):
+        # 1. DBデータから削除
+        deleted = competitors.pop(delete_idx)
+        current_data["competitors"] = competitors
+        product["competitor_analysis_v2"] = current_data
+        data_store.update_product(product_id, product)
+        
+        st.toast(f"「{deleted.get('name', '競合')}」を削除しました", icon="🗑️")
+    
+    # 2. Session Stateの再構築（詰め直し）
+    old_count = st.session_state.competitor_count
+    new_count = old_count - 1
+    
+    # 削除対象より後ろの要素を前にずらす
+    for i in range(delete_idx, new_count):
+        next_i = i + 1
+        st.session_state[f"comp_name_{i}"] = st.session_state.get(f"comp_name_{next_i}", f"競合{i+1}")
+        st.session_state[f"comp_text_{i}"] = st.session_state.get(f"comp_text_{next_i}", "")
+        st.session_state[f"comp_files_paths_{i}"] = st.session_state.get(f"comp_files_paths_{next_i}", [])
+        st.session_state[f"comp_file_urls_{i}"] = st.session_state.get(f"comp_file_urls_{next_i}", [])
+        # uploader_keyもリセットまたは移動させる方が安全だが、ここでは新規キー発行を促すため削除
+        if f"uploader_key_comp_{next_i}" in st.session_state:
+             st.session_state[f"uploader_key_comp_{i}"] = st.session_state[f"uploader_key_comp_{next_i}"]
+    
+    # 末尾の要素を削除
+    last_idx = old_count - 1
+    keys_to_remove = [
+        f"comp_name_{last_idx}", f"comp_text_{last_idx}", 
+        f"comp_files_paths_{last_idx}", f"comp_file_urls_{last_idx}",
+        f"uploader_key_comp_{last_idx}"
+    ]
+    for key in keys_to_remove:
+        if key in st.session_state:
+            del st.session_state[key]
+            
+    st.session_state.competitor_count = new_count
+    st.rerun()
+
+
 def handle_competitor_upload(product_id, data_store, comp_idx):
     """競合画像アップロード時のコールバック処理"""
     if f"uploader_key_comp_{comp_idx}" not in st.session_state:
@@ -333,6 +378,12 @@ def render_competitor_analysis(data_store, product_id):
     # 各競合の入力エリア
     for i in range(st.session_state.competitor_count):
         with st.expander(f"🏢 競合{i+1}", expanded=False):
+            # 削除ボタン（ヘッダー横には置けないのでexpander内）
+            col_del_btn, _ = st.columns([1, 5])
+            with col_del_btn:
+                if st.button("🗑️ この競合を削除", key=f"del_comp_{i}"):
+                    delete_competitor(product_id, data_store, i)
+            
             # キーとデフォルト値の準備
             name_key = f"comp_name_{i}"
             default_name = f"競合{i+1}"
