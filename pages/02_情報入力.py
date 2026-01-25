@@ -1241,6 +1241,22 @@ def render_reference_images_upload(data_store, product_id):
                                 if Path(p).name != target_filename
                             ]
                         
+                        # 分析結果を連動削除
+                        if "lp_analyses_dict" in current_product:
+                            analyses_dict = current_product["lp_analyses_dict"] or {}
+                            if target_filename in analyses_dict:
+                                del analyses_dict[target_filename]
+                            current_product["lp_analyses_dict"] = analyses_dict
+                            
+                            # lp_analyses リストも再構築（画像の並び順に合わせる）
+                            # reference_lp_images が最新の並び順を持っている
+                            new_lp_analyses = []
+                            for img_path in current_product.get("reference_lp_images", []):
+                                fname = Path(img_path).name
+                                if fname in analyses_dict:
+                                    new_lp_analyses.append(analyses_dict[fname])
+                            current_product["lp_analyses"] = new_lp_analyses
+                        
                         data_store.update_product(product_id, current_product)
                         st.rerun()
         

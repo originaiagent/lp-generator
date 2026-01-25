@@ -92,13 +92,25 @@ def render_input_summary(product):
         
         with col2:
             st.markdown('<div class="step-header">🔍 競合分析</div>', unsafe_allow_html=True)
-            if product.get('competitor_analysis'):
+            # v2を優先して確認
+            comp_v2 = product.get('competitor_analysis_v2') or {}
+            if comp_v2:
+                st.write("**分析状況:** ✅ 完了")
+                summary = comp_v2.get("summary", {})
+                ranking = summary.get("element_ranking", [])
+                if ranking:
+                    ranking_str = "\n".join([f"- {k} ({v}社)" for k, v in ranking[:5]])
+                    st.text_area("主要な訴求要素", f"上位5件:\n{ranking_str}", height=150, disabled=True)
+                else:
+                    st.text_area("分析結果", "分析済みデータがあります", height=150, disabled=True)
+                st.caption("📊 根拠: 競合情報分析 v2")
+            elif product.get('competitor_analysis'):
                 st.write("**分析状況:** ✅ 完了")
                 st.text_area("分析結果", product["competitor_analysis"]["result"][:500] if isinstance(product.get("competitor_analysis"), dict) else str(product.get("competitor_analysis", ""))[:500], height=150, disabled=True)
                 st.caption("📊 根拠: 競合情報分析")
             else:
                 st.write("**分析状況:** ❌ 未実施")
-                st.info("「入力情報」ページで競合分析を実行してください")
+                st.info("「情報入力」ページで競合分析を実行してください")
         
         st.markdown('<div class="step-header">🎨 参考LP分析</div>', unsafe_allow_html=True)
         ref_images = product.get('reference_lp_images') or []
@@ -254,16 +266,23 @@ def extract_appeal_points(product, data_store, product_id):
             if lp_info:
                 product_info += f"\n\n【参考LP分析の訴求情報】{lp_info}"
             
-            # 競合分析結果を取得
-            competitor = product.get('competitor_analysis', {})
-            if isinstance(competitor, dict) and "result" in competitor:
-                result = competitor["result"]
-                if isinstance(result, str):
-                    competitor_text = result[:500]
-                else:
-                    competitor_text = str(result)[:500]
+            # 競合分析結果を取得（新旧形式両対応）
+            comp_v2 = product.get('competitor_analysis_v2') or {}
+            if comp_v2:
+                summary = comp_v2.get("summary", {})
+                ranking = summary.get("element_ranking", [])
+                competitor_text = f"全競合の数: {summary.get('total_competitors', 0)}\n"
+                competitor_text += "訴求要素ランキング:\n" + "\n".join([f"- {k}: {v}社" for k, v in ranking])
             else:
-                competitor_text = str(competitor)[:500] if competitor else "なし"
+                competitor = product.get('competitor_analysis', {})
+                if isinstance(competitor, dict) and "result" in competitor:
+                    result = competitor["result"]
+                    if isinstance(result, str):
+                        competitor_text = result[:500]
+                    else:
+                        competitor_text = str(result)[:500]
+                else:
+                    competitor_text = str(competitor)[:500] if competitor else "なし"
             
             prompt = prompt_manager.get_prompt("appeal_point_extraction", {
                 "product_info": product_info,
