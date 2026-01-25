@@ -359,6 +359,7 @@ def organize_keyword_data(product, data_store, product_id):
     from modules.prompt_manager import PromptManager
     from modules.trace_viewer import save_with_trace
     
+    st.write("DEBUG: 関数開始")
     st.info("キーワード分析を開始します...")
     
     # ProductがNoneの場合のガード
@@ -374,6 +375,7 @@ def organize_keyword_data(product, data_store, product_id):
             
             # シートデータを文字列化
             sheet_data = product.get("review_sheet_data") or {}
+            st.write(f"DEBUG: sheet_data = {str(sheet_data)[:100]}...")
             raw_text = ""
             if isinstance(sheet_data, dict):
                 data_type = sheet_data.get("type", "")
@@ -392,9 +394,12 @@ def organize_keyword_data(product, data_store, product_id):
             else:
                 raw_text = str(sheet_data)
             
+            st.write(f"DEBUG: raw_text長さ = {len(raw_text)}")
+            
             prompt = prompt_manager.get_prompt("keyword_organize", {
                 "raw_data": raw_text[:3000]
             })
+            st.write(f"DEBUG: prompt取得 = {bool(prompt)}")
             
             if not prompt:
                 st.error("プロンプト 'keyword_organize' が見つかりません。設定を確認してください。")
