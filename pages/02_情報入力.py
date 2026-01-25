@@ -183,6 +183,32 @@ def render_product_images_upload(data_store, product_id):
                     st.warning(f"ファイルなし: {img_path}")
 
 
+def save_competitor_data(product_id, data_store):
+    """入力中の競合データをDBに保存（分析前の一時保存）"""
+    product = data_store.get_product(product_id) or {}
+    current_data = product.get("competitor_analysis_v2", {})
+    competitors = current_data.get("competitors", [])
+    
+    # セッションステートからデータを収集して更新
+    count = st.session_state.get("competitor_count", 1)
+    
+    # 既存リストと新しいカウントの整合性を取る
+    new_competitors = []
+    for i in range(count):
+        # 既存データがあれば引き継ぐ
+        comp_data = competitors[i] if i < len(competitors) else {}
+        
+        # セッションの最新値で上書き
+        comp_data["name"] = st.session_state.get(f"comp_name_{i}", f"競合{i+1}")
+        comp_data["text"] = st.session_state.get(f"comp_text_{i}", "")
+        comp_data["files"] = st.session_state.get(f"comp_files_paths_{i}", [])
+        
+        new_competitors.append(comp_data)
+            
+    current_data["competitors"] = new_competitors
+    product["competitor_analysis_v2"] = current_data
+    data_store.update_product(product_id, product)
+
 def render_competitor_analysis(data_store, product_id):
     '''競合情報分析セクション'''
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
@@ -226,9 +252,11 @@ def render_competitor_analysis(data_store, product_id):
         with st.expander(f"🏢 競合{i+1}", expanded=False):
             comp_name = st.text_input(
                 "競合名",
-                value=f"競合{i+1}",
+                value=st.session_state.get(f"comp_name_{i}", f"競合{i+1}"),
                 key=f"comp_name_{i}",
-                placeholder="例: A社、B社"
+                placeholder="例: A社、B社",
+                on_change=save_competitor_data,
+                args=(product_id, data_store)
             )
             
             col1, col2 = st.columns(2)
@@ -288,7 +316,9 @@ def render_competitor_analysis(data_store, product_id):
                     height=150,
                     key=f"comp_text_{i}",
                     placeholder="競合商品ページから情報をコピー&ペースト...",
-                    label_visibility="collapsed"
+                    label_visibility="collapsed",
+                    on_change=save_competitor_data,
+                    args=(product_id, data_store)
                 )
     
     st.markdown("---")
@@ -634,6 +664,18 @@ def render_competitor_analysis_results(analysis_data):
                 st.markdown(f"・ {elem} ({count}/{total}社)")
 
 
+def save_product_sheet(product_id, data_store):
+    product = data_store.get_product(product_id)
+    if product and "edit_organized" in st.session_state:
+        product["product_sheet_organized"] = st.session_state.edit_organized
+        data_store.update_product(product_id, product)
+
+def save_keyword_sheet(product_id, data_store):
+    product = data_store.get_product(product_id)
+    if product and "edit_keyword" in st.session_state:
+        product["keyword_organized"] = st.session_state.edit_keyword
+        data_store.update_product(product_id, product)
+
 def render_sheets_upload(data_store, product_id):
     '''各種シートアップロード'''
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
@@ -690,7 +732,7 @@ def render_sheets_upload(data_store, product_id):
             if organized:
                 st.success("✅ 整理済み")
                 with st.expander("📋 整理済み内容を確認・編集", expanded=False):
-                    edited = st.text_area("内容", value=organized, height=300, key="edit_organized")
+                    edited = st.text_area("内容", value=organized, height=300, key="edit_organized", on_change=save_product_sheet, args=(product_id, data_store))
                     col_a, col_b = st.columns(2)
                     with col_a:
                         if st.button("💾 変更を保存", key="save_organized"):
@@ -755,7 +797,7 @@ def render_sheets_upload(data_store, product_id):
             if keyword_org:
                 st.success("✅ キーワード整理済み")
                 with st.expander("📊 キーワード重要度（確認・編集）", expanded=False):
-                    edited = st.text_area("内容", value=keyword_org, height=300, key="edit_keyword")
+                    edited = st.text_area("内容", value=keyword_org, height=300, key="edit_keyword", on_change=save_keyword_sheet, args=(product_id, data_store))
                     col_a, col_b = st.columns(2)
                     with col_a:
                         if st.button("💾 保存", key="save_keyword"):

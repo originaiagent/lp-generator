@@ -151,6 +151,8 @@ class ImageAnalyzer:
         
         return {
             "name": name,
+            "text": text,  # 元のテキストを保持
+            "files": image_paths,  # 元のファイルパスを保持
             "image_count": len(image_paths),
             "has_text": bool(text.strip()),
             "elements": list(all_elements)
