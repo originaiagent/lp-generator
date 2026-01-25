@@ -104,7 +104,7 @@ def render_product_images_upload(data_store, product_id):
             product = {}
         
         # 既存リストとマージ
-        existing_images = product.get('product_images', [])
+        existing_images = product.get('product_images') or []
         for path in image_paths:
             if path not in existing_images:
                 existing_images.append(path)
@@ -112,7 +112,7 @@ def render_product_images_upload(data_store, product_id):
         
         # Supabaseへアップロード
         if data_store.use_supabase:
-            remote_urls = product.get('product_image_urls', [])
+            remote_urls = product.get('product_image_urls') or []
             # 今回アップロードされたファイルをSync
             for uploaded_file in uploaded_files:
                 try:
@@ -147,8 +147,8 @@ def render_product_images_upload(data_store, product_id):
     
     
     # Supabase Storage URLを優先して表示（Streamlit Cloud対応）
-    image_urls = product.get("product_image_urls", []) if product else []
-    local_images = product.get("product_images", []) if product else []
+    image_urls = (product.get("product_image_urls") or []) if product else []
+    local_images = (product.get("product_images") or []) if product else []
     
     if image_urls:
         st.markdown("**📁 アップロード済み画像 (クラウド):**")
@@ -163,7 +163,7 @@ def render_product_images_upload(data_store, product_id):
                 
                 # 削除ボタンは常に表示
                 if st.button("🗑️", key=f"del_prod_img_url_{i}"):
-                    if img_url in product.get("product_image_urls", []):
+                    if img_url in (product.get("product_image_urls") or []):
                         product["product_image_urls"].remove(img_url)
                         data_store.update_product(product_id, product)
                         st.rerun()
@@ -185,7 +185,7 @@ def render_product_images_upload(data_store, product_id):
                 
                 # 削除ボタンは常に表示
                 if st.button("🗑️", key=f"del_prod_img_{i}"):
-                    if img_path in product.get("product_images", []):
+                    if img_path in (product.get("product_images") or []):
                         product["product_images"].remove(img_path)
                         data_store.update_product(product_id, product)
                         st.rerun()
@@ -194,7 +194,7 @@ def render_product_images_upload(data_store, product_id):
 def save_competitor_data(product_id, data_store):
     """入力中の競合データをDBに保存（分析前の一時保存）"""
     product = data_store.get_product(product_id) or {}
-    current_data = product.get("competitor_analysis_v2", {})
+    current_data = product.get("competitor_analysis_v2") or {}
     competitors = current_data.get("competitors", [])
     
     # セッションステートからデータを収集して更新
@@ -858,7 +858,7 @@ def handle_lp_upload(product_id, data_store):
         product = data_store.get_product(product_id) or {}
         
         # 既存の画像リストに追加
-        existing = product.get('reference_lp_images', [])
+        existing = product.get('reference_lp_images') or []
         for path in image_paths:
             if path not in existing:
                 existing.append(path)
@@ -866,7 +866,7 @@ def handle_lp_upload(product_id, data_store):
         
         # Supabaseへアップロード
         if data_store.use_supabase:
-            remote_urls = product.get('reference_lp_image_urls', [])
+            remote_urls = product.get('reference_lp_image_urls') or []
             for uploaded_file in lp_images:
                 try:
                     uploaded_file.seek(0)
@@ -907,14 +907,14 @@ def handle_tone_upload(product_id, data_store):
         
         product = data_store.get_product(product_id) or {}
         
-        existing = product.get('tone_manner_images', [])
+        existing = product.get('tone_manner_images') or []
         for path in image_paths:
             if path not in existing:
                 existing.append(path)
         product['tone_manner_images'] = existing
         
         if data_store.use_supabase:
-            remote_urls = product.get('tone_manner_image_urls', [])
+            remote_urls = product.get('tone_manner_image_urls') or []
             for uploaded_file in tone_images:
                 try:
                     uploaded_file.seek(0)
@@ -968,7 +968,7 @@ def render_reference_images_upload(data_store, product_id):
         # ローカルパスも（URLに含まれていないものがあれば）
         if product and product.get("reference_lp_images"):
             # URLのファイル名と比較して重複を除く簡易ロジック
-            url_filenames = [u.split("/")[-1] for u in product.get("reference_lp_image_urls", [])]
+            url_filenames = [u.split("/")[-1] for u in (product.get("reference_lp_image_urls") or [])]
             for img in product["reference_lp_images"]:
                 if Path(img).name not in url_filenames and Path(img).exists():
                      display_images.append({"type": "local", "path": img})
@@ -1088,7 +1088,7 @@ def render_reference_images_upload(data_store, product_id):
             tm_display_images.extend([{"type": "url", "path": url} for url in product["tone_manner_image_urls"]])
             
         if product and product.get("tone_manner_images"):
-            url_filenames = [u.split("/")[-1] for u in product.get("tone_manner_image_urls", [])]
+            url_filenames = [u.split("/")[-1] for u in (product.get("tone_manner_image_urls") or [])]
             for img in product["tone_manner_images"]:
                 if Path(img).name not in url_filenames and Path(img).exists():
                      tm_display_images.append({"type": "local", "path": img})
@@ -1182,8 +1182,8 @@ def render_reference_images_upload(data_store, product_id):
         product = data_store.get_product(product_id)
         
         # 画像ソースの特定（URLとローカルを統合）
-        urls = product.get('reference_lp_image_urls', [])
-        local = product.get('reference_lp_images', [])
+        urls = product.get('reference_lp_image_urls') or []
+        local = product.get('reference_lp_images') or []
         
         # URL優先、ファイル名で重複排除（簡易的）
         seen_names = set()
@@ -1297,7 +1297,7 @@ def reanalyze_lp_image(product, data_store, product_id, index):
     
     with st.spinner(f'{index+1}枚目を再分析中...'):
         try:
-            lp_images = product.get('reference_lp_images', [])
+            lp_images = product.get('reference_lp_images') or []
             if index >= len(lp_images):
                 st.error("画像が見つかりません")
                 return
