@@ -19,6 +19,7 @@ class DataStore:
         self.base_url = ""
         self.supabase: Client = None
         self.service_key = os.environ.get("SUPABASE_SERVICE_KEY")
+        self.last_error = None  # 詳細エラー保持用
         
         # 環境変数から設定を取得
         base_url = os.environ.get("SUPABASE_URL")
@@ -74,8 +75,15 @@ class DataStore:
             url = f"{self.base_url}/lp_products"
             headers = {**self.headers, "Prefer": "resolution=merge-duplicates"}
             response = requests.post(url, headers=headers, json=product)
-            return response.status_code in [200, 201]
+            
+            if response.status_code not in [200, 201]:
+                self.last_error = f"Status: {response.status_code}, Body: {response.text}"
+                print(f"Supabase save failed: {self.last_error}")
+                return False
+                
+            return True
         except Exception as e:
+            self.last_error = str(e)
             print(f"Supabase save error: {e}")
         return False
     
@@ -164,7 +172,8 @@ class DataStore:
         if self.use_supabase:
             if not self._save_to_supabase(product):
                 import streamlit as st
-                st.error("データベースへの保存に失敗しました。再試行してください。")
+                error_msg = self.last_error if self.last_error else "Unknown error"
+                st.error(f"データベース保存エラー: {error_msg}")
                 return False
         
         # ローカルファイルにも保存（バックアップ）
