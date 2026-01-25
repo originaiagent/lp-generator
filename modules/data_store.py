@@ -183,7 +183,7 @@ class DataStore:
                 continue
         return products
 
-    def upload_image(self, file_data, file_name: str, bucket_name: str = "images") -> str:
+    def upload_image(self, file_data, file_name: str, bucket_name: str = "product-dev-images") -> str:
         """Supabase Storageに画像をアップロードし、公開URLを返す"""
         if not self.supabase:
             return None
