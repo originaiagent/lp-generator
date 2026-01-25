@@ -383,6 +383,25 @@ def organize_keyword_data(product, data_store, product_id):
                 
                 if data_type in ["pdf", "text"]:
                     raw_text = str(sheet_content)
+                    
+                    # PDFライブラリ未インストール時のエラー文字が入っている場合は再パースを試みる
+                    if "PDFライブラリがインストールされていません" in raw_text:
+                        st.write("DEBUG: PDF再パースを試行中...")
+                        file_path = product.get("review_sheet")
+                        if file_path and os.path.exists(file_path):
+                            from modules.file_parser import FileParser
+                            parsed = FileParser().parse(file_path)
+                            if parsed.get("content") != "PDFライブラリがインストールされていません":
+                                st.write("DEBUG: PDF再パース成功")
+                                sheet_data = parsed
+                                product["review_sheet_data"] = parsed
+                                raw_text = str(parsed.get("content", ""))
+                            else:
+                                st.error("PDFライブラリ（pymupdfまたはpypdf）がまだ有効ではありません。環境を確認してください。")
+                                return
+                        else:
+                            st.error("元のPDFファイルが見つかりません。再アップロードしてください。")
+                            return
                 elif isinstance(sheet_content, list):
                     for item in sheet_content:
                         if isinstance(item, dict):
@@ -467,6 +486,25 @@ def organize_sheet_data(product, data_store, product_id):
                 if data_type in ["pdf", "text"]:
                     # PDF/テキストはそのまま
                     raw_text = str(content)
+                    
+                    # PDFライブラリ未インストール時のエラー文字が入っている場合は再パースを試みる
+                    if "PDFライブラリがインストールされていません" in raw_text:
+                        st.write("DEBUG: PDF再パースを試行中...")
+                        file_path = product.get("product_sheet")
+                        if file_path and os.path.exists(file_path):
+                            from modules.file_parser import FileParser
+                            parsed = FileParser().parse(file_path)
+                            if parsed.get("content") != "PDFライブラリがインストールされていません":
+                                st.write("DEBUG: PDF再パース成功")
+                                sheet_data = parsed
+                                product["product_sheet_data"] = parsed
+                                raw_text = str(parsed.get("content", ""))
+                            else:
+                                st.error("PDFライブラリ（pymupdfまたはpypdf）がまだ有効ではありません。環境を確認してください。")
+                                return
+                        else:
+                            st.error("元のPDFファイルが見つかりません。再アップロードしてください。")
+                            return
                 elif isinstance(content, list):
                     # CSV/Excelはリスト形式
                     for item in content:
