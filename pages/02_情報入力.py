@@ -356,8 +356,8 @@ def render_competitor_analysis(data_store, product_id):
         # DBから保存済みデータを取得
         product = data_store.get_product(product_id)
         saved_competitors = []
-        if product and "competitor_analysis_v2" in product:
-            saved_competitors = product["competitor_analysis_v2"].get("competitors", [])
+        if product:
+            saved_competitors = (product.get("competitor_analysis_v2") or {}).get("competitors", [])
         
         if saved_competitors:
             st.session_state.competitor_count = len(saved_competitors)
