@@ -28,15 +28,22 @@ col_list, col_edit = st.columns([1, 2])
 
 with col_list:
     st.subheader("📋 タスク一覧")
-    prompts = prompt_manager.list_prompts()
+    prompts_data = prompt_manager.list_prompts_with_names()
+    
+    # IDリストを作成
+    prompt_ids = [p["id"] for p in prompts_data]
     
     if 'selected_prompt_id' not in st.session_state:
-        st.session_state.selected_prompt_id = prompts[0] if prompts else None
+        st.session_state.selected_prompt_id = prompt_ids[0] if prompt_ids else None
     
-    for p_id in prompts:
+    for p_data in prompts_data:
+        p_id = p_data["id"]
+        p_name = p_data["name"]
+        
         is_selected = st.session_state.selected_prompt_id == p_id
         btn_type = "primary" if is_selected else "secondary"
-        if st.button(f"{'✅ ' if is_selected else ''}{p_id}", key=f"btn_{p_id}", use_container_width=True, type=btn_type):
+        
+        if st.button(f"{'✅ ' if is_selected else ''}{p_name}", key=f"btn_{p_id}", use_container_width=True, type=btn_type):
             st.session_state.selected_prompt_id = p_id
             st.rerun()
         st.markdown("---")
@@ -45,8 +52,15 @@ with col_edit:
     if st.session_state.selected_prompt_id:
         p_id = st.session_state.selected_prompt_id
         template = prompt_manager.get_prompt(p_id)
+        p_data = prompt_manager.get_prompt_data(p_id)
+        p_name = p_data.get("name", p_id)
+        p_desc = p_data.get("description", "")
         
-        st.subheader(f"✏️ {p_id}")
+        st.subheader(f"✏️ {p_name}")
+        if p_desc:
+            st.caption(p_desc)
+        if p_id != p_name:
+            st.caption(f"ID: {p_id}")
         
         new_template = st.text_area("テンプレート", value=template, height=300, key=f"tmpl_{p_id}")
         
