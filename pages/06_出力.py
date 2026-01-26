@@ -182,6 +182,56 @@ def render_output_page():
     with tab3:
         render_download_section(output_generator, product_data)
 
+def generate_page_image_logic(ai_provider, prompt_manager, page, parsed_content, tone_manner, ref_image_path, product_data, data_store, product_id, variation_of=None, custom_prompt=None):
+    """画像生成のコアロジック（個別・一括共通）"""
+    import uuid
+    from datetime import datetime
+    
+    # プロンプト生成 (カスタムがあれば優先)
+    if custom_prompt:
+        prompt = custom_prompt
+    else:
+        prompt = build_image_prompt(prompt_manager, page, parsed_content, tone_manner)
+    
+    # 画像生成
+    result = ai_provider.generate_image(prompt, reference_image_path=ref_image_path)
+    
+    if result and 'path' in result:
+        page_id = page.get('id', f"page_{page.get('order', 1)}")
+        
+        # 複数バージョン対応のデータ構造
+        if 'generated_versions' not in product_data:
+            product_data['generated_versions'] = {}
+        if page_id not in product_data['generated_versions']:
+            product_data['generated_versions'][page_id] = {"versions": [], "selected": None}
+        
+        # 新しいバージョンを追加
+        version_id = f"v_{uuid.uuid4().hex[:8]}"
+        new_version = {
+            "id": version_id,
+            "path": result['path'],
+            "prompt": prompt,
+            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "is_selected": False,
+            "variation_of": variation_of
+        }
+        product_data['generated_versions'][page_id]['versions'].append(new_version)
+        
+        # 最初のバージョンは自動選択
+        if len(product_data['generated_versions'][page_id]['versions']) == 1:
+            new_version['is_selected'] = True
+            product_data['generated_versions'][page_id]['selected'] = version_id
+        
+        # 旧形式との互換性
+        if 'generated_lp_images' not in product_data:
+            product_data['generated_lp_images'] = {}
+        product_data['generated_lp_images'][page_id] = result['path']
+        
+        data_store.update_product(product_id, product_data)
+        return True
+    else:
+        return False
+
 def render_lp_generation_section(output_generator, ai_provider, prompt_manager, product_data, data_store, product_id, settings):
     st.markdown('<div class="step-header">🖼️ LP画像生成</div>', unsafe_allow_html=True)
     
@@ -206,98 +256,148 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
     if not page_contents:
         st.warning("ページ詳細でコンテンツを生成してください")
         return
-    
+
+    # 一括生成ボタン
+    st.markdown("### 🛠️ 一括操作")
+    if st.button("🚀 全ページを一括生成", type="primary", width="stretch"):
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        for i, page in enumerate(pages):
+            page_id = page.get('id', 'unknown')
+            page_title = page.get('title', '無題')
+            status_text.text(f"P{i+1}: {page_title} を生成中...")
+            
+            # 必要なデータを取得
+            content_data = page_contents.get(page_id, {})
+            parsed = {}
+            if isinstance(content_data, dict) and 'result' in content_data:
+                result = content_data['result']
+                parsed = result.get('parsed', result) if isinstance(result, dict) else {}
+            
+            # 参照画像パス
+            ref_page = page.get('reference_page', 1)
+            ref_path = None
+            ref_urls = product_data.get('reference_lp_image_urls') or []
+            if ref_urls and ref_page <= len(ref_urls):
+                ref_path = ref_urls[ref_page - 1]
+            else:
+                ref_images = product_data.get('reference_lp_images', [])
+                if ref_images and ref_page <= len(ref_images):
+                    ref_path = ref_images[ref_page - 1]
+
+            try:
+                generate_page_image_logic(
+                    ai_provider, prompt_manager, page, parsed, tone_manner, 
+                    ref_path, product_data, data_store, product_id
+                )
+            except Exception as e:
+                st.warning(f"P{i+1} の生成でエラー: {e}")
+            
+            progress_bar.progress((i + 1) / len(pages))
+        
+        status_text.text("")
+        st.success("全ページの画像生成が完了しました！")
+        st.rerun()
+
+    st.divider()
+
+    # ページ選択UI
+    page_options = {f"P{p.get('order', i+1)} - {p.get('title', '無題')}": p for i, p in enumerate(pages)}
+    selected_page_name = st.selectbox("表示するページを選択", list(page_options.keys()))
+    page = page_options[selected_page_name]
+
     # トンマナ表示
     if tone_manner:
         with st.expander("🎨 トンマナ設定", expanded=False):
             colors = tone_manner.get('colors', {})
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
+            col_c1, col_c2, col_c3, col_c4 = st.columns(4)
+            with col_c1:
                 st.color_picker("メイン", colors.get('main', '#000000'), disabled=True, key="out_main")
-            with col2:
+            with col_c2:
                 st.color_picker("アクセント", colors.get('accent', '#000000'), disabled=True, key="out_accent")
-            with col3:
+            with col_c3:
                 st.color_picker("背景", colors.get('background', '#FFFFFF'), disabled=True, key="out_bg")
-            with col4:
+            with col_c4:
                 st.color_picker("テキスト", colors.get('text', '#000000'), disabled=True, key="out_text")
     
     st.divider()
     
     # ページごとに生成
+    # ページごとに生成
     generated_lp_images = product_data.get('generated_lp_images', {})
     
-    for page in pages:
-        page_id = page.get('id', 'unknown')
-        page_title = page.get('title', '無題')
-        page_order = page.get('order', 1)
-        reference_page = page.get('reference_page', 1)
-        
-        # ページヘッダー
-        st.markdown(f"---")
-        st.markdown(f"## P{page_order}: {page_title}")
-        
-        # コンテンツ取得
-        content_data = page_contents.get(page_id, {})
-        if isinstance(content_data, dict) and 'result' in content_data:
-            result = content_data['result']
-            if isinstance(result, dict):
-                parsed = result.get('parsed', result)
-                display = result.get('display', '')
-            else:
-                parsed = {}
-                display = str(result)
+    page_id = page.get('id', 'unknown')
+    page_title = page.get('title', '無題')
+    page_order = page.get('order', 1)
+    reference_page = page.get('reference_page', 1)
+    
+    # ページヘッダー
+    st.markdown(f"### {selected_page_name}")
+    
+    # コンテンツ取得
+    content_data = page_contents.get(page_id, {})
+    if isinstance(content_data, dict) and 'result' in content_data:
+        result = content_data['result']
+        if isinstance(result, dict):
+            parsed = result.get('parsed', result)
+            display = result.get('display', '')
         else:
             parsed = {}
-            display = ""
+            display = str(result)
+    else:
+        parsed = {}
+        display = ""
+    
+    # 参照LP画像パス (URL優先)
+    ref_image_path = None
+    if lp_analyses and reference_page <= len(lp_analyses):
+        # まずURLリストを確認
+        ref_urls = product_data.get('reference_lp_image_urls') or []
+        if ref_urls and reference_page <= len(ref_urls):
+            ref_image_path = ref_urls[reference_page - 1]
+        else:
+            # 無ければローカルパス
+            ref_images = product_data.get('reference_lp_images', [])
+            if ref_images and reference_page <= len(ref_images):
+                ref_image_path = ref_images[reference_page - 1]
+    
+    # ========== 決定事項・参照情報セクション ==========
+    with st.expander("📋 決定事項・参照情報", expanded=True):
+        info_col1, info_col2 = st.columns([2, 1])
         
-        # 参照LP画像パス (URL優先)
-        ref_image_path = None
-        if lp_analyses and reference_page <= len(lp_analyses):
-            # まずURLリストを確認
-            ref_urls = product_data.get('reference_lp_image_urls') or []
-            if ref_urls and reference_page <= len(ref_urls):
-                ref_image_path = ref_urls[reference_page - 1]
-            else:
-                # 無ければローカルパス
-                ref_images = product_data.get('reference_lp_images', [])
-                if ref_images and reference_page <= len(ref_images):
-                    ref_image_path = ref_images[reference_page - 1]
-        
-        # ========== 決定事項・参照情報セクション ==========
-        with st.expander("📋 決定事項・参照情報", expanded=True):
-            info_col1, info_col2 = st.columns([2, 1])
-            
-            with info_col1:
-                # コンテンツ表示
-                st.markdown("**📝 コンテンツ**")
+        with info_col1:
+            # コンテンツ表示（折りたたみ）
+            with st.expander("📝 コンテンツ", expanded=False):
                 if display:
-                    st.text_area("", value=display[:500], height=150, disabled=True, key=f"content_{page_id}")
+                    st.text_area("本文", value=display, height=200, disabled=True, key=f"content_{page_id}")
                     
                     # 問題検出
                     issues = detect_content_issues(parsed, lp_analyses, reference_page)
                     if issues:
-                        with st.expander(f"⚠️ {len(issues)}件の確認事項", expanded=True):
-                            for issue in issues:
-                                elem_type = issue.get('element_type', '')
-                                guide = get_element_guide(elem_type)
-                                st.warning(f"**{issue['type']}**: {issue['message']}")
-                                if guide:
-                                    st.caption(f"💡 {guide['description']}")
-                                if issue.get('suggestions'):
-                                    selected = st.selectbox(
-                                        "対応策", issue['suggestions'],
-                                        key=f"fix_{page_id}_{issue['id']}"
-                                    )
-                                    if selected == "手動で入力":
-                                        placeholder = guide.get('example', '') if guide else ''
-                                        new_val = st.text_input("入力", placeholder=placeholder, key=f"input_{page_id}_{issue['id']}")
-                                        if new_val and st.button("適用", key=f"apply_{page_id}_{issue['id']}"):
-                                            apply_fix(parsed, issue, new_val, page_contents, page_id, data_store, product_id, product_data)
+                        st.divider()
+                        st.warning(f"⚠️ {len(issues)}件の確認事項があります")
+                        for issue in issues:
+                            elem_type = issue.get('element_type', '')
+                            guide = get_element_guide(elem_type)
+                            st.markdown(f"**{issue['type']}**: {issue['message']}")
+                            if guide:
+                                st.caption(f"💡 {guide['description']}")
+                            if issue.get('suggestions'):
+                                selected = st.selectbox(
+                                    "対応策", issue['suggestions'],
+                                    key=f"fix_{page_id}_{issue['id']}"
+                                )
+                                if selected == "手動で入力":
+                                    placeholder = guide.get('example', '') if guide else ''
+                                    new_val = st.text_input("入力", placeholder=placeholder, key=f"input_{page_id}_{issue['id']}")
+                                    if new_val and st.button("適用", key=f"apply_{page_id}_{issue['id']}"):
+                                        apply_fix(parsed, issue, new_val, page_contents, page_id, data_store, product_id, product_data)
                 else:
-                    st.info("コンテンツ未生成 → ページ詳細で生成してください")
-                
-                # 画像生成プロンプト（編集可能）
-                st.markdown("**🎨 画像生成プロンプト**")
+                    st.info("コンテンツ未生成")
+            
+            # 画像生成プロンプト（編集可能・折りたたみ）
+            with st.expander("🎨 画像生成プロンプト", expanded=False):
                 custom_prompts = product_data.get('custom_prompts', {})
                 current_custom = custom_prompts.get(page_id, {}).get('image_prompt', '')
                 
@@ -308,7 +408,7 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                 edited_prompt = st.text_area(
                     "プロンプトを編集可能",
                     value=prompt_to_show,
-                    height=120,
+                    height=200,
                     key=f"edit_prompt_{page_id}"
                 )
                 
@@ -329,157 +429,156 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                             product_data['custom_prompts'].pop(page_id, None)
                             data_store.update_product(product_id, product_data)
                             st.rerun()
+        
+        with info_col2:
+            # 参照LP
+            if ref_image_path:
+                st.markdown("**📷 参照LP**")
+                is_local = not str(ref_image_path).startswith("http")
+                if not is_local or Path(ref_image_path).exists():
+                    st.image(ref_image_path, width="stretch")
+                else:
+                    st.warning("画像が見つかりません")
             
-            with info_col2:
-                # 参照LP
-                if ref_image_path:
-                    st.markdown("**📷 参照LP**")
-                    # URLかファイルパスかを判定して表示（Pathlibのエラー回避）
-                    is_local = not str(ref_image_path).startswith("http")
-                    if not is_local or Path(ref_image_path).exists():
-                        st.image(ref_image_path, width="stretch")
+            # トーンマナー簡易表示
+            if tone_manner:
+                st.markdown("**🎨 トーンマナー**")
+                st.caption(f"メイン: {tone_manner.get('main_color', 'N/A')}")
+                st.caption(f"フォント: {tone_manner.get('font', 'N/A')}")
+    
+    # ========== パターン一覧セクション ==========
+    st.markdown("**🖼️ 生成パターン**")
+    
+    versions_data = product_data.get('generated_versions', {}).get(page_id, {})
+    versions = versions_data.get('versions', [])
+    
+    if versions:
+        for v_idx, version in enumerate(versions):
+            v_id = version.get('id', '')
+            v_path = version.get('path', '')
+            v_created = version.get('created_at', '')
+            is_selected = version.get('is_selected', False)
+            
+            # パターンカード
+            pattern_label = f"⭐ パターン {v_idx + 1} （採用中）" if is_selected else f"☆ パターン {v_idx + 1}"
+            with st.container():
+                st.markdown(f"#### {pattern_label}")
+                st.caption(f"生成日時: {v_created}")
+                
+                img_col, btn_col = st.columns([3, 1])
+                
+                with img_col:
+                    if v_path and Path(v_path).exists():
+                        st.image(v_path, width="stretch")
                     else:
-                        st.warning("参照画像が見つかりません (削除された可能性があります)")
+                        st.warning("画像ファイルが見つかりません")
                 
-                # トーンマナー簡易表示
-                if tone_manner:
-                    st.markdown("**🎨 トーンマナー**")
-                    st.caption(f"メイン: {tone_manner.get('main_color', 'N/A')}")
-                    st.caption(f"フォント: {tone_manner.get('font', 'N/A')}")
-        
-        # ========== パターン一覧セクション ==========
-        st.markdown("**🖼️ 生成パターン**")
-        
-        versions_data = product_data.get('generated_versions', {}).get(page_id, {})
-        versions = versions_data.get('versions', [])
-        
-        if versions:
-            for v_idx, version in enumerate(versions):
-                v_id = version.get('id', '')
-                v_path = version.get('path', '')
-                v_created = version.get('created_at', '')
-                is_selected = version.get('is_selected', False)
-                
-                # パターンカード
-                pattern_label = f"⭐ パターン {v_idx + 1} （採用中）" if is_selected else f"☆ パターン {v_idx + 1}"
-                with st.container():
-                    st.markdown(f"#### {pattern_label}")
-                    st.caption(f"生成日時: {v_created}")
+                with btn_col:
+                    # 再生成ボタン
+                    if st.button("🔄 再生成", key=f"regen_{page_id}_{v_id}", width="stretch"):
+                        # カスタムプロンプトがあれば使用
+                        custom_prompt = product_data.get('custom_prompts', {}).get(page_id, {}).get('image_prompt')
+                        regenerate_pattern(
+                            ai_provider, product_data, data_store, product_id,
+                            page_id, v_id, page, parsed, tone_manner, ref_image_path,
+                            prompt_manager, custom_prompt
+                        )
                     
-                    img_col, btn_col = st.columns([3, 1])
-                    
-                    with img_col:
-                        if v_path and Path(v_path).exists():
-                            st.image(v_path, width="stretch")
-                        else:
-                            st.warning("画像ファイルが見つかりません")
-                    
-                    with btn_col:
-                        # 再生成ボタン
-                        if st.button("🔄 再生成", key=f"regen_{page_id}_{v_id}", width="stretch"):
-                            # カスタムプロンプトがあれば使用
-                            custom_prompt = product_data.get('custom_prompts', {}).get(page_id, {}).get('image_prompt')
-                            regenerate_pattern(
-                                ai_provider, product_data, data_store, product_id,
-                                page_id, v_id, page, parsed, tone_manner, ref_image_path,
-                                prompt_manager, custom_prompt
-                            )
-                        
-                        # 採用ボタン
-                        if not is_selected:
-                            if st.button("⭐ 採用", key=f"select_{page_id}_{v_id}", width="stretch"):
-                                for v in versions:
-                                    v['is_selected'] = (v['id'] == v_id)
-                                versions_data['selected'] = v_id
-                                if 'generated_lp_images' not in product_data:
-                                    product_data['generated_lp_images'] = {}
-                                product_data['generated_lp_images'][page_id] = v_path
-                                data_store.update_product(product_id, product_data)
-                                st.rerun()
-                        
-                        # プロンプト確認
-                        if st.button("🔍 プロンプト", key=f"view_prompt_{page_id}_{v_id}", width="stretch"):
-                            st.session_state[f'show_prompt_{page_id}_{v_id}'] = True
-                        
-                        # 削除ボタン
-                        if st.button("🗑️ 削除", key=f"delete_{page_id}_{v_id}", width="stretch"):
-                            versions.remove(version)
-                            if is_selected and versions:
-                                versions[0]['is_selected'] = True
-                                versions_data['selected'] = versions[0]['id']
-                                product_data['generated_lp_images'][page_id] = versions[0]['path']
-                            elif not versions:
-                                product_data.get('generated_lp_images', {}).pop(page_id, None)
+                    # 採用ボタン
+                    if not is_selected:
+                        if st.button("⭐ 採用", key=f"select_{page_id}_{v_id}", width="stretch"):
+                            for v in versions:
+                                v['is_selected'] = (v['id'] == v_id)
+                            versions_data['selected'] = v_id
+                            if 'generated_lp_images' not in product_data:
+                                product_data['generated_lp_images'] = {}
+                            product_data['generated_lp_images'][page_id] = v_path
                             data_store.update_product(product_id, product_data)
                             st.rerun()
                     
-                    # プロンプト表示（トグル）
-                    if st.session_state.get(f'show_prompt_{page_id}_{v_id}'):
-                        with st.expander("使用したプロンプト", expanded=True):
-                            st.code(version.get('prompt', 'プロンプト情報なし'), language=None)
-                            if st.button("閉じる", key=f"close_prompt_{page_id}_{v_id}"):
-                                st.session_state[f'show_prompt_{page_id}_{v_id}'] = False
-                                st.rerun()
+                    # プロンプト確認
+                    if st.button("🔍 プロンプト", key=f"view_prompt_{page_id}_{v_id}", width="stretch"):
+                        st.session_state[f'show_prompt_{page_id}_{v_id}'] = True
                     
-                    st.divider()
-        else:
-            st.info("まだパターンがありません")
+                    # 削除ボタン
+                    if st.button("🗑️ 削除", key=f"delete_{page_id}_{v_id}", width="stretch"):
+                        versions.remove(version)
+                        if is_selected and versions:
+                            versions[0]['is_selected'] = True
+                            versions_data['selected'] = versions[0]['id']
+                            product_data['generated_lp_images'][page_id] = versions[0]['path']
+                        elif not versions:
+                            product_data.get('generated_lp_images', {}).pop(page_id, None)
+                        data_store.update_product(product_id, product_data)
+                        st.rerun()
+                
+                # プロンプト表示（トグル）
+                if st.session_state.get(f'show_prompt_{page_id}_{v_id}'):
+                    with st.expander("使用したプロンプト", expanded=True):
+                        st.code(version.get('prompt', 'プロンプト情報なし'), language=None)
+                        if st.button("閉じる", key=f"close_prompt_{page_id}_{v_id}"):
+                            st.session_state[f'show_prompt_{page_id}_{v_id}'] = False
+                            st.rerun()
+                
+                st.divider()
+    else:
+        st.info("まだパターンがありません")
+    
+    # 新規パターン追加
+    new_pattern_key = f"new_pattern_{page_id}"
+    
+    # 新規パターン作成モード
+    if st.session_state.get(new_pattern_key):
+        st.markdown("#### ➕ 新規パターン作成")
         
-        # 新規パターン追加
-        new_pattern_key = f"new_pattern_{page_id}"
+        # デフォルトプロンプトを取得
+        default_prompt = build_image_prompt(prompt_manager, page, parsed, tone_manner)
+        custom_prompts = product_data.get('custom_prompts', {})
+        base_prompt = custom_prompts.get(page_id, {}).get('image_prompt', default_prompt)
         
-        # 新規パターン作成モード
-        if st.session_state.get(new_pattern_key):
-            st.markdown("#### ➕ 新規パターン作成")
-            
-            # デフォルトプロンプトを取得
-            default_prompt = build_image_prompt(prompt_manager, page, parsed, tone_manner)
-            custom_prompts = product_data.get('custom_prompts', {})
-            base_prompt = custom_prompts.get(page_id, {}).get('image_prompt', default_prompt)
-            
-            # プロンプト編集エリア
-            new_pattern_prompt = st.text_area(
-                "このパターン用のプロンプト（編集可能）",
-                value=base_prompt,
-                height=150,
-                key=f"new_pattern_prompt_{page_id}"
-            )
-            
-            np_col1, np_col2, np_col3 = st.columns([2, 2, 1])
-            with np_col1:
-                if st.button("🚀 生成開始", key=f"start_gen_{page_id}", width="stretch", type="primary"):
-                    st.session_state[new_pattern_key] = False
-                    generate_lp_page(
-                        ai_provider, prompt_manager,
-                        page, parsed, tone_manner, ref_image_path,
-                        product_data, data_store, product_id,
-                        custom_prompt=new_pattern_prompt
-                    )
-            with np_col2:
-                if st.button("🗑️ キャンセル", key=f"cancel_new_{page_id}", width="stretch"):
-                    st.session_state[new_pattern_key] = False
-                    st.rerun()
-            with np_col3:
-                if st.button("💰", key=f"cost_{page_id}", help="直前の生成コスト"):
-                    if 'last_api_usage' in st.session_state and st.session_state.last_api_usage:
-                        u = st.session_state.last_api_usage
-                        st.toast(f"入力: {u.get('input_tokens', 0):,} / 出力: {u.get('output_tokens', 0):,} / ¥{u.get('cost_jpy', 0):.2f}")
-                    else:
-                        st.toast("まだ生成していません")
-        else:
-            # 新規パターン追加ボタン
-            add_col1, add_col2, add_col3 = st.columns([2, 1, 1])
-            with add_col1:
-                if st.button("➕ 新規パターン追加", key=f"add_pattern_{page_id}", width="stretch"):
-                    st.session_state[new_pattern_key] = True
-                    st.rerun()
-            with add_col3:
-                if st.button("💰", key=f"cost2_{page_id}", help="直前の生成コスト"):
-                    if 'last_api_usage' in st.session_state and st.session_state.last_api_usage:
-                        u = st.session_state.last_api_usage
-                        st.toast(f"入力: {u.get('input_tokens', 0):,} / 出力: {u.get('output_tokens', 0):,} / ¥{u.get('cost_jpy', 0):.2f}")
-                    else:
-                        st.toast("まだ生成していません")
+        # プロンプト編集エリア
+        new_pattern_prompt = st.text_area(
+            "このパターン用のプロンプト（編集可能）",
+            value=base_prompt,
+            height=150,
+            key=f"new_pattern_prompt_{page_id}"
+        )
+        
+        np_col1, np_col2, np_col3 = st.columns([2, 2, 1])
+        with np_col1:
+            if st.button("🚀 生成開始", key=f"start_gen_{page_id}", width="stretch", type="primary"):
+                st.session_state[new_pattern_key] = False
+                generate_lp_page(
+                    ai_provider, prompt_manager,
+                    page, parsed, tone_manner, ref_image_path,
+                    product_data, data_store, product_id,
+                    custom_prompt=new_pattern_prompt
+                )
+        with np_col2:
+            if st.button("🗑️ キャンセル", key=f"cancel_new_{page_id}", width="stretch"):
+                st.session_state[new_pattern_key] = False
+                st.rerun()
+        with np_col3:
+            if st.button("💰", key=f"cost_{page_id}", help="直前の生成コスト"):
+                if 'last_api_usage' in st.session_state and st.session_state.last_api_usage:
+                    u = st.session_state.last_api_usage
+                    st.toast(f"入力: {u.get('input_tokens', 0):,} / 出力: {u.get('output_tokens', 0):,} / ¥{u.get('cost_jpy', 0):.2f}")
+                else:
+                    st.toast("まだ生成していません")
+    else:
+        # 新規パターン追加ボタン
+        add_col1, add_col2, add_col3 = st.columns([2, 1, 1])
+        with add_col1:
+            if st.button("➕ 新規パターン追加", key=f"add_pattern_{page_id}", width="stretch"):
+                st.session_state[new_pattern_key] = True
+                st.rerun()
+        with add_col3:
+            if st.button("💰", key=f"cost2_{page_id}", help="直前の生成コスト"):
+                if 'last_api_usage' in st.session_state and st.session_state.last_api_usage:
+                    u = st.session_state.last_api_usage
+                    st.toast(f"入力: {u.get('input_tokens', 0):,} / 出力: {u.get('output_tokens', 0):,} / ¥{u.get('cost_jpy', 0):.2f}")
+                else:
+                    st.toast("まだ生成していません")
 
 def build_image_prompt(prompt_manager, page, parsed_content, tone_manner):
     """画像生成用のデフォルトプロンプトを構築"""
@@ -641,105 +740,16 @@ def generate_lp_page(ai_provider, prompt_manager, page, parsed_content, tone_man
     """LP1ページを画像生成"""
     with st.spinner(f"P{page.get('order', 1)} を生成中..."):
         try:
-            # コンテンツテキストを構築
-            content_lines = []
-            elements = parsed_content.get('elements', []) if isinstance(parsed_content, dict) else []
-            
-            for elem in elements:
-                elem_type = elem.get('type', '')
-                elem_content = elem.get('content', '')
-                items = elem.get('items', [])
-                description = elem.get('description', '')
-                char_count = elem.get('char_count', '')
-                
-                # 汎用処理（要素タイプに依存しない）
-                if items:
-                    content_lines.append(f"【{elem_type}】{len(items)}項目")
-                    for item in items:
-                        content_lines.append(f"  - {item}")
-                elif description:
-                    content_lines.append(f"【{elem_type}】{description}")
-                elif elem_content:
-                    char_str = f"（{char_count}文字）" if char_count else ""
-                    content_lines.append(f"【{elem_type}】{elem_content} {char_str}")
-                else:
-                    content_lines.append(f"【{elem_type}】")
-            
-            content_text = '\n'.join(content_lines)
-            
-            # トンマナ情報
-            colors = tone_manner.get('colors', {}) if tone_manner else {}
-            font = tone_manner.get('font', {}) if tone_manner else {}
-            style = tone_manner.get('overall_style', {}) if tone_manner else {}
-            
-            # レイアウト指示を構築
-            layout_instructions = []
-            for elem in elements:
-                elem_type = elem.get('type', '')
-                layout = elem.get('layout', '')
-                if layout:
-                    layout_instructions.append(f"{elem_type}: {layout}")
-            
-            # プロンプト生成
-            # カスタムプロンプトがあれば使用、なければ自動生成
-            if custom_prompt:
-                prompt = custom_prompt
-            else:
-                prompt = prompt_manager.get_prompt("lp_image_generation", {
-                    "main_color": colors.get('main', '#68A949'),
-                    "accent_color": colors.get('accent', '#FFB911'),
-                    "background_color": colors.get('background', '#FFFFFF'),
-                    "text_color": colors.get('text', '#181950'),
-                    "font_type": font.get('type', '丸ゴシック'),
-                    "font_weight": font.get('weight', '太い'),
-                    "impression": style.get('impression', 'カジュアル'),
-                    "content_text": content_text,
-                    "layout_instructions": '\n'.join(layout_instructions) if layout_instructions else "参照画像のレイアウトに従う"
-                })
-            
-            # 画像生成
-            result = ai_provider.generate_image(prompt, reference_image_path=ref_image_path)
-            
-            if result and 'path' in result:
-                import uuid
-                from datetime import datetime
-                
-                page_id = page.get('id', f"page_{page.get('order', 1)}")
-                
-                # 複数バージョン対応のデータ構造
-                if 'generated_versions' not in product_data:
-                    product_data['generated_versions'] = {}
-                if page_id not in product_data['generated_versions']:
-                    product_data['generated_versions'][page_id] = {"versions": [], "selected": None}
-                
-                # 新しいバージョンを追加
-                version_id = f"v_{uuid.uuid4().hex[:8]}"
-                new_version = {
-                    "id": version_id,
-                    "path": result['path'],
-                    "prompt": prompt,
-                    "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "is_selected": False,
-                    "variation_of": variation_of
-                }
-                product_data['generated_versions'][page_id]['versions'].append(new_version)
-                
-                # 最初のバージョンは自動選択
-                if len(product_data['generated_versions'][page_id]['versions']) == 1:
-                    new_version['is_selected'] = True
-                    product_data['generated_versions'][page_id]['selected'] = version_id
-                
-                # 旧形式との互換性のため、選択中の画像をgenerated_lp_imagesにも保存
-                if 'generated_lp_images' not in product_data:
-                    product_data['generated_lp_images'] = {}
-                product_data['generated_lp_images'][page_id] = result['path']
-                
-                data_store.update_product(product_id, product_data)
+            success = generate_page_image_logic(
+                ai_provider, prompt_manager, page, parsed_content, tone_manner, 
+                ref_image_path, product_data, data_store, product_id, 
+                variation_of=variation_of, custom_prompt=custom_prompt
+            )
+            if success:
                 st.success("生成完了！")
                 st.rerun()
             else:
-                st.error(f"生成失敗: {result.get('error', '不明なエラー')}")
-        
+                st.error("生成失敗")
         except Exception as e:
             st.error(f"エラー: {e}")
 
