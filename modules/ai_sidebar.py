@@ -244,12 +244,6 @@ def render_chat_panel():
                 
                 col_left, col_right = st.columns(2)
                 with col_left:
-                    st.markdown("**【現在】**")
-                    # DEBUG
-                    st.write(f"DEBUG target: {prop.get('target')}")
-                    st.write(f"DEBUG product keys: {list(context.keys()) if context else 'None'}")
-                    st.write(f"DEBUG current_value result: {get_current_value(context, prop.get('target'))}")
-                    
                     current_val = get_current_value(context, prop.get('target', ''))
                     st.caption(str(current_val))
                 with col_right:
@@ -477,6 +471,10 @@ def generate_ai_response(user_input, context, images=None):
 2. プログラムが自動適用できるよう、以下のJSON形式を含むブロックを必ず出力してください。
    JSONは ```json で囲んでください。
 
+3. ユーザーの指示に従って変更提案を作成すること。
+   - ユーザーが具体的な文言を指定している場合（「〇〇」「△△」など）：その文言をそのまま使用する。勝手に補足や言い換えをしない。
+   - ユーザーが曖昧な指示の場合（「改善して」「もっと良くして」など）：AIが最適な内容を考えて提案する。
+
 ```json
 {{
   "proposals": [
@@ -491,12 +489,12 @@ def generate_ai_response(user_input, context, images=None):
 }}
 ```
 
-3. ターゲットパスの例:
+4. ターゲットパスの例:
    - 製品名: name
    - 製品説明: description
    - ページ構成の訴求: structure.pages[0].appeals
    - ページ見出し: structure.pages[1].title
-4. 複数提案がある場合は、proposals配列に複数含めてください。
+5. 複数提案がある場合は、proposals配列に複数含めてください。
 """
     else:
         prompt = prompt_manager.get_prompt("ai_chat", {"product_info": product_info, "user_input": user_input})
