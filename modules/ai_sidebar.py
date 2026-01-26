@@ -4,6 +4,44 @@ from modules.ai_provider import AIProvider
 from modules.settings_manager import SettingsManager
 from modules.prompt_manager import PromptManager
 import json
+import re
+
+def set_value_by_path(obj, path, value):
+    """
+    JSONパス（例: structure.pages[0].appeals）に基づいてオブジェクトの値を更新する
+    """
+    parts = re.split(r'\.|\[(\d+)\]', path)
+    parts = [p for p in parts if p is not None and p != '']
+    
+    curr = obj
+    for i in range(len(parts) - 1):
+        key = parts[i]
+        if key.isdigit():
+            key = int(key)
+        
+        # 存在しない場合は空の辞書またはリストを作成
+        if isinstance(curr, list):
+             while len(curr) <= key:
+                 curr.append({})
+             curr = curr[key]
+        else:
+            if key not in curr:
+                # 次のキーが数値ならリスト、そうでなければ辞書
+                curr[key] = [] if parts[i+1].isdigit() else {}
+            curr = curr[key]
+            
+    last_key = parts[-1]
+    if last_key.isdigit():
+        last_key = int(last_key)
+        
+    if isinstance(curr, list):
+        while len(curr) <= last_key:
+            curr.append(None)
+        curr[last_key] = value
+    else:
+        curr[last_key] = value
+    return obj
+
 
 def render_ai_sidebar():
     """サイドバーにAIボタン、メインエリアに大きなパネル表示"""
@@ -115,25 +153,74 @@ def render_chat_panel():
         else:
             for msg in st.session_state.ai_sidebar_messages:
                 with st.chat_message(msg['role']):
+                    # 画像があれば表示
+                    if 'images' in msg and msg['images']:
+                        import base64
+                        for img_data in msg['images']:
+                            # data:mime;base64,data string format check
+                            if isinstance(img_data, dict) and 'data' in img_data:
+                                # image bytes restoration
+                                try:
+                                    img_bytes = base64.b64decode(img_data['data'])
+                                    st.image(img_bytes, use_container_width=True)
+                                except:
+                                    st.error("画像の表示に失敗しました")
+                    
                     st.markdown(msg['content'])
             
             if st.session_state.ai_generating:
                 with st.chat_message("assistant"):
                     st.markdown("⏳ **考え中...**")
     
-    # 編集提案ボタン
-    if 'pending_edit' in st.session_state and st.session_state.pending_edit:
-        st.markdown("---")
-        col1, col2, col3 = st.columns([1, 1, 3])
-        with col1:
-            if st.button("✅ この変更を適用", type="primary", width="stretch", key="apply_edit"):
-                apply_edit_proposal(st.session_state.pending_edit)
-                del st.session_state.pending_edit
-                st.rerun()
-        with col2:
-            if st.button("❌ キャンセル", width="stretch", key="cancel_edit"):
-                del st.session_state.pending_edit
-                st.rerun()
+    # 編集提案カード
+    if 'active_proposals' in st.session_state and st.session_state.active_proposals:
+        proposals = st.session_state.active_proposals
+        idx = st.session_state.get('proposal_idx', 0)
+        
+        if idx < len(proposals):
+            prop = proposals[idx]
+            st.markdown("---")
+            
+            # カード風UI
+            with st.container():
+                st.markdown(f"#### 💡 提案 {idx + 1}/{len(proposals)}")
+                st.markdown(f"📍 **{prop.get('label', '設定変更')}**")
+                
+                col_left, col_right = st.columns(2)
+                with col_left:
+                    st.markdown("**【現在】**")
+                    st.caption(str(prop.get('before', '')))
+                with col_right:
+                    st.markdown("**【提案】**")
+                    st.info(str(prop.get('after', '')))
+                
+                if prop.get('reason'):
+                    st.markdown(f"💬 *{prop.get('reason')}*")
+                
+                btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 2])
+                with btn_col1:
+                    if st.button("✅ 適用", key=f"apply_prop_{idx}", type="primary", use_container_width=True):
+                        apply_generalized_proposal(prop, context)
+                        st.session_state.proposal_idx = idx + 1
+                        if st.session_state.proposal_idx >= len(proposals):
+                            del st.session_state.active_proposals
+                            del st.session_state.proposal_idx
+                        st.rerun()
+                with btn_col2:
+                    if st.button("⏭️ スキップ", key=f"skip_prop_{idx}", use_container_width=True):
+                        st.session_state.proposal_idx = idx + 1
+                        if st.session_state.proposal_idx >= len(proposals):
+                            del st.session_state.active_proposals
+                            del st.session_state.proposal_idx
+                        st.rerun()
+        else:
+            # 全て終了
+            if 'active_proposals' in st.session_state:
+                del st.session_state.active_proposals
+                if 'proposal_idx' in st.session_state:
+                    del st.session_state.proposal_idx
+            st.rerun()
+
     
     st.markdown("---")
     
@@ -141,30 +228,61 @@ def render_chat_panel():
     col1, col2, col3 = st.columns([10, 1, 1])
     with col1:
         user_input = st.text_input("メッセージ", key=f"chat_input_{st.session_state.chat_input_key}", label_visibility="collapsed", placeholder="メッセージを入力...")
+    
+    # 画像アップロード（エキスパンダーで隠すか、アイコンで表示）
+    uploaded_file = st.file_uploader("画像を追加", type=['png', 'jpg', 'jpeg', 'webp'], key=f"chat_image_{st.session_state.chat_input_key}", label_visibility="collapsed")
+    
     with col2:
         send_clicked = st.button("📤", type="primary", key="send_btn", help="送信")
     with col3:
         if st.button("🗑️", key="clear_btn", help="クリア"):
             st.session_state.ai_sidebar_messages = []
-            if 'pending_edit' in st.session_state:
-                del st.session_state.pending_edit
+            if 'active_proposals' in st.session_state:
+                del st.session_state.active_proposals
             st.rerun()
     
     st.markdown('</div>', unsafe_allow_html=True)
     
     # 送信処理
-    if send_clicked and user_input and user_input.strip() and not st.session_state.ai_generating:
-        st.session_state.ai_sidebar_messages.append({'role': 'user', 'content': user_input.strip()})
+    if send_clicked and (user_input or uploaded_file) and not st.session_state.ai_generating:
+        message_content = user_input.strip() if user_input else ""
+        message_data = {'role': 'user', 'content': message_content}
+        
+        # 画像処理
+        if uploaded_file:
+            import base64
+            image_bytes = uploaded_file.getvalue()
+            encoded_image = base64.b64encode(image_bytes).decode('utf-8')
+            mime_type = uploaded_file.type
+            message_data['images'] = [{'data': encoded_image, 'mime_type': mime_type}]
+            
+            # 画像を表示用に追加
+            st.session_state.ai_sidebar_messages.append(message_data)
+        elif message_content:
+             st.session_state.ai_sidebar_messages.append(message_data)
+        else:
+            # 入力なし
+            st.warning("メッセージまたは画像を入力してください")
+            st.stop()
+
         st.session_state.ai_generating = True
-        st.session_state.pending_user_input = user_input.strip()
+        st.session_state.pending_user_input = message_content
+        if uploaded_file:
+            st.session_state.pending_user_images = message_data.get('images')
+        
         st.session_state.chat_input_key += 1
         st.rerun()
     
     # AI応答生成
-    if st.session_state.ai_generating and 'pending_user_input' in st.session_state:
-        user_msg = st.session_state.pending_user_input
-        del st.session_state.pending_user_input
-        generate_ai_response(user_msg, context)
+    if st.session_state.ai_generating:
+        user_msg = st.session_state.get('pending_user_input', '')
+        user_images = st.session_state.get('pending_user_images', None)
+        
+        # クリーンアップ
+        if 'pending_user_input' in st.session_state: del st.session_state.pending_user_input
+        if 'pending_user_images' in st.session_state: del st.session_state.pending_user_images
+        
+        generate_ai_response(user_msg, context, user_images)
         st.session_state.ai_generating = False
         st.rerun()
 
@@ -201,7 +319,7 @@ def get_product_context():
     except:
         return None
 
-def generate_ai_response(user_input, context):
+def generate_ai_response(user_input, context, images=None):
     product_info = "製品未選択"
     structure_info = ""
     
@@ -284,29 +402,40 @@ def generate_ai_response(user_input, context):
     
     elif is_edit_request:
         prompt = f"""あなたはLP制作のエキスパートです。
+ユーザーのリクエストに基づき、LPの構成や設定を改善するための具体的な提案を行ってください。
 
+【現在の製品情報】
 {product_info}
 
-【ユーザーの編集リクエスト】
+【ユーザーのリクエスト】
 {user_input}
 
-【指示】
-1. まず、変更の妥当性を簡潔に説明（1-2文）
-2. 編集対象を特定し、以下の形式で変更内容を提示：
+【出力ルール】
+1. 提案の理由と内容を簡潔に日本語で説明してください（チャット用）。
+2. プログラムが自動適用できるよう、以下のJSON形式を含むブロックを必ず出力してください。
+   JSONは ```json で囲んでください。
 
----変更提案---
-【編集対象】structure_appeals
-【対象ページ】P1
+```json
+{{
+  "proposals": [
+    {{
+      "target": "JSONのパス（例: structure.pages[0].appeals）",
+      "label": "ユーザー向け表示名（例: P1: 訴求ポイント）",
+      "before": "現在の値（文字列）",
+      "after": "提案する新しい値（文字列または配列。targetの型に合わせる）",
+      "reason": "変更の理由"
+    }}
+  ]
+}}
+```
 
-■ 変更前
-訴求: （現在の訴求をカンマ区切りで）
-
-■ 変更後
-訴求: （変更後の訴求をカンマ区切りで）
----
-
-3. 訴求は「○○訴求」という形式で記載。
-4. この形式を厳守してください。"""
+3. ターゲットパスの例:
+   - 製品名: name
+   - 製品説明: description
+   - ページ構成の訴求: structure.pages[0].appeals
+   - ページ見出し: structure.pages[1].title
+4. 複数提案がある場合は、proposals配列に複数含めてください。
+"""
     else:
         prompt = prompt_manager.get_prompt("ai_chat", {"product_info": product_info, "user_input": user_input})
     
@@ -314,88 +443,63 @@ def generate_ai_response(user_input, context):
         settings_manager = SettingsManager()
         settings = settings_manager.get_settings()
         ai_provider = AIProvider(settings)
-        response = ai_provider.ask(prompt, "chat")
         
-        if is_edit_request and '---変更提案---' in response:
-            st.session_state.pending_edit = {'response': response, 'context': context}
+        # 画像がある場合は、画像付きリクエストを送信
+        if images:
+            # imagesは [{'data': '...', 'mime_type': '...'}] の形式を想定
+            response = ai_provider.ask(prompt, "chat", images=images)
+        else:
+            response = ai_provider.ask(prompt, "chat")
+        
+        if is_edit_request:
+            # JSON提案を抽出
+            try:
+                if "```json" in response:
+                    json_str = response.split("```json")[1].split("```")[0].strip()
+                    proposal_data = json.loads(json_str)
+                    if "proposals" in proposal_data:
+                        st.session_state.active_proposals = proposal_data["proposals"]
+                        st.session_state.proposal_idx = 0
+            except Exception as e:
+                print(f"Proposal extraction error: {e}")
+
         
         st.session_state.ai_sidebar_messages.append({'role': 'assistant', 'content': response})
     except Exception as e:
         st.session_state.ai_sidebar_messages.append({'role': 'assistant', 'content': f"エラー: {e}"})
 
-def apply_edit_proposal(edit_data):
-    """編集提案を実際に適用する"""
+def apply_generalized_proposal(proposal, context):
+    """汎用的な提案を適用する"""
     try:
-        context = edit_data.get('context', {})
-        response = edit_data.get('response', '')
-        
         product_id = context.get('_product_id')
         data_store = context.get('_data_store')
         
         if not product_id or not data_store:
             st.error("製品情報が取得できません")
-            return
-        
-        # ページ番号を特定
-        page_idx = 0
-        for i in range(1, 10):
-            if f'P{i}' in response or f'【対象ページ】P{i}' in response:
-                page_idx = i - 1
-                break
-        
-        if '変更後' not in response:
-            st.warning("変更後の内容が見つかりません")
-            return
+            return False
             
-        after_text = response.split('変更後')[1]
-        if '---' in after_text:
-            after_text = after_text.split('---')[0]
-        after_text = after_text.strip()
+        target_path = proposal.get('target')
+        after_value = proposal.get('after')
         
-        # 訴求ポイントの行を探す
-        appeals_line = None
-        for line in after_text.split('\n'):
-            line = line.strip()
-            if line.startswith('訴求:') or line.startswith('訴求：'):
-                appeals_line = line.replace('訴求:', '').replace('訴求：', '').strip()
-                break
-        
-        if not appeals_line:
-            for line in after_text.split('\n'):
-                if '訴求' in line:
-                    appeals_line = line.split('訴求')[-1].strip()
-                    appeals_line = appeals_line.lstrip(':').lstrip('：').strip()
-                    break
-        
-        if appeals_line:
-            product = data_store.get_product(product_id)
-            structure = product.get('structure', {})
-            if isinstance(structure, dict) and 'result' in structure:
-                result = structure['result']
-            else:
-                result = structure
+        if not target_path:
+            return False
             
-            pages = result.get('pages', [])
-            if pages and page_idx < len(pages):
-                new_appeals = []
-                for a in appeals_line.replace('、', ',').split(','):
-                    a = a.strip()
-                    if a and '訴求' in a:
-                        new_appeals.append(a)
-                
-                if new_appeals:
-                    pages[page_idx]['appeals'] = new_appeals
-                    
-                    if isinstance(structure, dict) and 'result' in structure:
-                        structure['result']['pages'] = pages
-                    else:
-                        structure['pages'] = pages
-                    
-                    product['structure'] = structure
-                    data_store.update_product(product_id, product)
-                    st.success(f"P{page_idx + 1}の訴求を更新しました！\n{', '.join(new_appeals)}")
-                    return
+        product = data_store.get_product(product_id)
         
-        st.warning("変更内容を自動適用できませんでした。")
+        # 値を更新
+        try:
+            # 配列の場合は、カンマ区切りの文字列をリストに変換するなどの処理が必要かもしれない
+            # ただしAIにtargetの型に合わせるよう指示しているので、一旦そのまま
+            product = set_value_by_path(product, target_path, after_value)
+            
+            data_store.update_product(product_id, product)
+            st.success(f"「{proposal.get('label', target_path)}」を更新しました。")
+            return True
+        except Exception as e:
+            st.error(f"パス解析エラー: {e}")
+            return False
+            
     except Exception as e:
         st.error(f"適用エラー: {e}")
+        return False
+
