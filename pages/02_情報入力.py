@@ -1206,18 +1206,25 @@ def render_reference_images_upload(data_store, product_id):
         if selected_lp_preset != "なし":
             preset = next((p for p in lp_presets if p['name'] == selected_lp_preset), None)
             if preset:
-                col_p1, col_p2 = st.columns([3, 1])
-                with col_p1:
-                    if st.button("このプリセットを適用", key="apply_ref_preset", width="stretch"):
-                        product = data_store.get_product(product_id) or {}
-                        product['reference_lp_image_urls'] = preset['images']
-                        data_store.update_product(product_id, product)
-                        st.success(f"プリセット「{selected_lp_preset}」を適用しました")
-                        st.rerun()
-                with col_p2:
-                    if st.button("🗑️ 削除", key=f"del_ref_preset_{preset['id']}", width="stretch"):
-                        data_store.delete_preset(preset['id'])
-                        st.rerun()
+                if st.button("このプリセットを適用", key="apply_ref_preset", width="stretch"):
+                    product = data_store.get_product(product_id) or {}
+                    product['reference_lp_image_urls'] = preset['images']
+                    data_store.update_product(product_id, product)
+                    st.success(f"プリセット「{selected_lp_preset}」を適用しました")
+                    st.rerun()
+
+        # プリセット管理
+        if lp_presets:
+            with st.expander("🗑️ プリセットを管理"):
+                for p in lp_presets:
+                    col_m1, col_m2 = st.columns([4, 1])
+                    with col_m1:
+                        st.write(f"📁 {p['name']}（{len(p.get('images', []))}枚）")
+                    with col_m2:
+                        if st.button("削除", key=f"del_ref_preset_{p['id']}"):
+                            data_store.delete_preset(p['id'])
+                            st.success(f"「{p['name']}」を削除しました")
+                            st.rerun()
 
         # 現在の画像をプリセット保存
         current_lp_images = (data_store.get_product(product_id) or {}).get('reference_lp_image_urls') or []
@@ -1228,9 +1235,14 @@ def render_reference_images_upload(data_store, product_id):
                     if not new_lp_preset_name.strip():
                         st.error("プリセット名を入力してください")
                     else:
-                        data_store.save_preset(new_lp_preset_name.strip(), 'reference_lp', current_lp_images)
-                        st.success(f"プリセット「{new_lp_preset_name}」を保存しました")
-                        st.rerun()
+                        # 同名チェック
+                        existing = [p for p in lp_presets if p['name'] == new_lp_preset_name.strip()]
+                        if existing:
+                            st.warning(f"「{new_lp_preset_name}」は既に存在します。別の名前を入力してください。")
+                        else:
+                            data_store.save_preset(new_lp_preset_name.strip(), 'reference_lp', current_lp_images)
+                            st.success(f"✅ プリセット「{new_lp_preset_name}」を保存しました！")
+                            st.rerun()
 
         st.markdown("---")
 
@@ -1388,18 +1400,25 @@ def render_reference_images_upload(data_store, product_id):
         if selected_tm_preset != "なし":
             preset = next((p for p in tm_presets if p['name'] == selected_tm_preset), None)
             if preset:
-                col_tp1, col_tp2 = st.columns([3, 1])
-                with col_tp1:
-                    if st.button("このプリセットを適用", key="apply_tm_preset", width="stretch"):
-                        product = data_store.get_product(product_id) or {}
-                        product['tone_manner_image_urls'] = preset['images']
-                        data_store.update_product(product_id, product)
-                        st.success(f"プリセット「{selected_tm_preset}」を適用しました")
-                        st.rerun()
-                with col_tp2:
-                    if st.button("🗑️ 削除", key=f"del_tm_preset_{preset['id']}", width="stretch"):
-                        data_store.delete_preset(preset['id'])
-                        st.rerun()
+                if st.button("このプリセットを適用", key="apply_tm_preset", width="stretch"):
+                    product = data_store.get_product(product_id) or {}
+                    product['tone_manner_image_urls'] = preset['images']
+                    data_store.update_product(product_id, product)
+                    st.success(f"プリセット「{selected_tm_preset}」を適用しました")
+                    st.rerun()
+
+        # プリセット管理
+        if tm_presets:
+            with st.expander("🗑️ プリセットを管理"):
+                for p in tm_presets:
+                    col_tm1, col_tm2 = st.columns([4, 1])
+                    with col_tm1:
+                        st.write(f"📁 {p['name']}（{len(p.get('images', []))}枚）")
+                    with col_tm2:
+                        if st.button("削除", key=f"del_tm_preset_{p['id']}"):
+                            data_store.delete_preset(p['id'])
+                            st.success(f"「{p['name']}」を削除しました")
+                            st.rerun()
 
         # 現在の画像をプリセット保存
         current_tm_images = (data_store.get_product(product_id) or {}).get('tone_manner_image_urls') or []
@@ -1410,9 +1429,14 @@ def render_reference_images_upload(data_store, product_id):
                     if not new_tm_preset_name.strip():
                         st.error("プリセット名を入力してください")
                     else:
-                        data_store.save_preset(new_tm_preset_name.strip(), 'tone_manner', current_tm_images)
-                        st.success(f"プリセット「{new_tm_preset_name}」を保存しました")
-                        st.rerun()
+                        # 同名チェック
+                        existing = [p for p in tm_presets if p['name'] == new_tm_preset_name.strip()]
+                        if existing:
+                            st.warning(f"「{new_tm_preset_name}」は既に存在します。別の名前を入力してください。")
+                        else:
+                            data_store.save_preset(new_tm_preset_name.strip(), 'tone_manner', current_tm_images)
+                            st.success(f"✅ プリセット「{new_tm_preset_name}」を保存しました！")
+                            st.rerun()
 
         st.markdown("---")
 
