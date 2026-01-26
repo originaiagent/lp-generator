@@ -1129,30 +1129,6 @@ def handle_lp_upload(product_id, data_store):
                 existing.append(path)
         product['reference_lp_images'] = existing
         
-        if data_store.use_supabase:
-            remote_urls = product.get('reference_lp_image_urls') or []
-            uploaded_count = 0
-            for uploaded_file in lp_images:
-                try:
-                    uploaded_file.seek(0)
-                    file_bytes = uploaded_file.read()
-                    remote_path = f"{product_id}/reference_lp/{uploaded_file.name}"
-                    url = data_store.upload_image(file_bytes, remote_path, bucket_name="lp-generator-images")
-                    
-                    if url:
-                        # 文字列であることを保証
-                        if not isinstance(url, str) and hasattr(url, 'public_url'):
-                            url = url.public_url
-                        
-                        if url not in remote_urls:
-                            remote_urls.append(url)
-                            uploaded_count += 1
-                except Exception as e:
-                    st.error(f"Supabaseへのアップロードに失敗しました ({uploaded_file.name}): {e}")
-            
-            if uploaded_count > 0:
-                st.toast(f"{uploaded_count}枚の画像をクラウドに保存しました ☁️", icon="☁️")
-            product['reference_lp_image_urls'] = remote_urls
 
         if data_store.update_product(product_id, product):
             pass
