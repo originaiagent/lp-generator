@@ -42,23 +42,6 @@ def set_value_by_path(obj, path, value):
         curr[last_key] = value
     return obj
 
-def get_tab_name(target):
-    """targetパスからタブ名を取得"""
-    if target.startswith("structure"):
-        return "全体構成"
-    elif target.startswith("page_contents"):
-        return "ページ詳細"
-    elif target.startswith("keyword"):
-        return "情報入力"
-    elif target.startswith("tone_manner"):
-        return "情報入力"
-    elif target.startswith("competitor"):
-        return "情報入力"
-    elif target.startswith("product_sheet"):
-        return "情報入力"
-    else:
-        return ""
-
 
 def render_ai_sidebar():
     """サイドバーにAIボタン、メインエリアに大きなパネル表示"""
@@ -202,9 +185,7 @@ def render_chat_panel():
             with st.container():
                 st.markdown(f"#### 💡 提案 {idx + 1}/{len(proposals)}")
                 
-                tab_name = get_tab_name(prop.get('target', ''))
-                display_label = f"{tab_name} > {prop.get('label', '設定変更')}" if tab_name else prop.get('label', '設定変更')
-                st.markdown(f"📍 **{display_label}**")
+                st.markdown(f"📍 **{prop.get('label', '設定変更')}**")
                 
                 col_left, col_right = st.columns(2)
                 with col_left:
