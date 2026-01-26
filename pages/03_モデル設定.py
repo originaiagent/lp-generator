@@ -1,14 +1,19 @@
-from modules.ai_sidebar import render_ai_sidebar
-from modules.styles import apply_styles, page_header
-render_ai_sidebar()
-
-
 import streamlit as st
-import os
-import time
+from modules.styles import apply_styles, page_header
+from modules.ai_sidebar import render_ai_sidebar
+
+# ページ設定
+st.set_page_config(page_title="Model Settings", layout="wide")
+
 # スタイル適用
 apply_styles()
 
+# AIサイドバー表示
+render_ai_sidebar()
+
+
+import os
+import time
 from modules.page_guard import require_product
 
 # 製品選択チェック（製品一覧以外で必須）

@@ -1,9 +1,16 @@
-from modules.ai_sidebar import render_ai_sidebar
+import streamlit as st
 from modules.styles import apply_styles, page_header
-render_ai_sidebar()
+from modules.ai_sidebar import render_ai_sidebar
+
+# ページ設定
+st.set_page_config(page_title="LP Audit", layout="wide")
 
 # スタイル適用
 apply_styles()
+
+# AIサイドバー表示
+render_ai_sidebar()
+
 
 from modules.page_guard import require_product
 from modules.data_store import DataStore

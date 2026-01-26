@@ -1,5 +1,14 @@
-from modules.ai_sidebar import render_ai_sidebar
+import streamlit as st
 from modules.styles import apply_styles, page_header
+from modules.ai_sidebar import render_ai_sidebar
+
+# ページ設定
+st.set_page_config(page_title="Product List", layout="wide")
+
+# スタイル適用
+apply_styles()
+
+# AIサイドバー表示
 render_ai_sidebar()
 
 
@@ -7,17 +16,10 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import streamlit as st
-import os
-# スタイル適用
-apply_styles()
-
 import os
 import json
 from datetime import datetime
 from modules.data_store import DataStore
-
-st.set_page_config(page_title="Product List", layout="wide")
 
 page_header("Product List", "管理している製品の一覧")
 

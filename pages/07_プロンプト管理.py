@@ -1,16 +1,19 @@
-from modules.ai_sidebar import render_ai_sidebar
-from modules.styles import apply_styles, page_header
-render_ai_sidebar()
-
-
 import streamlit as st
-import os
+from modules.styles import apply_styles, page_header
+from modules.ai_sidebar import render_ai_sidebar
+
+# ページ設定
+st.set_page_config(page_title="Prompt Management", layout="wide")
+
 # スタイル適用
 apply_styles()
 
-from modules.prompt_manager import PromptManager
+# AIサイドバー表示
+render_ai_sidebar()
 
-st.set_page_config(page_title="Prompt Management", layout="wide")
+
+import os
+from modules.prompt_manager import PromptManager
 page_header("Prompt Management", "各タスクで使用されるAIプロンプトを確認・編集できます")
 
 prompt_manager = PromptManager()
