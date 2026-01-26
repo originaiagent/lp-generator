@@ -28,9 +28,14 @@ from modules.image_analyzer import ImageAnalyzer
 from modules.ai_provider import AIProvider
 from modules.prompt_manager import PromptManager
 from modules.settings_manager import SettingsManager
-import os
-from pathlib import Path
 import base64
+
+def get_valid_image_urls(urls):
+    """有効な画像URLのみを返す"""
+    if not urls:
+        return []
+    # 有効なURL（httpで始まる文字列）のみを抽出
+    return [url for url in urls if url and isinstance(url, str) and (url.startswith('http') or url.startswith('/'))]
 
 def render_input_page():
     '''入力情報ページのメイン関数'''
@@ -68,6 +73,22 @@ def render_input_page():
     
     product_id = st.session_state['current_product_id']
     
+    # オートリペア: 壊れたURLをロード時にクリーンアップ
+    product = data_store.get_product(product_id)
+    if product:
+        repaired = False
+        for key in ['reference_lp_image_urls', 'tone_manner_image_urls', 'product_image_urls']:
+            if key in product:
+                original = product[key] or []
+                filtered = get_valid_image_urls(original)
+                if len(original) != len(filtered):
+                    product[key] = filtered
+                    repaired = True
+        
+        if repaired:
+            data_store.update_product(product_id, product)
+            # st.toast("不整合な画像データを自動修復しました", icon="🪄")
+
     # 各セクションをレンダリング
     render_product_images_upload(data_store, product_id)
     render_competitor_analysis(data_store, product_id)
@@ -147,7 +168,7 @@ def render_product_images_upload(data_store, product_id):
     
     
     # Supabase Storage URLを優先して表示（Streamlit Cloud対応）
-    image_urls = (product.get("product_image_urls") or []) if product else []
+    image_urls = get_valid_image_urls(product.get("product_image_urls") or []) if product else []
     local_images = (product.get("product_images") or []) if product else []
     
     if image_urls:
@@ -1206,7 +1227,7 @@ def render_reference_images_upload(data_store, product_id):
         if selected_lp_preset != "なし":
             preset = next((p for p in lp_presets if p['name'] == selected_lp_preset), None)
             if preset:
-                images = preset.get('images') or []
+                images = get_valid_image_urls(preset.get('images') or [])
                 
                 # プレビュー表示
                 if images:
@@ -1274,7 +1295,8 @@ def render_reference_images_upload(data_store, product_id):
         
         # URLがあればそれを優先
         if product and product.get("reference_lp_image_urls"):
-            display_images.extend([{"type": "url", "path": url} for url in product["reference_lp_image_urls"]])
+            valid_urls = get_valid_image_urls(product["reference_lp_image_urls"])
+            display_images.extend([{"type": "url", "path": url} for url in valid_urls])
         
         # ローカルパスも（URLに含まれていないものがあれば）
         if product and product.get("reference_lp_images"):
@@ -1419,7 +1441,7 @@ def render_reference_images_upload(data_store, product_id):
         if selected_tm_preset != "なし":
             preset = next((p for p in tm_presets if p['name'] == selected_tm_preset), None)
             if preset:
-                images = preset.get('images') or []
+                images = get_valid_image_urls(preset.get('images') or [])
                 
                 # プレビュー表示
                 if images:
@@ -1484,7 +1506,8 @@ def render_reference_images_upload(data_store, product_id):
         tm_display_images = []
         
         if product and product.get("tone_manner_image_urls"):
-            tm_display_images.extend([{"type": "url", "path": url} for url in product["tone_manner_image_urls"]])
+            valid_urls = get_valid_image_urls(product["tone_manner_image_urls"])
+            tm_display_images.extend([{"type": "url", "path": url} for url in valid_urls])
             
         if product and product.get("tone_manner_images"):
             url_filenames = [u.split("/")[-1] for u in (product.get("tone_manner_image_urls") or [])]
