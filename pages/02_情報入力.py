@@ -1,20 +1,12 @@
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from modules.ai_sidebar import render_ai_sidebar
+from modules.styles import apply_styles, page_header
 render_ai_sidebar()
 
 
 import streamlit as st
 import os
-# カスタムCSS読み込み
-def load_css():
-    css_file = "assets/style.css"
-    if os.path.exists(css_file):
-        with open(css_file, "r", encoding="utf-8") as f:
-            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-load_css()
+# スタイル適用
+apply_styles()
 
 from modules.page_guard import require_product
 
@@ -42,7 +34,7 @@ def get_valid_image_urls(urls):
 
 def render_input_page():
     '''入力情報ページのメイン関数'''
-    st.title('📥 入力情報')
+    page_header("Information Input", "競合・製品情報の入力と分析")
     
     # STEP表示用スタイル
     st.markdown("""
@@ -101,7 +93,7 @@ def render_input_page():
 def render_product_images_upload(data_store, product_id):
     '''製品画像アップロード'''
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="step-header">📷 製品画像</div>', unsafe_allow_html=True)
+    st.markdown('<div class="step-header">製品画像</div>', unsafe_allow_html=True)
     
     uploaded_files = st.file_uploader(
         "製品画像をアップロードしてください",
@@ -179,12 +171,12 @@ def render_product_images_upload(data_store, product_id):
     local_images = (product.get("product_images") or []) if product else []
     
     if image_urls:
-        st.markdown("**📁 アップロード済み画像 (クラウド):**")
+        st.markdown("**アップロード済み画像 (クラウド):**")
         cols = st.columns(min(len(image_urls), 4))
         for i, url in enumerate(image_urls):
             with cols[i % 4]:
                 st.image(url, width=150)
-                if st.button("🗑️", key=f"del_prod_cloud_{i}"):
+                if st.button("削除", key=f"del_prod_cloud_{i}"):
                     data_store.delete_storage_file(url)
                     product['product_image_urls'].remove(url)
                     data_store.update_product(product_id, product)
@@ -192,13 +184,13 @@ def render_product_images_upload(data_store, product_id):
     
     # Supabase未使用時のみローカルを表示
     if not data_store.use_supabase and local_images:
-        st.markdown("**📁 アップロード済み画像 (ローカル):**")
+        st.markdown("**アップロード済み画像 (ローカル):**")
         cols = st.columns(min(len(local_images), 4))
         for i, path in enumerate(local_images):
             if Path(path).exists():
                 with cols[i % 4]:
                     st.image(path, width=150)
-                    if st.button("🗑️", key=f"del_prod_local_{i}"):
+                    if st.button("削除", key=f"del_prod_local_{i}"):
                         product['product_images'].remove(path)
                         data_store.update_product(product_id, product)
                         st.rerun()
@@ -386,7 +378,7 @@ def save_competitor_field(product_id, data_store, comp_idx, field_name):
 def render_competitor_analysis(data_store, product_id):
     '''競合情報分析セクション'''
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="step-header">🔍 競合情報</div>', unsafe_allow_html=True)
+    st.markdown('<div class="step-header">競合情報</div>', unsafe_allow_html=True)
     st.caption("競合ごとに画像・テキストをアップロード → 訴求要素を自動抽出")
     
     # セッション初期化（保存データがあれば復元）
@@ -418,7 +410,7 @@ def render_competitor_analysis(data_store, product_id):
     # 競合追加ボタン
     col_add, col_space = st.columns([1, 3])
     with col_add:
-        if st.button("➕ 競合を追加", key="add_competitor"):
+        if st.button("競合を追加", key="add_competitor"):
             if st.session_state.competitor_count < 10:
                 st.session_state.competitor_count += 1
                 st.rerun()
@@ -429,11 +421,11 @@ def render_competitor_analysis(data_store, product_id):
     
     # 各競合の入力エリア
     for i in range(st.session_state.competitor_count):
-        with st.expander(f"🏢 競合{i+1}", expanded=False):
+        with st.expander(f"競合{i+1}", expanded=False):
             # 削除ボタン（ヘッダー横には置けないのでexpander内）
             col_del_btn, _ = st.columns([1, 5])
             with col_del_btn:
-                if st.button("🗑️ この競合を削除", key=f"del_comp_{i}"):
+                if st.button("この競合を削除", key=f"del_comp_{i}"):
                     delete_competitor(product_id, data_store, i)
             
             # キーとデフォルト値の準備
@@ -454,7 +446,7 @@ def render_competitor_analysis(data_store, product_id):
             col1, col2 = st.columns(2)
             
             with col1:
-                st.markdown("**📁 画像（最大30枚）**")
+                st.markdown("**画像（最大30枚）**")
                 
                 # 保存済みファイルを確認
                 # 1. URL優先
@@ -492,7 +484,7 @@ def render_competitor_analysis(data_store, product_id):
                 
                 # 表示
                 if display_images:
-                    st.caption(f"📷 {len(display_images)}枚")
+                    st.caption(f"{len(display_images)}枚")
                     preview_cols = st.columns(6)
                     for idx, img in enumerate(display_images[:6]):
                         with preview_cols[idx % 6]:
@@ -518,7 +510,7 @@ def render_competitor_analysis(data_store, product_id):
     st.markdown("---")
     
     # 一括分析ボタン
-    if st.button("🔍 一括分析", type="primary", width="stretch", key="analyze_all_competitors"):
+    if st.button("一括分析", type="primary", use_container_width=True, key="analyze_all_competitors"):
         analyze_all_competitors(product_id, data_store)
     
     # 分析結果表示
@@ -904,7 +896,7 @@ def analyze_all_competitors(product_id, data_store):
 def render_competitor_analysis_results(analysis_data):
     """競合分析結果を表示"""
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="step-header">📊 分析結果</div>', unsafe_allow_html=True)
+    st.markdown('<div class="step-header">分析結果</div>', unsafe_allow_html=True)
     
     competitors = analysis_data.get("competitors", [])
     summary = analysis_data.get("summary", {})
@@ -932,7 +924,7 @@ def render_competitor_analysis_results(analysis_data):
     # 全体サマリー
     if summary.get("element_ranking"):
         st.markdown("---")
-        st.subheader("🏆 全競合の訴求要素まとめ")
+        st.subheader("全競合の訴求要素まとめ")
         
         total = summary.get("total_competitors", 1)
         
@@ -953,19 +945,19 @@ def save_product_sheet(product_id, data_store):
     if product and "edit_organized" in st.session_state:
         product["product_sheet_organized"] = st.session_state.edit_organized
         if data_store.update_product(product_id, product):
-            st.toast("製品シート情報を保存しました", icon="💾")
+            st.toast("製品シート情報を保存しました")
 
 def save_keyword_sheet(product_id, data_store):
     product = data_store.get_product(product_id)
     if product and "edit_keyword" in st.session_state:
         product["keyword_organized"] = st.session_state.edit_keyword
         if data_store.update_product(product_id, product):
-            st.toast("キーワード情報を保存しました", icon="💾")
+            st.toast("キーワード情報を保存しました")
 
 def render_sheets_upload(data_store, product_id):
     '''各種シートアップロード'''
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="step-header">📄 データシート</div>', unsafe_allow_html=True)
+    st.markdown('<div class="step-header">データシート</div>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     
@@ -1006,7 +998,7 @@ def render_sheets_upload(data_store, product_id):
             with col_info:
                 st.info(f"📄 {Path(product['product_sheet']).name}")
             with col_del:
-                if st.button("🗑️", key="del_product_sheet", help="削除"):
+                if st.button("削除", key="del_product_sheet"):
                     product['product_sheet'] = None
                     product['product_sheet_data'] = None
                     product['product_sheet_organized'] = None
@@ -1016,22 +1008,21 @@ def render_sheets_upload(data_store, product_id):
             # 整理済みデータがあれば表示
             organized = product.get("product_sheet_organized") or ""
             if organized:
-                st.success("✅ 整理済み")
-                with st.expander("📋 整理済み内容を確認・編集", expanded=False):
+                st.success("整理済み")
+                with st.expander("整理済み内容を確認・編集", expanded=False):
                     edited = st.text_area("内容", value=organized, height=300, key="edit_organized", on_change=save_product_sheet, args=(product_id, data_store))
                     col_a, col_b = st.columns(2)
                     with col_a:
-                        if st.button("💾 変更を保存", key="save_organized"):
+                        if st.button("変更を保存", key="save_organized"):
                             product["product_sheet_organized"] = edited
                             data_store.update_product(product_id, product)
                             st.success("保存しました")
                             st.rerun()
                     with col_b:
-                        if st.button("🔄 再整理（AI）", key="reorganize_sheet"):
+                        if st.button("再整理（AI）", key="reorganize_sheet"):
                             organize_sheet_data(product, data_store, product_id)
             else:
-                # 整理ボタン
-                if st.button("📋 内容を整理（AI）", key="organize_sheet"):
+                if st.button("内容を整理（AI）", key="organize_sheet"):
                     organize_sheet_data(product, data_store, product_id)
     
     with col2:
@@ -1071,7 +1062,7 @@ def render_sheets_upload(data_store, product_id):
             with col_info:
                 st.info(f"📄 {Path(product['review_sheet']).name}")
             with col_del:
-                if st.button("🗑️", key="del_review_sheet", help="削除"):
+                if st.button("削除", key="del_review_sheet"):
                     product['review_sheet'] = None
                     product['review_sheet_data'] = None
                     product['keyword_organized'] = None
@@ -1081,21 +1072,20 @@ def render_sheets_upload(data_store, product_id):
             # キーワード整理済みデータがあれば表示
             keyword_org = product.get("keyword_organized") or ""
             if keyword_org:
-                st.success("✅ キーワード整理済み")
-                with st.expander("📊 キーワード重要度（確認・編集）", expanded=False):
+                with st.expander("キーワード重要度（確認・編集）", expanded=False):
                     edited = st.text_area("内容", value=keyword_org, height=300, key="edit_keyword", on_change=save_keyword_sheet, args=(product_id, data_store))
                     col_a, col_b = st.columns(2)
                     with col_a:
-                        if st.button("💾 保存", key="save_keyword"):
+                        if st.button("変更を保存", key="save_keyword"):
                             product["keyword_organized"] = edited
                             data_store.update_product(product_id, product)
                             st.success("保存しました")
                             st.rerun()
                     with col_b:
-                        if st.button("🔄 再分析", key="reanalyze_keyword"):
+                        if st.button("再分析", key="reanalyze_keyword"):
                             organize_keyword_data(product, data_store, product_id)
             else:
-                if st.button("📊 キーワード重要度を分析", key="analyze_keyword"):
+                if st.button("キーワード重要度を分析", key="analyze_keyword"):
                     organize_keyword_data(product, data_store, product_id)
 
 
@@ -1162,7 +1152,7 @@ def handle_lp_upload(product_id, data_store):
                     st.error(f"Supabaseへのアップロードに失敗しました ({uploaded_file.name}): {e}")
             
             if uploaded_count > 0:
-                st.toast(f"{uploaded_count}枚の画像をクラウドに保存しました ☁️", icon="☁️")
+                st.toast(f"{uploaded_count}枚の画像をクラウドに保存しました")
             product['reference_lp_image_urls'] = remote_urls
         
 
@@ -1233,7 +1223,7 @@ def handle_tone_upload(product_id, data_store):
                     st.error(f"Supabaseへのアップロードに失敗しました ({uploaded_file.name}): {e}")
             
             if uploaded_count > 0:
-                st.toast(f"{uploaded_count}枚の画像をクラウドに保存しました ☁️", icon="☁️")
+                st.toast(f"{uploaded_count}枚の画像をクラウドに保存しました")
             product['tone_manner_image_urls'] = remote_urls
         
         if data_store.update_product(product_id, product):
@@ -1246,7 +1236,7 @@ def handle_tone_upload(product_id, data_store):
 def render_reference_images_upload(data_store, product_id):
     '''参考画像アップロード'''
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="step-header">🖼️ 参考画像</div>', unsafe_allow_html=True)
+    st.markdown('<div class="step-header">参考画像</div>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     
@@ -1270,7 +1260,7 @@ def render_reference_images_upload(data_store, product_id):
         st.markdown("---")
         lp_presets = data_store.get_presets('reference_lp')
         lp_preset_options = ["なし"] + [p['name'] for p in lp_presets]
-        selected_lp_preset = st.selectbox("📁 プリセットから選択", lp_preset_options, key="ref_lp_preset")
+        selected_lp_preset = st.selectbox("プリセットから選択", lp_preset_options, key="ref_lp_preset")
 
         if selected_lp_preset != "なし":
             preset = next((p for p in lp_presets if p['name'] == selected_lp_preset), None)
@@ -1291,11 +1281,11 @@ def render_reference_images_upload(data_store, product_id):
                         st.caption(f"他 {len(images) - 5} 枚...")
                 
                 # 適用ボタン
-                if st.button("このプリセットを適用", key="apply_ref_preset", width="stretch"):
+                if st.button("このプリセットを適用", key="apply_ref_preset", use_container_width=True):
                     product = data_store.get_product(product_id) or {}
                     product['reference_lp_image_urls'] = images
                     data_store.update_product(product_id, product)
-                    st.success(f"✅ プリセット「{selected_lp_preset}」を適用しました")
+                    st.success(f"プリセット「{selected_lp_preset}」を適用しました")
                     st.rerun()
 
         # プリセット管理
@@ -1401,7 +1391,7 @@ def render_reference_images_upload(data_store, product_id):
                         st.warning(f"読込失敗: {caption_text}")
                     
                     # 削除ボタンは常に表示（画像表示の成否に関わらず）
-                    if st.button("🗑️", key=f"del_lp_{i}"):
+                    if st.button("削除", key=f"del_lp_{i}"):
                         # 最新の製品情報を再取得して削除処理を行う
                         current_product = data_store.get_product(product_id) or {}
                         target_filename = caption_text
@@ -1446,7 +1436,7 @@ def render_reference_images_upload(data_store, product_id):
         # LP分析結果表示
         from modules.trace_viewer import show_trace
         if product.get("lp_analyses"):
-            st.markdown("**📊 LP分析結果:**")
+            st.markdown("**LP分析結果:**")
             for i, analysis in enumerate(product["lp_analyses"]):
                 with st.expander(f"📄 {i+1}枚目の分析", expanded=False):
                     if isinstance(analysis, dict) and "result" in analysis:
@@ -1458,7 +1448,7 @@ def render_reference_images_upload(data_store, product_id):
                             reanalyze_lp_image(product, data_store, product_id, i)
                         
                         # 編集モード
-                        if st.checkbox(f"✏️ 編集する", key=f"edit_lp_{i}"):
+                        if st.checkbox("編集する", key=f"edit_lp_{i}"):
                             result = analysis["result"]
                             
                             # ページ種別
@@ -1469,7 +1459,7 @@ def render_reference_images_upload(data_store, product_id):
                             result["page_type"] = new_type
                             
                             # テキスト要素編集
-                            st.markdown("**📝 テキスト要素**")
+                            st.markdown("**テキスト要素**")
                             texts = result.get("texts", [])
                             for j, t in enumerate(texts):
                                 cols = st.columns([2, 3, 1])
@@ -1516,7 +1506,7 @@ def render_reference_images_upload(data_store, product_id):
         st.markdown("---")
         tm_presets = data_store.get_presets('tone_manner')
         tm_preset_options = ["なし"] + [p['name'] for p in tm_presets]
-        selected_tm_preset = st.selectbox("📁 プリセットから選択", tm_preset_options, key="tm_preset")
+        selected_tm_preset = st.selectbox("プリセットから選択", tm_preset_options, key="tm_preset")
 
         if selected_tm_preset != "なし":
             preset = next((p for p in tm_presets if p['name'] == selected_tm_preset), None)
@@ -1537,11 +1527,11 @@ def render_reference_images_upload(data_store, product_id):
                         st.caption(f"他 {len(images) - 5} 枚...")
                 
                 # 適用ボタン
-                if st.button("このプリセットを適用", key="apply_tm_preset", width="stretch"):
+                if st.button("このプリセットを適用", key="apply_tm_preset", use_container_width=True):
                     product = data_store.get_product(product_id) or {}
                     product['tone_manner_image_urls'] = images
                     data_store.update_product(product_id, product)
-                    st.success(f"✅ プリセット「{selected_tm_preset}」を適用しました")
+                    st.success(f"プリセット「{selected_tm_preset}」を適用しました")
                     st.rerun()
 
         # プリセット管理
@@ -1606,7 +1596,7 @@ def render_reference_images_upload(data_store, product_id):
                                 if copied_urls:
                                     # コピーしたURLでプリセットを保存
                                     data_store.save_preset(new_tm_preset_name.strip(), 'tone_manner', copied_urls)
-                                    st.success(f"✅ プリセット「{new_tm_preset_name}」を保存しました！（{len(copied_urls)}枚）")
+                                    st.success(f"プリセット「{new_tm_preset_name}」を保存しました！（{len(copied_urls)}枚）")
                                     st.rerun()
                                 else:
                                     st.error("画像のコピーに失敗しました")

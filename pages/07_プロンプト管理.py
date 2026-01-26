@@ -1,33 +1,24 @@
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from modules.ai_sidebar import render_ai_sidebar
+from modules.styles import apply_styles, page_header
 render_ai_sidebar()
 
 
 import streamlit as st
 import os
-# カスタムCSS読み込み
-def load_css():
-    css_file = "assets/style.css"
-    if os.path.exists(css_file):
-        with open(css_file, "r", encoding="utf-8") as f:
-            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-load_css()
+# スタイル適用
+apply_styles()
 
 from modules.prompt_manager import PromptManager
 
-st.set_page_config(page_title="プロンプト管理", page_icon="💬", layout="wide")
-st.title('💬 プロンプト管理')
-st.caption('各タスクで使用されるAIプロンプトを確認・編集できます')
+st.set_page_config(page_title="Prompt Management", layout="wide")
+page_header("Prompt Management", "各タスクで使用されるAIプロンプトを確認・編集できます")
 
 prompt_manager = PromptManager()
 
 col_list, col_edit = st.columns([1, 2])
 
 with col_list:
-    st.subheader("📋 タスク一覧")
+    st.subheader("タスク一覧")
     prompts_data = prompt_manager.list_prompts_with_names()
     
     # IDリストを作成
@@ -43,7 +34,7 @@ with col_list:
         is_selected = st.session_state.selected_prompt_id == p_id
         btn_type = "primary" if is_selected else "secondary"
         
-        if st.button(f"{'✅ ' if is_selected else ''}{p_name}", key=f"btn_{p_id}", width="stretch", type=btn_type):
+        if st.button(p_name, key=f"btn_{p_id}", use_container_width=True, type=btn_type):
             st.session_state.selected_prompt_id = p_id
             st.rerun()
         st.markdown("---")
@@ -56,7 +47,7 @@ with col_edit:
         p_name = p_data.get("name", p_id)
         p_desc = p_data.get("description", "")
         
-        st.subheader(f"✏️ {p_name}")
+        st.subheader(p_name)
         if p_desc:
             st.caption(p_desc)
         if p_id != p_name:
@@ -66,12 +57,12 @@ with col_edit:
         
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("💾 保存", type="primary", width="stretch"):
+            if st.button("保存", type="primary", use_container_width=True):
                 prompt_manager.update_prompt(p_id, new_template)
                 st.success("保存しました！")
                 st.rerun()
         with col2:
-            if st.button("🔄 デフォルトに戻す", width="stretch"):
+            if st.button("デフォルトに戻す", use_container_width=True):
                 prompt_manager.reset_to_default(p_id)
                 st.success("リセットしました！")
                 st.rerun()

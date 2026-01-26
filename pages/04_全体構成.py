@@ -1,20 +1,12 @@
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from modules.ai_sidebar import render_ai_sidebar
+from modules.styles import apply_styles, page_header
 render_ai_sidebar()
 
 
 import streamlit as st
 import os
-# カスタムCSS読み込み
-def load_css():
-    css_file = "assets/style.css"
-    if os.path.exists(css_file):
-        with open(css_file, "r", encoding="utf-8") as f:
-            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-load_css()
+# スタイル適用
+apply_styles()
 
 from modules.page_guard import require_product
 
@@ -26,8 +18,7 @@ from modules.ai_provider import AIProvider
 from modules.settings_manager import SettingsManager
 import json
 
-def render_structure_page():
-    st.title('🏗️ 全体構成')
+    page_header("Page Structure", "LPの全体構成と訴求ポイントの設計")
     
     data_store = DataStore()
     product_id = st.session_state['current_product_id']
@@ -54,11 +45,11 @@ def render_structure_page():
 
 def render_input_summary(product):
     """入力情報サマリー（折りたたみ）"""
-    with st.expander("📋 入力情報サマリー（クリックで展開）", expanded=False):
+    with st.expander("入力情報サマリー（クリックで展開）", expanded=False):
         # LP分析結果サマリー
         lp_analyses = product.get('lp_analyses') or []
         if lp_analyses:
-            st.markdown(f"**📊 LP分析:** {len(lp_analyses)}枚分析済み")
+            st.markdown(f"**LP分析:** {len(lp_analyses)}枚分析済み")
             for i, analysis in enumerate(lp_analyses):
                 if isinstance(analysis, dict) and "result" in analysis:
                     result = analysis["result"]
@@ -77,7 +68,7 @@ def render_input_summary(product):
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown('<div class="step-header">📦 製品情報</div>', unsafe_allow_html=True)
+            st.markdown('<div class="step-header">製品情報</div>', unsafe_allow_html=True)
             st.write(f"**製品名:** {product.get('name', '未設定')}")
             st.write(f"**説明:** {product.get('description', '未設定')[:100] if product.get('description') else '未設定'}")
             
@@ -91,7 +82,7 @@ def render_input_summary(product):
                 st.write("**製品シート:** ❌ 未設定")
         
         with col2:
-            st.markdown('<div class="step-header">🔍 競合分析</div>', unsafe_allow_html=True)
+            st.markdown('<div class="step-header">競合分析</div>', unsafe_allow_html=True)
             # v2を優先して確認
             comp_v2 = product.get('competitor_analysis_v2') or {}
             if comp_v2:
@@ -112,7 +103,7 @@ def render_input_summary(product):
                 st.write("**分析状況:** ❌ 未実施")
                 st.info("「情報入力」ページで競合分析を実行してください")
         
-        st.markdown('<div class="step-header">🎨 参考LP分析</div>', unsafe_allow_html=True)
+        st.markdown('<div class="step-header">参考LP分析</div>', unsafe_allow_html=True)
         ref_images = (product.get('reference_lp_image_urls') or product.get('reference_lp_images') or [])
         lp_analyses = product.get("lp_analyses") or []
         
@@ -124,16 +115,16 @@ def render_input_summary(product):
 
 def render_appeal_analysis(product, data_store, product_id):
     """訴求ポイント確認セクション"""
-    st.markdown('<div class="step-header">🎯 訴求ポイント確認</div>', unsafe_allow_html=True)
+    st.markdown('<div class="step-header">訴求ポイント確認</div>', unsafe_allow_html=True)
     st.caption("製品情報と競合分析から、この商材の訴求ポイントを抽出します")
     
     # 分析実行ボタン
     col_btn, col_cost = st.columns([6, 1])
     with col_btn:
-        if st.button("🔍 訴求ポイントを抽出", type="primary", width="stretch"):
+        if st.button("訴求ポイントを抽出", type="primary", use_container_width=True):
             extract_appeal_points(product, data_store, product_id)
     with col_cost:
-        if st.button("💰", key="cost_appeal", help="直前の生成コスト"):
+        if st.button("Cost", key="cost_appeal", help="直前の生成コスト"):
             if 'last_api_usage' in st.session_state and st.session_state.last_api_usage:
                 usage = st.session_state.last_api_usage
                 st.toast(f"入力: {usage.get('input_tokens', 0):,} / 出力: {usage.get('output_tokens', 0):,} / ¥{usage.get('cost_jpy', 0):.2f}")
@@ -320,7 +311,7 @@ def extract_appeal_points(product, data_store, product_id):
 
 def render_page_structure(product, data_store, product_id):
     """ページ構成セクション"""
-    st.markdown('<div class="step-header">📄 ページ構成</div>', unsafe_allow_html=True)
+    st.markdown('<div class="step-header">ページ構成</div>', unsafe_allow_html=True)
     
     # 全体の流れを表示
     raw_structure = product.get('structure') or {}
@@ -328,7 +319,7 @@ def render_page_structure(product, data_store, product_id):
         structure = raw_structure["result"]
         overview = structure.get("overview", "")
         if overview:
-            st.info(f"📋 **全体の流れ:** {overview}")
+            st.info(f"**全体の流れ:** {overview}")
     
     # 構成自動生成ボタン
     selected = product.get('selected_appeals') or []
@@ -356,10 +347,10 @@ def render_page_structure(product, data_store, product_id):
         
         col_btn2, col_cost2 = st.columns([6, 1])
         with col_btn2:
-            if st.button("🚀 構成を自動生成", width="stretch", type="primary"):
+            if st.button("構成を自動生成", use_container_width=True, type="primary"):
                 generate_structure_from_elements(product, data_store, product_id)
         with col_cost2:
-            if st.button("💰", key="cost_structure", help="直前の生成コスト"):
+            if st.button("Cost", key="cost_structure", help="直前の生成コスト"):
                 if 'last_api_usage' in st.session_state and st.session_state.last_api_usage:
                     usage = st.session_state.last_api_usage
                     st.toast(f"入力: {usage.get('input_tokens', 0):,} / 出力: {usage.get('output_tokens', 0):,} / ¥{usage.get('cost_jpy', 0):.2f}")

@@ -1,21 +1,9 @@
-import sys
-import os
-import json
-import streamlit as st
-
-# プロジェクトルートをパスに追加
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from modules.ai_sidebar import render_ai_sidebar
+from modules.styles import apply_styles, page_header
 render_ai_sidebar()
 
-# カスタムCSS読み込み
-def load_css():
-    css_file = "assets/style.css"
-    if os.path.exists(css_file):
-        with open(css_file, "r", encoding="utf-8") as f:
-            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-load_css()
+# スタイル適用
+apply_styles()
 
 from modules.page_guard import require_product
 from modules.data_store import DataStore
@@ -362,8 +350,7 @@ def run_diagnosis(product, exposure_type, diagnosis_target):
     # 結果を表示
     display_results(personas, evaluations, summary, exposure_type)
 
-def render_diagnosis_page():
-    st.title("📊 LP診断")
+    page_header("LP Audit", "AIペルソナによる客観的なLPの診断と分析")
 
     data_store = DataStore()
     product_id = st.session_state.get('current_product_id')
@@ -410,7 +397,7 @@ def render_diagnosis_page():
     )
 
     # 診断実行ボタン
-    if st.button("🎯 診断を実行", type="primary"):
+    if st.button("診断を実行", type="primary", use_container_width=True):
         run_diagnosis(product, exposure_type, diagnosis_target)
 
 if __name__ == "__main__":

@@ -197,15 +197,15 @@ def render_chat_panel():
     
     # パネル開始
     st.markdown('<div class="ai-panel">', unsafe_allow_html=True)
-    st.markdown('<div class="ai-header">🤖 AIアシスタント</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ai-header">AIアシスタント</div>', unsafe_allow_html=True)
     
     # 製品情報
     col1, col2 = st.columns([6, 1])
     with col1:
         if context:
-            st.info(f"📦 **{context.get('name', '未設定')}**")
+            st.info(f"**{context.get('name', '未設定')}**")
         else:
-            st.warning("📦 製品を選択してください")
+            st.warning("製品を選択してください")
     with col2:
         if st.button("✕ 閉じる", key="close_panel"):
             st.session_state.show_ai_chat = False
@@ -217,7 +217,6 @@ def render_chat_panel():
         if not st.session_state.ai_sidebar_messages:
             st.markdown("""
             <div style="text-align: center; color: #666; padding: 100px 20px;">
-                <div style="font-size: 50px; margin-bottom: 20px;">💬</div>
                 <div style="font-size: 18px; margin-bottom: 15px;">質問や編集指示を入力してください</div>
                 <div style="font-size: 14px; color: #999;">
                     例: 「進捗を確認して」「P1の訴求を変更して」「使い方を教えて」
@@ -244,7 +243,7 @@ def render_chat_panel():
             
             if st.session_state.ai_generating:
                 with st.chat_message("assistant"):
-                    st.markdown("⏳ **考え中...**")
+                    st.markdown("**考え中...**")
     
     # 編集提案カード
     if 'active_proposals' in st.session_state and st.session_state.active_proposals:
@@ -257,9 +256,9 @@ def render_chat_panel():
             
             # カード風UI
             with st.container():
-                st.markdown(f"#### 💡 提案 {idx + 1}/{len(proposals)}")
+                st.markdown(f"#### 提案 {idx + 1}/{len(proposals)}")
                 
-                st.markdown(f"📍 **{prop.get('label', '設定変更')}**")
+                st.markdown(f"**{prop.get('label', '設定変更')}**")
                 
                 col_left, col_right = st.columns(2)
                 with col_left:
@@ -316,9 +315,9 @@ def render_chat_panel():
     uploaded_file = st.file_uploader("画像を追加", type=['png', 'jpg', 'jpeg', 'webp'], key=f"chat_image_{st.session_state.chat_input_key}", label_visibility="collapsed")
     
     with col2:
-        send_clicked = st.button("📤", type="primary", key="send_btn", help="送信")
+        send_clicked = st.button("Send", type="primary", key="send_btn")
     with col3:
-        if st.button("🗑️", key="clear_btn", help="クリア"):
+        if st.button("Clear", key="clear_btn"):
             st.session_state.ai_sidebar_messages = []
             if 'active_proposals' in st.session_state:
                 del st.session_state.active_proposals
@@ -374,18 +373,18 @@ def get_product_status(context):
         return "製品が選択されていません"
     status_lines = []
     name = context.get('name', '')
-    status_lines.append(f"✅ 製品名: {name}" if name else "❌ 製品名: 未設定")
+    status_lines.append(f"製品名: {name}" if name else "製品名: 未設定")
     ref_lps = context.get('reference_lp_images', [])
-    status_lines.append(f"✅ 参照LP: {len(ref_lps)}枚" if ref_lps else "❌ 参照LP: 未アップロード")
+    status_lines.append(f"参照LP: {len(ref_lps)}枚" if ref_lps else "参照LP: 未アップロード")
     tone = context.get('tone_manner', {})
-    status_lines.append("✅ トンマナ: 分析済み" if tone else "❌ トンマナ: 未分析")
+    status_lines.append("トンマナ: 分析済み" if tone else "トンマナ: 未分析")
     structure = context.get('structure', {})
     has_structure = bool(structure.get('result', {}).get('pages', []) if isinstance(structure, dict) else False)
-    status_lines.append("✅ ページ構成: 生成済み" if has_structure else "❌ ページ構成: 未生成")
+    status_lines.append("ページ構成: 生成済み" if has_structure else "ページ構成: 未生成")
     page_contents = context.get('page_contents', {})
-    status_lines.append(f"✅ ページ詳細: {len(page_contents)}ページ" if page_contents else "❌ ページ詳細: 未生成")
+    status_lines.append(f"ページ詳細: {len(page_contents)}ページ" if page_contents else "ページ詳細: 未生成")
     generated = context.get('generated_lp_images', {})
-    status_lines.append(f"✅ LP画像: {len(generated)}枚生成" if generated else "❌ LP画像: 未生成")
+    status_lines.append(f"LP画像: {len(generated)}枚生成" if generated else "LP画像: 未生成")
     return '\n'.join(status_lines)
 
 def get_product_context():

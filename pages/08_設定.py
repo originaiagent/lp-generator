@@ -1,20 +1,12 @@
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from modules.ai_sidebar import render_ai_sidebar
+from modules.styles import apply_styles, page_header
 render_ai_sidebar()
 
 
 import streamlit as st
 import os
-# カスタムCSS読み込み
-def load_css():
-    css_file = "assets/style.css"
-    if os.path.exists(css_file):
-        with open(css_file, "r", encoding="utf-8") as f:
-            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-load_css()
+# スタイル適用
+apply_styles()
 
 import json
 import os
@@ -194,7 +186,7 @@ def render_usage_stats(settings_manager, settings):
         st.link_button("Google AI", urls.get("google", "#"))
 
 def render_settings_page():
-    st.title('⚙️ 設定')
+    page_header("Settings", "システム設定とAPI使用状況の管理")
     
     settings_manager = SettingsManager()
     settings = settings_manager.get_settings()
@@ -206,7 +198,7 @@ def render_settings_page():
         if st.button('🔄 モデル一覧を更新', key='refresh_models'):
             refresh_models()
     
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🤖 LLM設定", "🖼️ 画像生成", "🔑 APIキー", "📊 使用状況", "📋 要素タイプ"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["LLM設定", "画像生成", "APIキー", "使用状況", "要素タイプ"])
     
     with tab1:
         render_llm_settings(settings_manager, settings, models_config)
@@ -227,7 +219,7 @@ def render_element_types():
     """要素タイプの管理UI"""
     from modules.element_types import ElementTypes
     
-    st.markdown('<div class="step-header">📋 要素タイプ管理</div>', unsafe_allow_html=True)
+    st.markdown('<div class="step-header">要素タイプ管理</div>', unsafe_allow_html=True)
     st.caption("LP分析で使用する要素タイプのカテゴリ分けを管理します")
     
     elem_types = ElementTypes()

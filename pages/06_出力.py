@@ -1,20 +1,12 @@
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from modules.ai_sidebar import render_ai_sidebar
+from modules.styles import apply_styles, page_header
 render_ai_sidebar()
 
 
 import streamlit as st
 import os
-# カスタムCSS読み込み
-def load_css():
-    css_file = "assets/style.css"
-    if os.path.exists(css_file):
-        with open(css_file, "r", encoding="utf-8") as f:
-            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-load_css()
+# スタイル適用
+apply_styles()
 
 from modules.page_guard import require_product
 
@@ -150,8 +142,7 @@ def apply_fix(parsed, issue, new_value, page_contents, page_id, data_store, prod
 
 
 
-def render_output_page():
-    st.title('📤 出力')
+    page_header("Output", "最終的なLP画像と指示書の生成・書き出し")
     
     data_store = DataStore()
     product_id = st.session_state["current_product_id"]
@@ -171,7 +162,7 @@ def render_output_page():
         st.warning("商品データが入力されていません。")
         return
     
-    tab1, tab2, tab3 = st.tabs(["🖼️ LP画像生成", "📋 指示書", "📥 ダウンロード"])
+    tab1, tab2, tab3 = st.tabs(["LP画像生成", "指示書", "ダウンロード"])
     
     with tab1:
         render_lp_generation_section(output_generator, ai_provider, prompt_manager, product_data, data_store, product_id, settings)
@@ -233,7 +224,7 @@ def generate_page_image_logic(ai_provider, prompt_manager, page, parsed_content,
         return False
 
 def render_lp_generation_section(output_generator, ai_provider, prompt_manager, product_data, data_store, product_id, settings):
-    st.markdown('<div class="step-header">🖼️ LP画像生成</div>', unsafe_allow_html=True)
+    st.markdown('<div class="step-header">LP画像生成</div>', unsafe_allow_html=True)
     
     # 必要データの確認
     tone_manner = output_generator.get_tone_manner(product_data)
@@ -258,8 +249,8 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
         return
 
     # 一括生成ボタン
-    st.markdown("### 🛠️ 一括操作")
-    if st.button("🚀 全ページを一括生成", type="primary", width="stretch"):
+    st.markdown("### 一括操作")
+    if st.button("全ページを一括生成", type="primary", use_container_width=True):
         progress_bar = st.progress(0)
         status_text = st.empty()
         
@@ -309,7 +300,7 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
 
     # トンマナ表示
     if tone_manner:
-        with st.expander("🎨 トンマナ設定", expanded=False):
+        with st.expander("トーンマナー設定", expanded=False):
             colors = tone_manner.get('colors', {})
             col_c1, col_c2, col_c3, col_c4 = st.columns(4)
             with col_c1:
@@ -363,12 +354,12 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                 ref_image_path = ref_images[reference_page - 1]
     
     # ========== 決定事項・参照情報セクション ==========
-    with st.expander("📋 決定事項・参照情報", expanded=True):
+    with st.expander("決定事項・参照情報", expanded=True):
         info_col1, info_col2 = st.columns([2, 1])
         
         with info_col1:
             # コンテンツ表示（折りたたみ）
-            with st.expander("📝 コンテンツ", expanded=False):
+            with st.expander("コンテンツ", expanded=False):
                 if display:
                     st.text_area("本文", value=display, height=200, disabled=True, key=f"content_{page_id}")
                     
@@ -397,7 +388,7 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                     st.info("コンテンツ未生成")
             
             # 画像生成プロンプト（編集可能・折りたたみ）
-            with st.expander("🎨 画像生成プロンプト", expanded=False):
+            with st.expander("画像生成プロンプト", expanded=False):
                 custom_prompts = product_data.get('custom_prompts', {})
                 current_custom = custom_prompts.get(page_id, {}).get('image_prompt', '')
                 
@@ -433,7 +424,7 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
         with info_col2:
             # 参照LP
             if ref_image_path:
-                st.markdown("**📷 参照LP**")
+                st.markdown("**参照LP**")
                 is_local = not str(ref_image_path).startswith("http")
                 if not is_local or Path(ref_image_path).exists():
                     st.image(ref_image_path, width="stretch")
@@ -442,12 +433,12 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
             
             # トーンマナー簡易表示
             if tone_manner:
-                st.markdown("**🎨 トーンマナー**")
+                st.markdown("**トーンマナー**")
                 st.caption(f"メイン: {tone_manner.get('main_color', 'N/A')}")
                 st.caption(f"フォント: {tone_manner.get('font', 'N/A')}")
     
     # ========== パターン一覧セクション ==========
-    st.markdown("**🖼️ 生成パターン**")
+    st.markdown("**生成パターン**")
     
     versions_data = product_data.get('generated_versions', {}).get(page_id, {})
     versions = versions_data.get('versions', [])
@@ -475,7 +466,7 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                 
                 with btn_col:
                     # 再生成ボタン
-                    if st.button("🔄 再生成", key=f"regen_{page_id}_{v_id}", width="stretch"):
+                    if st.button("再生成", key=f"regen_{page_id}_{v_id}", use_container_width=True):
                         # カスタムプロンプトがあれば使用
                         custom_prompt = product_data.get('custom_prompts', {}).get(page_id, {}).get('image_prompt')
                         regenerate_pattern(
@@ -486,7 +477,7 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                     
                     # 採用ボタン
                     if not is_selected:
-                        if st.button("⭐ 採用", key=f"select_{page_id}_{v_id}", width="stretch"):
+                        if st.button("採用", key=f"select_{page_id}_{v_id}", use_container_width=True):
                             for v in versions:
                                 v['is_selected'] = (v['id'] == v_id)
                             versions_data['selected'] = v_id
@@ -497,11 +488,11 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                             st.rerun()
                     
                     # プロンプト確認
-                    if st.button("🔍 プロンプト", key=f"view_prompt_{page_id}_{v_id}", width="stretch"):
+                    if st.button("プロンプト", key=f"view_prompt_{page_id}_{v_id}", use_container_width=True):
                         st.session_state[f'show_prompt_{page_id}_{v_id}'] = True
                     
                     # 削除ボタン
-                    if st.button("🗑️ 削除", key=f"delete_{page_id}_{v_id}", width="stretch"):
+                    if st.button("削除", key=f"delete_{page_id}_{v_id}", use_container_width=True):
                         versions.remove(version)
                         if is_selected and versions:
                             versions[0]['is_selected'] = True
@@ -529,7 +520,7 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
     
     # 新規パターン作成モード
     if st.session_state.get(new_pattern_key):
-        st.markdown("#### ➕ 新規パターン作成")
+        st.markdown("#### 新規パターン作成")
         
         # デフォルトプロンプトを取得
         default_prompt = build_image_prompt(prompt_manager, page, parsed, tone_manner)
@@ -546,7 +537,7 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
         
         np_col1, np_col2, np_col3 = st.columns([2, 2, 1])
         with np_col1:
-            if st.button("🚀 生成開始", key=f"start_gen_{page_id}", width="stretch", type="primary"):
+            if st.button("生成開始", key=f"start_gen_{page_id}", use_container_width=True, type="primary"):
                 st.session_state[new_pattern_key] = False
                 generate_lp_page(
                     ai_provider, prompt_manager,
@@ -555,7 +546,7 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                     custom_prompt=new_pattern_prompt
                 )
         with np_col2:
-            if st.button("🗑️ キャンセル", key=f"cancel_new_{page_id}", width="stretch"):
+            if st.button("キャンセル", key=f"cancel_new_{page_id}", use_container_width=True):
                 st.session_state[new_pattern_key] = False
                 st.rerun()
         with np_col3:
@@ -569,7 +560,7 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
         # 新規パターン追加ボタン
         add_col1, add_col2, add_col3 = st.columns([2, 1, 1])
         with add_col1:
-            if st.button("➕ 新規パターン追加", key=f"add_pattern_{page_id}", width="stretch"):
+            if st.button("新規パターン追加", key=f"add_pattern_{page_id}", use_container_width=True):
                 st.session_state[new_pattern_key] = True
                 st.rerun()
         with add_col3:
@@ -754,11 +745,11 @@ def generate_lp_page(ai_provider, prompt_manager, page, parsed_content, tone_man
             st.error(f"エラー: {e}")
 
 def render_design_instruction_section(output_generator, product_data):
-    st.markdown('<div class="step-header">📋 デザイナー向け指示書</div>', unsafe_allow_html=True)
+    st.markdown('<div class="step-header">デザイナー向け指示書</div>', unsafe_allow_html=True)
     
     instr_col1, instr_col2 = st.columns([6, 1])
     with instr_col1:
-        instr_clicked = st.button("📝 指示書を生成", width="stretch")
+        instr_clicked = st.button("指示書を生成", use_container_width=True)
     with instr_col2:
         if st.button("💰", key="cost_instruction", help="直前の生成コスト"):
             if 'last_api_usage' in st.session_state and st.session_state.last_api_usage:
@@ -778,7 +769,7 @@ def render_design_instruction_section(output_generator, product_data):
         )
 
 def render_download_section(output_generator, product_data):
-    st.markdown('<div class="step-header">📥 ダウンロード</div>', unsafe_allow_html=True)
+    st.markdown('<div class="step-header">ダウンロード</div>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     

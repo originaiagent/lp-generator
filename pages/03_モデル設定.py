@@ -1,22 +1,13 @@
-
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from modules.ai_sidebar import render_ai_sidebar
+from modules.styles import apply_styles, page_header
 render_ai_sidebar()
 
 
 import streamlit as st
 import os
 import time
-# カスタムCSS読み込み
-def load_css():
-    css_file = "assets/style.css"
-    if os.path.exists(css_file):
-        with open(css_file, "r", encoding="utf-8") as f:
-            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-load_css()
+# スタイル適用
+apply_styles()
 
 from modules.page_guard import require_product
 
@@ -31,8 +22,7 @@ from modules.prompt_manager import PromptManager
 from modules.settings_manager import SettingsManager
 from modules.data_store import DataStore
 
-def render_model_page():
-    st.title('👤 モデル設定')
+    page_header("Model Settings", "AIによるモデル画像の生成と設定")
     
     # AIサイドバー表示
     
@@ -82,7 +72,7 @@ def render_model_page():
     st.markdown("---")
     
     # 一括生成ボタン
-    if st.button('🎨 選択中のモデルを全て生成', type='primary', key='generate_all_btn'):
+    if st.button('選択中のモデルを全て生成', type='primary', key='generate_all_btn', use_container_width=True):
         generate_all_models(model_generator, num_models, data_store, product_id)
     
     # プロンプト確認セクション
@@ -114,9 +104,8 @@ def render_model_config(index: int, options: dict, model_generator, data_store, 
         with c3:
             clothing = st.selectbox('服装', options.get('clothing', []), key=f'model_cloth_{index}')
         
-        # カスタム指示
         custom_prompt = st.text_area(
-            '📝 追加指示・備考（AIがプロンプトに反映）',
+            '追加指示・備考（AIがプロンプトに反映）',
             placeholder='例: 笑顔で親しみやすい、眼鏡をかけている、短髪、白い背景',
             key=f'model_custom_{index}',
             height=100
@@ -153,8 +142,7 @@ def render_model_config(index: int, options: dict, model_generator, data_store, 
         
         # ボタン
         bc1, bc2, bc3 = st.columns(3)
-        with bc1:
-            if st.button('🎨 生成', key=f'model_generate_btn_{index}', type='primary'):
+            if st.button('生成', key=f'model_generate_btn_{index}', type='primary', use_container_width=True):
                 generate_single_model(model_generator, index, {
                     'age': age,
                     'ethnicity': ethnicity,
@@ -163,7 +151,7 @@ def render_model_config(index: int, options: dict, model_generator, data_store, 
                     'clothing': clothing
                 }, custom_prompt, data_store, product_id)
         with bc2:
-            if st.button('📋 プロンプト確認', key=f'model_preview_btn_{index}'):
+            if st.button('プロンプト確認', key=f'model_preview_btn_{index}', use_container_width=True):
                 preview_prompt(model_generator, index, {
                     'age': age,
                     'ethnicity': ethnicity,
@@ -172,7 +160,7 @@ def render_model_config(index: int, options: dict, model_generator, data_store, 
                     'clothing': clothing
                 }, custom_prompt)
         with bc3:
-            if st.button('🗑️ クリア', key=f'model_clear_btn_{index}'):
+            if st.button('クリア', key=f'model_clear_btn_{index}', use_container_width=True):
                 img_url = st.session_state.model_images[index]
                 if img_url and isinstance(img_url, str) and img_url.startswith("http"):
                     data_store.delete_storage_file(img_url)

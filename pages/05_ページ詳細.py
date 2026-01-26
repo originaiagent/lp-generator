@@ -1,20 +1,12 @@
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from modules.ai_sidebar import render_ai_sidebar
+from modules.styles import apply_styles, page_header
 render_ai_sidebar()
 
 
 import streamlit as st
 import os
-# カスタムCSS読み込み
-def load_css():
-    css_file = "assets/style.css"
-    if os.path.exists(css_file):
-        with open(css_file, "r", encoding="utf-8") as f:
-            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-load_css()
+# スタイル適用
+apply_styles()
 
 from modules.page_guard import require_product
 
@@ -232,7 +224,7 @@ def generate_brushup_query(original_text, product, direction=None):
         st.error(f"AI提案のパースに失敗しました: {e}")
         return []
 
-st.title('📄 ページ詳細')
+page_header("Page Details", "各ページの詳細なコピーと構成の作成")
 
 data_store = DataStore()
 product_id = st.session_state['current_product_id']
@@ -260,8 +252,8 @@ if not pages:
 pages_sorted = sorted(pages, key=lambda x: x.get('order', 0))
 
 # 一括生成ボタン
-st.markdown("### 🛠️ 一括操作")
-if st.button("🚀 全ページを一括生成", type="primary", width="stretch"):
+st.markdown("### 一括操作")
+if st.button("全ページを一括生成", type="primary", use_container_width=True):
     progress_bar = st.progress(0)
     for i, page in enumerate(pages_sorted):
         with st.spinner(f"P{i+1} を生成中..."):
@@ -288,7 +280,7 @@ st.markdown("---")
 # 詳細生成ボタン
 btn_c1, btn_c2 = st.columns([6, 1])
 with btn_c1:
-    gen_content = st.button("🤖 AIでコンテンツ生成", type="primary", width="stretch")
+    gen_content = st.button("AIでコンテンツ生成", type="primary", use_container_width=True)
 with btn_c2:
     if st.button("💰", key="cost_content", help="直前の生成コスト"):
         if 'last_api_usage' in st.session_state and st.session_state.last_api_usage:
@@ -320,7 +312,7 @@ if isinstance(raw_detail, dict) and "result" in raw_detail:
     show_trace(raw_detail, "コンテンツ生成の生成情報")
 else:
     page_content = raw_detail.get("content", "") if isinstance(raw_detail, dict) else ""
-st.markdown('<div class="step-header">✏️ コンテンツ編集</div>', unsafe_allow_html=True)
+st.markdown('<div class="step-header">コンテンツ編集</div>', unsafe_allow_html=True)
 
 # parsed構造を取得
 parsed_data = None
@@ -498,7 +490,7 @@ if visual_elements:
             elem["description"] = new_desc
 
 # 保存ボタン
-if st.button("💾 保存", width="stretch", key="save_parsed", type="primary"):
+if st.button("保存", use_container_width=True, key="save_parsed", type="primary"):
     if 'page_contents' not in product:
         product['page_contents'] = {}
     
@@ -537,7 +529,7 @@ elif page_content and not parsed_data:
         key=f"content_{page_id}"
     )
     
-    if st.button("💾 保存", width="stretch", key="save_legacy", type="primary"):
+    if st.button("保存", use_container_width=True, key="save_legacy", type="primary"):
         if 'page_contents' not in product:
             product['page_contents'] = {}
         product['page_contents'][page_id] = {
