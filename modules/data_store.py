@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 import requests
+from urllib.parse import unquote
 from supabase import create_client, Client
 
 # Supabase設定
@@ -310,6 +311,8 @@ class DataStore:
                 path = file_url.split(f'{bucket_name}/')[1]
                 # クエリパラメータ等が含まれている場合は除去
                 path = path.split('?')[0]
+                # URLデコード（%20 → 空白など）
+                path = unquote(path)
                 self.supabase.storage.from_(bucket_name).remove([path])
                 return True
         except Exception as e:
