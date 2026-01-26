@@ -35,7 +35,7 @@
 }
 
 /* ===== セクションカード風 ===== */
-.stVerticalBlock > div:has(.step-label) {
+.stVerticalBlock>div:has(.step-label) {
     background: white !important;
     border-radius: 12px !important;
     padding: 1.5rem !important;
@@ -51,51 +51,65 @@ h1 {
     margin-bottom: 1.5rem !important;
 }
 
-h2, h3 {
+h2,
+h3 {
     color: #374151 !important;
     font-weight: 600 !important;
 }
 
-/* ===== ボタン - Primary（アクション必須・緑） ===== */
-.stButton > button[kind="primary"],
-button[data-testid="baseButton-primary"] {
-    background: linear-gradient(180deg, #22C55E 0%, #16A34A 100%) !important;
-    color: white !important;
+/* ===== ボタン - Primary（アクション必須・緑グラデーション + 立体感） ===== */
+.stButton>button[kind="primary"],
+div[data-testid="stFormSubmitButton"]>button,
+button[type="primary"],
+[data-testid="baseButton-primary"] {
+    background: linear-gradient(180deg, #10B981 0%, #059669 100%) !important;
     border: none !important;
     border-radius: 8px !important;
-    font-weight: 600 !important;
     padding: 0.75rem 1.5rem !important;
-    box-shadow: 0 4px 6px rgba(22, 163, 74, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
-    transition: all 0.15s ease !important;
+    font-weight: 600 !important;
+    color: white !important;
+    box-shadow: 0 4px 6px rgba(5, 150, 105, 0.25),
+        0 2px 4px rgba(5, 150, 105, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+    transition: all 0.2s ease !important;
     text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1) !important;
 }
 
-.stButton > button[kind="primary"]:hover,
-button[data-testid="baseButton-primary"]:hover {
-    background: linear-gradient(180deg, #16A34A 0%, #15803D 100%) !important;
-    box-shadow: 0 6px 10px rgba(22, 163, 74, 0.4), 0 3px 6px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
-    transform: translateY(-2px) !important;
+.stButton>button[kind="primary"]:hover,
+div[data-testid="stFormSubmitButton"]>button:hover,
+[data-testid="baseButton-primary"]:hover {
+    background: linear-gradient(180deg, #059669 0%, #047857 100%) !important;
+    box-shadow: 0 6px 10px rgba(5, 150, 105, 0.3),
+        0 3px 6px rgba(5, 150, 105, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+    transform: translateY(-1px) !important;
 }
 
-.stButton > button[kind="primary"]:active,
-button[data-testid="baseButton-primary"]:active {
+.stButton>button[kind="primary"]:active,
+div[data-testid="stFormSubmitButton"]>button:active,
+[data-testid="baseButton-primary"]:active {
     transform: translateY(0) !important;
-    box-shadow: 0 2px 4px rgba(22, 163, 74, 0.3), inset 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+    box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2),
+        inset 0 1px 2px rgba(0, 0, 0, 0.1) !important;
 }
 
-/* ===== ボタン - Secondary ===== */
-.stButton > button:not([kind="primary"]),
-button[data-testid="baseButton-secondary"] {
+/* ===== ボタン - Secondary（控えめ・白背景） ===== */
+.stButton>button:not([kind="primary"]),
+[data-testid="baseButton-secondary"] {
     background: white !important;
-    color: #4B5563 !important;
-    border: 1px solid #D1D5DB !important;
+    border: 1px solid #E2E8F0 !important;
     border-radius: 8px !important;
+    color: #475569 !important;
     font-weight: 500 !important;
+    transition: all 0.2s ease !important;
+    box-shadow: none !important;
 }
 
-.stButton > button:not([kind="primary"]):hover {
-    background: #F9FAFB !important;
-    border-color: #9CA3AF !important;
+.stButton>button:not([kind="primary"]):hover,
+[data-testid="baseButton-secondary"]:hover {
+    background: #F8FAFC !important;
+    border-color: #CBD5E1 !important;
+    transform: none !important;
 }
 
 /* ===== ファイルアップローダー - コンパクト ===== */
@@ -115,7 +129,7 @@ button[data-testid="baseButton-secondary"] {
     padding: 0.5rem !important;
 }
 
-[data-testid="stFileUploader"] section > div {
+[data-testid="stFileUploader"] section>div {
     padding: 0 !important;
 }
 
@@ -126,15 +140,15 @@ button[data-testid="baseButton-secondary"] {
 }
 
 /* ===== 入力フィールド ===== */
-.stTextInput > div > div > input,
-.stTextArea > div > div > textarea {
+.stTextInput>div>div>input,
+.stTextArea>div>div>textarea {
     border: 1px solid #D1D5DB !important;
     border-radius: 8px !important;
     padding: 0.6rem 0.8rem !important;
 }
 
-.stTextInput > div > div > input:focus,
-.stTextArea > div > div > textarea:focus {
+.stTextInput>div>div>input:focus,
+.stTextArea>div>div>textarea:focus {
     border-color: #6366F1 !important;
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
 }
@@ -156,21 +170,21 @@ button[data-testid="baseButton-secondary"] {
 }
 
 /* ===== アラート ===== */
-.stSuccess > div {
+.stSuccess>div {
     background: #ECFDF5 !important;
     border-left: 4px solid #10B981 !important;
     border-radius: 0 8px 8px 0 !important;
     padding: 0.75rem 1rem !important;
 }
 
-.stWarning > div {
+.stWarning>div {
     background: #FFFBEB !important;
     border-left: 4px solid #F59E0B !important;
     border-radius: 0 8px 8px 0 !important;
     padding: 0.75rem 1rem !important;
 }
 
-.stInfo > div {
+.stInfo>div {
     background: #EFF6FF !important;
     border-left: 4px solid #6366F1 !important;
     border-radius: 0 8px 8px 0 !important;
@@ -207,6 +221,64 @@ button[data-testid="baseButton-secondary"] {
 [data-testid="stSidebar"] {
     background: white !important;
     border-right: 1px solid #E5E7EB !important;
+}
+
+/* AIアシスタントボタン - 近未来感 */
+.ai-btn-container {
+    padding: 0.5rem;
+}
+
+/* サイドバー内のAIアシスタントボタン（特定セレクタ） */
+[data-testid="stSidebar"] .stButton>button:has(div:contains("AI Assistant")),
+[data-testid="stSidebar"] .stButton>button:has(div:contains("🤖 AIアシスタント")),
+.ai-assistant-button {
+    background: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #334155 100%) !important;
+    border: 1px solid rgba(99, 102, 241, 0.3) !important;
+    border-radius: 12px !important;
+    padding: 0.875rem 1rem !important;
+    color: white !important;
+    font-weight: 600 !important;
+    position: relative !important;
+    overflow: hidden !important;
+    transition: all 0.3s ease !important;
+    animation: pulse-glow 3s ease-in-out infinite !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* AIボタン内のアイコン表現 (pseudo-element) */
+[data-testid="stSidebar"] .stButton>button:has(div:contains("AI Assistant"))::before {
+    content: '✦' !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 20px !important;
+    height: 20px !important;
+    background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%) !important;
+    border-radius: 5px !important;
+    margin-right: 10px !important;
+    font-size: 12px !important;
+    color: white !important;
+}
+
+[data-testid="stSidebar"] .stButton>button:hover {
+    border-color: rgba(99, 102, 241, 0.6) !important;
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.3),
+        0 0 40px rgba(99, 102, 241, 0.1) !important;
+}
+
+/* パルスアニメーション */
+@keyframes pulse-glow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 5px rgba(99, 102, 241, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 0 15px rgba(99, 102, 241, 0.5);
+    }
 }
 
 /* ===== 不要な余白削除 ===== */

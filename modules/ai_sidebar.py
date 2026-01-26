@@ -102,7 +102,40 @@ def render_ai_sidebar():
                 st.session_state.show_ai_chat = False
                 st.rerun()
         else:
-            if st.button("🤖 AIアシスタント", width="stretch", type="primary"):
+            # AIアシスタントボタンのスタイル (modules/ai_sidebar.py)
+            st.markdown("""
+            <style>
+            .ai-btn-icon {
+                display: inline-block;
+                width: 20px;
+                height: 20px;
+                background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+                border-radius: 5px;
+                margin-right: 8px;
+                position: relative;
+                vertical-align: middle;
+            }
+            .ai-btn-icon::after {
+                content: '✦';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                color: white;
+                font-size: 12px;
+            }
+            @keyframes pulse-icon {
+                0%, 100% { opacity: 1; transform: scale(1); }
+                50% { opacity: 0.8; transform: scale(1.1); }
+            }
+            .ai-btn-icon {
+                animation: pulse-icon 2s ease-in-out infinite;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+            
+            # ボタンはStreamlitのst.buttonを使用（機能を維持）
+            if st.button("AI Assistant", key="ai_assistant_btn", type="primary", use_container_width=True):
                 st.session_state.show_ai_chat = True
                 st.rerun()
     
