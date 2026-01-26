@@ -1244,7 +1244,10 @@ def render_reference_images_upload(data_store, product_id):
 
         # 現在の画像をプリセット保存
         current_lp_images = (data_store.get_product(product_id) or {}).get('reference_lp_image_urls') or []
-        if current_lp_images:
+        # 有効なURLのみフィルタ
+        valid_lp_images = [url for url in current_lp_images if url and isinstance(url, str) and url.startswith('http')]
+
+        if valid_lp_images:
             with st.expander("💾 現在の画像をプリセットとして保存"):
                 new_lp_preset_name = st.text_input("プリセット名（必須）", key="new_ref_preset_name")
                 if st.button("保存", key="save_ref_preset"):
@@ -1256,7 +1259,7 @@ def render_reference_images_upload(data_store, product_id):
                         if existing:
                             st.warning(f"「{new_lp_preset_name}」は既に存在します。別の名前を入力してください。")
                         else:
-                            data_store.save_preset(new_lp_preset_name.strip(), 'reference_lp', current_lp_images)
+                            data_store.save_preset(new_lp_preset_name.strip(), 'reference_lp', valid_lp_images)
                             st.success(f"✅ プリセット「{new_lp_preset_name}」を保存しました！")
                             st.rerun()
 
@@ -1454,7 +1457,10 @@ def render_reference_images_upload(data_store, product_id):
 
         # 現在の画像をプリセット保存
         current_tm_images = (data_store.get_product(product_id) or {}).get('tone_manner_image_urls') or []
-        if current_tm_images:
+        # 有効なURLのみフィルタ
+        valid_tm_images = [url for url in current_tm_images if url and isinstance(url, str) and url.startswith('http')]
+
+        if valid_tm_images:
             with st.expander("💾 現在の画像をプリセットとして保存"):
                 new_tm_preset_name = st.text_input("プリセット名（必須）", key="new_tm_preset_name")
                 if st.button("保存", key="save_tm_preset"):
@@ -1466,7 +1472,7 @@ def render_reference_images_upload(data_store, product_id):
                         if existing:
                             st.warning(f"「{new_tm_preset_name}」は既に存在します。別の名前を入力してください。")
                         else:
-                            data_store.save_preset(new_tm_preset_name.strip(), 'tone_manner', current_tm_images)
+                            data_store.save_preset(new_tm_preset_name.strip(), 'tone_manner', valid_tm_images)
                             st.success(f"✅ プリセット「{new_tm_preset_name}」を保存しました！")
                             st.rerun()
 
