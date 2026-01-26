@@ -912,13 +912,16 @@ def render_competitor_analysis_results(analysis_data):
         
         total = summary.get("total_competitors", 1)
         
-        for elem, count in summary["element_ranking"]:
-            if count == total:
-                st.markdown(f"✅ **{elem}** ({count}/{total}社) ← 必須")
-            elif count >= total * 0.5:
-                st.markdown(f"✓ {elem} ({count}/{total}社)")
-            else:
-                st.markdown(f"・ {elem} ({count}/{total}社)")
+        col1, col2 = st.columns(2)
+        for i, (elem, count) in enumerate(summary["element_ranking"]):
+            target_col = col1 if i % 2 == 0 else col2
+            with target_col:
+                if count == total:
+                    st.markdown(f"✅ **{elem}** ({count}/{total}社) ← 必須")
+                elif count >= total * 0.5:
+                    st.markdown(f"✓ {elem} ({count}/{total}社)")
+                else:
+                    st.markdown(f"・ {elem} ({count}/{total}社)")
 
 
 def save_product_sheet(product_id, data_store):
