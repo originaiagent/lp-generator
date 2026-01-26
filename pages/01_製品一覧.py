@@ -61,8 +61,11 @@ if products:
             
             with col1:
                 st.markdown(f"**{product.get('name', '名称未設定')}**")
-                desc = product.get('description', '説明なし')
-                st.caption(desc[:100] + "..." if len(desc) > 100 else desc)
+                desc = product.get('description') or ''
+                if desc:
+                    st.caption(desc[:100] + "..." if len(desc) > 100 else desc)
+                else:
+                    st.caption("説明なし")
             
             with col2:
                 product_id = product.get('id', product.get('name', f'unknown_{idx}'))
