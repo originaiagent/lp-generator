@@ -246,22 +246,24 @@ class DataStore:
         return products
 
     def upload_image(self, file_data, file_name: str, bucket_name: str = "lp-generator-images") -> str:
-        """Supabase Storageに画像をアップロードし、公開URLを返す"""
+        """画像をSupabase Storageにアップロードし、公開URLを返す"""
         import streamlit as st
+        import traceback
+        
         if not self.supabase:
+            st.error("Supabase client is not initialized.")
             return None
         
+        st.toast(f"upload_image開始: {file_name}")
+        
+        # 1. アップロード処理
         try:
-            st.toast(f"upload_image開始: {file_name}")
-            
             # バケットの存在確認と作成
             buckets = self.supabase.storage.list_buckets()
             bucket_exists = any(b.name == bucket_name for b in buckets)
-            
             if not bucket_exists:
                 self.supabase.storage.create_bucket(bucket_name, options={"public": True})
             
-            # ファイルのアップロード
             file_options = {"upsert": "true", "content-type": "image/jpeg"}
             if file_name.lower().endswith(".png"):
                 file_options["content-type"] = "image/png"
@@ -273,13 +275,14 @@ class DataStore:
                 file=file_data,
                 file_options=file_options
             )
-            
-            st.toast(f"upload結果: {result}")
-            st.toast(f"upload結果型: {type(result)}")
-            
-            # 公開URLを取得
+            st.toast(f"upload成功: {result}")
+        except Exception as e:
+            st.warning(f"upload中に例外が発生しました（既にファイルがある場合などは続行）: {e}")
+            # print(traceback.format_exc())
+        
+        # 2. 公開URLを取得
+        try:
             url_result = self.supabase.storage.from_(bucket_name).get_public_url(file_name)
-            
             st.toast(f"get_public_url結果: {url_result}")
             st.toast(f"get_public_url型: {type(url_result)}")
             
@@ -296,12 +299,8 @@ class DataStore:
             return url
             
         except Exception as e:
-            import traceback
-            error_msg = f"Supabase storage upload error: {str(e)}"
-            st.error(error_msg)
+            st.error(f"get_public_url失敗: {e}")
             st.code(traceback.format_exc())
-            print(error_msg)
-            print(traceback.format_exc())
             return None
 
     def delete_image(self, file_path: str, bucket_name: str = "lp-generator-images") -> bool:
