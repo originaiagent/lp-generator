@@ -29,6 +29,7 @@ from modules.ai_provider import AIProvider
 from modules.prompt_manager import PromptManager
 from modules.settings_manager import SettingsManager
 import base64
+from pathlib import Path
 
 def get_valid_image_urls(urls):
     """有効な画像URLのみを返す"""
