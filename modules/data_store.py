@@ -386,3 +386,43 @@ class DataStore:
         # DBからプリセットを削除
         return self.delete_preset(preset_id)
 
+    def save_diagnosis(self, product_id, exposure_type, personas, evaluations, summary):
+        """LP診断結果を保存"""
+        if not self.supabase:
+            return None
+        try:
+            data = {
+                "product_id": product_id,
+                "exposure_type": exposure_type,
+                "personas": personas,
+                "evaluations": evaluations,
+                "summary": summary
+            }
+            result = self.supabase.table("lp_diagnoses").insert(data).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error saving diagnosis: {e}")
+            return None
+
+    def get_diagnoses(self, product_id):
+        """製品のLP診断履歴を取得"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table("lp_diagnoses").select("*").eq("product_id", product_id).order("created_at", desc=True).execute()
+            return result.data or []
+        except Exception as e:
+            print(f"Error fetching diagnoses: {e}")
+            return []
+
+    def get_latest_diagnosis(self, product_id):
+        """製品の最新LP診断を取得"""
+        if not self.supabase:
+            return None
+        try:
+            result = self.supabase.table("lp_diagnoses").select("*").eq("product_id", product_id).order("created_at", desc=True).limit(1).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error fetching latest diagnosis: {e}")
+            return None
+

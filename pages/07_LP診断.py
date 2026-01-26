@@ -323,6 +323,8 @@ def display_results(personas, evaluations, summary, exposure_type):
 def run_diagnosis(product, exposure_type, diagnosis_target):
     """LP診断を実行"""
     
+    data_store = DataStore()
+    product_id = product.get('id')
     settings = SettingsManager().get_settings()
     ai_provider = AIProvider(settings)
     
@@ -358,6 +360,20 @@ def run_diagnosis(product, exposure_type, diagnosis_target):
     # 結果を表示
     display_results(personas, evaluations, summary, exposure_type)
 
+    # 診断完了後、保存
+    if product_id:
+        diagnosis_res = data_store.save_diagnosis(
+            product_id=product_id,
+            exposure_type=exposure_type,
+            personas=personas,
+            evaluations=evaluations,
+            summary=summary
+        )
+        if diagnosis_res:
+            st.success("診断結果を保存しました")
+        else:
+            st.warning("診断結果の保存に失敗しました（Supabase接続を確認してください）")
+
 def render_diagnosis_page():
     page_header("LP Audit", "AIペルソナによる客観的なLPの診断と分析")
 
@@ -372,6 +388,13 @@ def render_diagnosis_page():
     if not product:
         st.error("製品情報が見つかりません")
         st.stop()
+
+    # 最新の診断を表示
+    latest = data_store.get_latest_diagnosis(product_id)
+    if latest:
+        st.info(f"最終診断: {latest['created_at'][:10]} - {latest['exposure_type']}")
+        with st.expander("前回の診断結果を見る"):
+            display_results(latest['personas'], latest['evaluations'], latest['summary'], latest['exposure_type'])
 
     st.subheader("診断設定")
 
