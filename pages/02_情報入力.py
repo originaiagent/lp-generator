@@ -114,24 +114,25 @@ def render_product_images_upload(data_store, product_id):
         upload_dir.mkdir(parents=True, exist_ok=True)
         
         image_paths = []
-        for uploaded_file in uploaded_files:
-            file_path = upload_dir / uploaded_file.name
-            with open(file_path, "wb") as f:
-                f.write(uploaded_file.getbuffer())
-            image_paths.append(str(file_path))  # 絶対パスとして保存
-            st.success(f"アップロード完了: {uploaded_file.name}")
-        
-        # データを更新
-        product = data_store.get_product(product_id)
-        if not product:
-            product = {}
-        
-        # 既存リストとマージ
-        existing_images = product.get('product_images') or []
-        for path in image_paths:
-            if path not in existing_images:
-                existing_images.append(path)
-        product['product_images'] = existing_images
+        if not data_store.use_supabase:
+            for uploaded_file in uploaded_files:
+                file_path = upload_dir / uploaded_file.name
+                with open(file_path, "wb") as f:
+                    f.write(uploaded_file.getbuffer())
+                image_paths.append(str(file_path))  # 絶対パスとして保存
+                st.success(f"アップロード完了: {uploaded_file.name}")
+            
+            # データを更新
+            product = data_store.get_product(product_id)
+            if not product:
+                product = {}
+            
+            # 既存リストとマージ
+            existing_images = product.get('product_images') or []
+            for path in image_paths:
+                if path not in existing_images:
+                    existing_images.append(path)
+            product['product_images'] = existing_images
         
         # Supabaseへアップロード
         if data_store.use_supabase:
@@ -178,43 +179,26 @@ def render_product_images_upload(data_store, product_id):
     
     if image_urls:
         st.markdown("**📁 アップロード済み画像 (クラウド):**")
-        cols = st.columns(4)
-        for i, img_url in enumerate(image_urls):
+        cols = st.columns(min(len(image_urls), 4))
+        for i, url in enumerate(image_urls):
             with cols[i % 4]:
-                # 画像表示（失敗しても警告のみ）
-                try:
-                    st.image(img_url, caption=f"Image {i+1}", width="stretch")
-                except Exception as e:
-                    st.warning(f"読込失敗: {e}")
-                
-                # 削除ボタンは常に表示
-                if st.button("🗑️", key=f"del_prod_img_url_{i}"):
-                    if img_url in (product.get("product_image_urls") or []):
-                        # Storageから削除
-                        data_store.delete_storage_file(img_url)
-                        product["product_image_urls"].remove(img_url)
-                        data_store.update_product(product_id, product)
-                        st.rerun()
-
-    elif local_images:
-        # フォールバック：ローカルファイル（ローカル開発時用）
+                st.image(url, width=150)
+                if st.button("🗑️", key=f"del_prod_cloud_{i}"):
+                    data_store.delete_storage_file(url)
+                    product['product_image_urls'].remove(url)
+                    data_store.update_product(product_id, product)
+                    st.rerun()
+    
+    # Supabase未使用時のみローカルを表示
+    if not data_store.use_supabase and local_images:
         st.markdown("**📁 アップロード済み画像 (ローカル):**")
-        cols = st.columns(4)
-        for i, img_path in enumerate(local_images):
-            with cols[i % 4]:
-                resolved_path = Path(img_path)
-                if not resolved_path.is_absolute():
-                    resolved_path = Path.cwd() / img_path
-                
-                if resolved_path.exists():
-                    st.image(str(resolved_path), caption=resolved_path.name, width="stretch")
-                else:
-                    st.warning(f"ファイルなし: {img_path}")
-                
-                # 削除ボタンは常に表示
-                if st.button("🗑️", key=f"del_prod_img_{i}"):
-                    if img_path in (product.get("product_images") or []):
-                        product["product_images"].remove(img_path)
+        cols = st.columns(min(len(local_images), 4))
+        for i, path in enumerate(local_images):
+            if Path(path).exists():
+                with cols[i % 4]:
+                    st.image(path, width=150)
+                    if st.button("🗑️", key=f"del_prod_local_{i}"):
+                        product['product_images'].remove(path)
                         data_store.update_product(product_id, product)
                         st.rerun()
 
@@ -293,33 +277,41 @@ def handle_competitor_upload(product_id, data_store, comp_idx):
         upload_dir.mkdir(parents=True, exist_ok=True)
         
         image_paths = []
-        for uf in uploaded_files:
-            file_path = upload_dir / uf.name
-            with open(file_path, "wb") as f:
-                f.write(uf.getbuffer())
-            image_paths.append(str(file_path))
-            st.toast(f"競合{comp_idx+1}: アップロード中... {uf.name}")
-        
-        # 最新の製品情報を取得
-        product = data_store.get_product(product_id) or {}
-        current_data = product.get("competitor_analysis_v2") or {}
-        competitors = current_data.get("competitors") or []
-        
-        # 整合性確保（リストが短い場合は拡張）
-        while len(competitors) <= comp_idx:
-            competitors.append({})
-        
-        comp_data = competitors[comp_idx]
-        
-        # ローカルパス保存
-        existing_files = (comp_data.get("files") or [])
-        for path in image_paths:
-            if path not in existing_files:
-                existing_files.append(path)
-        comp_data["files"] = existing_files
+        if not data_store.use_supabase:
+            for uf in uploaded_files:
+                file_path = upload_dir / uf.name
+                with open(file_path, "wb") as f:
+                    f.write(uf.getbuffer())
+                image_paths.append(str(file_path))
+                st.toast(f"競合{comp_idx+1}: アップロード中... {uf.name}")
+            
+            # 最新の製品情報を取得
+            product = data_store.get_product(product_id) or {}
+            current_data = product.get("competitor_analysis_v2") or {}
+            competitors = current_data.get("competitors") or []
+            
+            # 整合性確保（リストが短い場合は拡張）
+            while len(competitors) <= comp_idx:
+                competitors.append({})
+            
+            comp_data = competitors[comp_idx]
+            
+            # ローカルパス保存
+            existing_files = (comp_data.get("files") or [])
+            for path in image_paths:
+                if path not in existing_files:
+                    existing_files.append(path)
+            comp_data["files"] = existing_files
         
         # Supabase保存
         if data_store.use_supabase:
+            product = data_store.get_product(product_id) or {} # Re-fetch product if not already fetched for Supabase
+            current_data = product.get("competitor_analysis_v2") or {}
+            competitors = current_data.get("competitors") or []
+            while len(competitors) <= comp_idx:
+                competitors.append({})
+            comp_data = competitors[comp_idx]
+
             remote_urls = (comp_data.get("file_urls") or [])
             for uf in uploaded_files:
                 try:
@@ -345,7 +337,7 @@ def handle_competitor_upload(product_id, data_store, comp_idx):
         # DB保存
         if data_store.update_product(product_id, product):
             # Session Stateの同期
-            st.session_state[f"comp_files_paths_{comp_idx}"] = comp_data["files"]
+            st.session_state[f"comp_files_paths_{comp_idx}"] = comp_data.get("files", [])
             st.session_state[f"comp_file_urls_{comp_idx}"] = comp_data.get("file_urls", [])
             
             # アップローダーをクリア
@@ -491,11 +483,11 @@ def render_competitor_analysis(data_store, product_id):
                 for url in saved_urls:
                     display_images.append({"type": "url", "path": url})
                 
-                # ローカルパス（URLに無いもののみ追加する簡易チェック）
-                seen_names = set([u.split("/")[-1] for u in saved_urls])
-                for lp in saved_local:
-                    if Path(lp).name not in seen_names and Path(lp).exists():
-                        display_images.append({"type": "local", "path": lp})
+                # Supabase未使用時のみローカルを表示
+                if not data_store.use_supabase:
+                    for lp in saved_local:
+                        if Path(lp).exists():
+                            display_images.append({"type": "local", "path": lp})
                 
                 # 表示
                 if display_images:
@@ -1116,27 +1108,30 @@ def handle_lp_upload(product_id, data_store):
     lp_images = st.session_state.get(key)
     
     if lp_images:
-        upload_dir = Path(f"data/uploads/{product_id}/reference_lp")
-        upload_dir.mkdir(parents=True, exist_ok=True)
-        
         image_paths = []
-        for uploaded_file in lp_images:
-            file_path = upload_dir / uploaded_file.name
-            with open(file_path, "wb") as f:
-                f.write(uploaded_file.getbuffer())
-            image_paths.append(str(file_path))
-            # コールバック内でのst.success等は次回レンダリング時に消える可能性があるためtoastを使用
-            st.toast(f"アップロード完了: {uploaded_file.name}")
+        # Supabase使用時はローカル保存を回避
+        if not data_store.use_supabase:
+            upload_dir = Path(f"data/uploads/{product_id}/reference_lp")
+            upload_dir.mkdir(parents=True, exist_ok=True)
+            
+            for uploaded_file in lp_images:
+                file_path = upload_dir / uploaded_file.name
+                with open(file_path, "wb") as f:
+                    f.write(uploaded_file.getbuffer())
+                image_paths.append(str(file_path))
+                st.toast(f"アップロード完了: {uploaded_file.name}")
+            
+            # データを更新
+            product = data_store.get_product(product_id) or {}
+            existing = product.get('reference_lp_images') or []
+            for path in image_paths:
+                if path not in existing:
+                    existing.append(path)
+            product['reference_lp_images'] = existing
         
-        # 最新の製品情報を取得
-        product = data_store.get_product(product_id) or {}
-        
-        # 既存の画像リストに追加
-        existing = product.get('reference_lp_images') or []
-        for path in image_paths:
-            if path not in existing:
-                existing.append(path)
-        product['reference_lp_images'] = existing
+        # Supabase用の製品情報取得
+        if data_store.use_supabase:
+            product = data_store.get_product(product_id) or {}
         
         # Supabase Storageへアップロード
         if data_store.use_supabase:
@@ -1188,26 +1183,29 @@ def handle_tone_upload(product_id, data_store):
     tone_images = st.session_state.get(key)
     
     if tone_images:
-        upload_dir = Path(f"data/uploads/{product_id}/tone_manner")
-        upload_dir.mkdir(parents=True, exist_ok=True)
-        
-        image_paths = []
-        for uploaded_file in tone_images:
-            file_path = upload_dir / uploaded_file.name
-            with open(file_path, "wb") as f:
-                f.write(uploaded_file.getbuffer())
-            image_paths.append(str(file_path))
-            st.toast(f"アップロード完了: {uploaded_file.name}")
-        
-        product = data_store.get_product(product_id) or {}
-        
-        existing = product.get('tone_manner_images') or []
-        for path in image_paths:
-            if path not in existing:
-                existing.append(path)
-        product['tone_manner_images'] = existing
+        # Supabase使用時はローカル保存を回避
+        if not data_store.use_supabase:
+            upload_dir = Path(f"data/uploads/{product_id}/tone_manner")
+            upload_dir.mkdir(parents=True, exist_ok=True)
+            
+            image_paths = []
+            for uploaded_file in tone_images:
+                file_path = upload_dir / uploaded_file.name
+                with open(file_path, "wb") as f:
+                    f.write(uploaded_file.getbuffer())
+                image_paths.append(str(file_path))
+                st.toast(f"アップロード完了: {uploaded_file.name}")
+            
+            product = data_store.get_product(product_id) or {}
+            
+            existing = product.get('tone_manner_images') or []
+            for path in image_paths:
+                if path not in existing:
+                    existing.append(path)
+            product['tone_manner_images'] = existing
         
         if data_store.use_supabase:
+            product = data_store.get_product(product_id) or {} # Re-fetch product if not already fetched for Supabase
             remote_urls = product.get('tone_manner_image_urls') or []
             uploaded_count = 0
             for uploaded_file in tone_images:
@@ -1347,14 +1345,12 @@ def render_reference_images_upload(data_store, product_id):
             valid_urls = get_valid_image_urls(product["reference_lp_image_urls"])
             display_images.extend([{"type": "url", "path": url} for url in valid_urls])
         
-        # ローカルパスも（URLに含まれていないものがあれば）
-        if product and product.get("reference_lp_images"):
-            # URLからファイル名を抽出（デコードして比較）
-            from urllib.parse import unquote
-            url_filenames = [unquote(u.split("/")[-1].split('?')[0]) for u in (product.get("reference_lp_image_urls") or [])]
-            for img in product["reference_lp_images"]:
-                if Path(img).name not in url_filenames and Path(img).exists():
-                     display_images.append({"type": "local", "path": img})
+        # Supabase未使用時のみローカルパスを表示
+        if not data_store.use_supabase:
+            if product and product.get("reference_lp_images"):
+                for img in product["reference_lp_images"]:
+                    if Path(img).exists():
+                         display_images.append({"type": "local", "path": img})
 
         if display_images:
             st.markdown("**📁 アップロード済み:**")
@@ -1559,13 +1555,12 @@ def render_reference_images_upload(data_store, product_id):
             valid_urls = get_valid_image_urls(product["tone_manner_image_urls"])
             tm_display_images.extend([{"type": "url", "path": url} for url in valid_urls])
             
-        if product and product.get("tone_manner_images"):
-            # URLからファイル名を抽出（デコードして比較）
-            from urllib.parse import unquote
-            url_filenames = [unquote(u.split("/")[-1].split('?')[0]) for u in (product.get("tone_manner_image_urls") or [])]
-            for img in product["tone_manner_images"]:
-                if Path(img).name not in url_filenames and Path(img).exists():
-                     tm_display_images.append({"type": "local", "path": img})
+        # Supabase未使用時のみローカルを表示
+        if not data_store.use_supabase:
+            if product and product.get("tone_manner_images"):
+                for img in product["tone_manner_images"]:
+                    if Path(img).exists():
+                         tm_display_images.append({"type": "local", "path": img})
 
         if tm_display_images:
             st.markdown("**📁 アップロード済み:**")
