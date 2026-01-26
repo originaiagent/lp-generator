@@ -247,10 +247,13 @@ class DataStore:
 
     def upload_image(self, file_data, file_name: str, bucket_name: str = "lp-generator-images") -> str:
         """Supabase Storageに画像をアップロードし、公開URLを返す"""
+        import streamlit as st
         if not self.supabase:
             return None
         
         try:
+            st.toast(f"upload_image開始: {file_name}")
+            
             # バケットの存在確認と作成
             buckets = self.supabase.storage.list_buckets()
             bucket_exists = any(b.name == bucket_name for b in buckets)
@@ -265,26 +268,35 @@ class DataStore:
             elif file_name.lower().endswith(".webp"):
                 file_options["content-type"] = "image/webp"
             
-            res = self.supabase.storage.from_(bucket_name).upload(
+            result = self.supabase.storage.from_(bucket_name).upload(
                 path=file_name,
                 file=file_data,
                 file_options=file_options
             )
             
+            st.toast(f"upload結果: {result}")
+            st.toast(f"upload結果型: {type(result)}")
+            
             # 公開URLを取得
-            url = self.supabase.storage.from_(bucket_name).get_public_url(file_name)
+            url_result = self.supabase.storage.from_(bucket_name).get_public_url(file_name)
             
-            # urlが辞書やオブジェクトの場合の対応
-            if isinstance(url, dict) and 'publicUrl' in url:
-                url = url['publicUrl']
-            elif hasattr(url, 'public_url'):
-                url = url.public_url
+            st.toast(f"get_public_url結果: {url_result}")
+            st.toast(f"get_public_url型: {type(url_result)}")
             
+            # URLの抽出
+            url = None
+            if isinstance(url_result, str):
+                url = url_result
+            elif isinstance(url_result, dict):
+                url = url_result.get('publicUrl') or url_result.get('public_url')
+            elif hasattr(url_result, 'public_url'):
+                url = url_result.public_url
+            
+            st.toast(f"最終URL: {url}")
             return url
             
         except Exception as e:
             import traceback
-            import streamlit as st
             error_msg = f"Supabase storage upload error: {str(e)}"
             st.error(error_msg)
             st.code(traceback.format_exc())
