@@ -232,22 +232,7 @@ def render_chat_panel():
                 with col_left:
                     st.markdown("**【現在】**")
                     target = prop.get('target')
-                    st.write(f"DEBUG target: {target}")
-
-                    # structureの中身を確認
-                    structure = context.get('structure', {})
-                    st.write(f"DEBUG structure keys: {list(structure.keys()) if isinstance(structure, dict) else 'not dict'}")
-
-                    if isinstance(structure, dict) and 'result' in structure:
-                        result = structure['result']
-                        st.write(f"DEBUG result keys: {list(result.keys()) if isinstance(result, dict) else 'not dict'}")
-                        pages = result.get('pages', [])
-                        if pages:
-                            st.write(f"DEBUG pages[0] keys: {list(pages[0].keys()) if isinstance(pages[0], dict) else 'not dict'}")
-                            st.write(f"DEBUG pages[0].get('appeals'): {pages[0].get('appeals')}")
-
                     current_val = get_current_value(context, target)
-                    st.write(f"DEBUG current_value: {current_val}")
                     st.caption(str(current_val))
                 with col_right:
                     st.markdown("**【提案】**")
