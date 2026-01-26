@@ -1399,22 +1399,55 @@ def render_reference_images_upload(data_store, product_id):
             if isinstance(tone, dict) and "result" in tone:
                 result = tone["result"]
                 
-                # カラー表示
+                # カラー表示・編集
                 colors = result.get("colors", {})
-                if colors:
-                    col1, col2, col3, col4 = st.columns(4)
-                    with col1:
-                        st.color_picker("メイン", colors.get("main", "#000000"), disabled=True, key="tm_main")
-                        st.caption(colors.get("main", ""))
-                    with col2:
-                        st.color_picker("アクセント", colors.get("accent", "#000000"), disabled=True, key="tm_accent")
-                        st.caption(colors.get("accent", ""))
-                    with col3:
-                        st.color_picker("背景", colors.get("background", "#FFFFFF"), disabled=True, key="tm_bg")
-                        st.caption(colors.get("background", ""))
-                    with col4:
-                        st.color_picker("テキスト", colors.get("text", "#000000"), disabled=True, key="tm_text")
-                        st.caption(colors.get("text", ""))
+                if not colors: # colors辞書がない場合の初期化
+                    colors = {
+                        "main": tone.get("main_color", "#000000"),
+                        "accent": tone.get("accent_color", "#000000"),
+                        "background": tone.get("background_color", "#FFFFFF"),
+                        "text": tone.get("text_color", "#000000")
+                    }
+
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.write("メイン")
+                    main_color = st.color_picker("メイン色", colors.get("main", "#000000"), key="tm_main_edit", label_visibility="collapsed")
+                    st.caption(main_color)
+                with col2:
+                    st.write("アクセント")
+                    accent_color = st.color_picker("アクセント色", colors.get("accent", "#000000"), key="tm_accent_edit", label_visibility="collapsed")
+                    st.caption(accent_color)
+                with col3:
+                    st.write("背景")
+                    bg_color = st.color_picker("背景色", colors.get("background", "#FFFFFF"), key="tm_bg_edit", label_visibility="collapsed")
+                    st.caption(bg_color)
+                with col4:
+                    st.write("テキスト")
+                    text_color = st.color_picker("テキスト色", colors.get("text", "#000000"), key="tm_text_edit", label_visibility="collapsed")
+                    st.caption(text_color)
+                
+                if st.button("🎨 カラー設定を保存", width="stretch"):
+                    # 構造を維持して保存
+                    new_colors = {
+                        "main": main_color,
+                        "accent": accent_color,
+                        "background": bg_color,
+                        "text": text_color
+                    }
+                    result["colors"] = new_colors
+                    tone["result"] = result
+                    
+                    # トップレベルの互換性用キーも更新
+                    tone["main_color"] = main_color
+                    tone["accent_color"] = accent_color
+                    tone["background_color"] = bg_color
+                    tone["text_color"] = text_color
+                    
+                    product['tone_manner'] = tone
+                    data_store.update_product(product_id, product)
+                    st.success("カラー設定を保存しました！")
+                    st.rerun()
                 
                 # フォント情報
                 font = result.get("font", {})
