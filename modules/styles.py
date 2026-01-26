@@ -36,6 +36,12 @@ def get_common_styles():
         color: #00d4ff;
     }
     
+    [data-testid="stSidebar"] [data-testid="stSidebarNavLink"][aria-selected="true"] {
+        color: #ffffff !important;
+        background: rgba(0, 212, 255, 0.15) !important;
+        border-left: 3px solid #00d4ff !important;
+    }
+    
     /* ===== カード ===== */
     .cyber-card {
         background: rgba(26, 31, 46, 0.8);
@@ -59,8 +65,8 @@ def get_common_styles():
         border: none;
         border-radius: 8px;
         padding: 0.75rem 1.5rem;
-        font-weight: 600;
-        color: white;
+        font-weight: 700;
+        color: #0a0f1a;
         box-shadow: 0 0 20px rgba(0, 212, 255, 0.3),
                     0 0 40px rgba(168, 85, 247, 0.2);
         transition: all 0.3s ease;
@@ -121,8 +127,12 @@ def get_common_styles():
     }
     
     /* ===== テキスト ===== */
-    p, span, label, .stMarkdown {
+    p, span, .stMarkdown {
         color: #94a3b8;
+    }
+    
+    label, .stTextInput label, .stTextArea label, .stSelectbox label {
+        color: #cbd5e1 !important;
     }
     
     /* ===== 入力フィールド ===== */
