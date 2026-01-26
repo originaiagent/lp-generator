@@ -170,6 +170,9 @@ def render_model_config(index: int, options: dict, model_generator, data_store, 
                 }, custom_prompt)
         with bc3:
             if st.button('🗑️ クリア', key=f'model_clear_btn_{index}'):
+                img_url = st.session_state.model_images[index]
+                if img_url and isinstance(img_url, str) and img_url.startswith("http"):
+                    data_store.delete_storage_file(img_url)
                 st.session_state.model_images[index] = None
                 st.session_state.model_prompts[index] = None
                 # DBからも削除（None更新）

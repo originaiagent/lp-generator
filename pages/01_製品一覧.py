@@ -92,6 +92,7 @@ if products:
                                 urls_to_delete.extend(prod_data.get('reference_lp_image_urls') or [])
                                 urls_to_delete.extend(prod_data.get('tone_manner_image_urls') or [])
                                 urls_to_delete.extend(prod_data.get('product_image_urls') or [])
+                                urls_to_delete.extend([url for url in prod_data.get('model_images', []) if url])
                                 
                                 # 競合分析データの画像（v2形式）
                                 comp_analysis = prod_data.get('competitor_analysis_v2') or {}
