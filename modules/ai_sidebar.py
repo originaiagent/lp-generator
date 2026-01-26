@@ -245,6 +245,11 @@ def render_chat_panel():
                 col_left, col_right = st.columns(2)
                 with col_left:
                     st.markdown("**【現在】**")
+                    # DEBUG
+                    st.write(f"DEBUG target: {prop.get('target')}")
+                    st.write(f"DEBUG product keys: {list(context.keys()) if context else 'None'}")
+                    st.write(f"DEBUG current_value result: {get_current_value(context, prop.get('target'))}")
+                    
                     current_val = get_current_value(context, prop.get('target', ''))
                     st.caption(str(current_val))
                 with col_right:
