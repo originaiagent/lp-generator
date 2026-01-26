@@ -13,7 +13,7 @@ class AIProvider:
         self.openai_api_key = (os.getenv("OPENAI_API_KEY") or "").strip().strip('"').strip("'")
         self.google_api_key = (os.getenv("GOOGLE_API_KEY") or "").strip().strip('"').strip("'")
     
-    def ask(self, prompt: str, task: str = "chat", images: List[str] = None) -> str:
+    def ask(self, prompt: str, task: str = "chat", images: List[Any] = None) -> str:
         # タスク別プロバイダ対応
         task_models = self.settings.get("task_models", {})
         if images and "image_analysis_provider" in task_models:
@@ -85,7 +85,7 @@ class AIProvider:
         except Exception as e:
             return f"OpenAI APIエラー: {str(e)}"
     
-    def _ask_gemini(self, prompt: str, images: List[str] = None) -> str:
+    def _ask_gemini(self, prompt: str, images: List[Any] = None) -> str:
         try:
             import google.generativeai as genai
             import base64
@@ -102,11 +102,19 @@ class AIProvider:
             if images:
                 # 画像付きリクエスト
                 parts = [prompt]
-                for img_data in images:
+                for img_item in images:
+                    # img_itemは base64文字列 または {'data': ..., 'mime_type': ...} の辞書
+                    mime_type = "image/jpeg"
+                    img_data = img_item
+                    
+                    if isinstance(img_item, dict):
+                        img_data = img_item.get('data')
+                        mime_type = img_item.get('mime_type', "image/jpeg")
+                    
                     # base64データを画像パートに変換（inline_data形式）
                     parts.append({
                         "inline_data": {
-                            "mime_type": "image/jpeg",
+                            "mime_type": mime_type,
                             "data": img_data
                         }
                     })
