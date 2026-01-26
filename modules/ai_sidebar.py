@@ -54,45 +54,39 @@ def set_value_by_path(obj, path, value):
 
 
 def get_current_value(product, target):
-    """
-    targetパス（例: structure.pages[0].appeals）に基づいて現在の値を取得する
-    """
+    """targetパスから現在の値を取得"""
     try:
         if not product or not target:
             return "（未設定）"
             
-        parts = re.split(r'\.|\[(\d+)\]', target)
-        parts = [p for p in parts if p is not None and p != '']
+        parts = target.replace(']', '').replace('[', '.').split('.')
+        parts = [p for p in parts if p != '']
         
-        curr = product
+        value = product
         for i, part in enumerate(parts):
-            # structureの正規化
-            if part == "structure" and i == 0:
-                curr = curr.get('structure', {})
-                if isinstance(curr, dict) and 'result' in curr:
-                    curr = curr['result']
-                continue
-                
-            if part.isdigit():
-                idx = int(part)
-                if isinstance(curr, list) and idx < len(curr):
-                    curr = curr[idx]
+            if part == 'structure' and isinstance(value.get('structure'), dict):
+                # structureの中にresultがある場合はそちらを使う
+                struct = value.get('structure', {})
+                value = struct.get('result', struct)
+            elif part.isdigit():
+                if isinstance(value, list) and int(part) < len(value):
+                    value = value[int(part)]
                 else:
-                    return "（未設定）"
+                    value = None
+                    break
             else:
-                if isinstance(curr, dict) and part in curr:
-                    curr = curr[part]
+                if isinstance(value, dict):
+                    value = value.get(part)
                 else:
-                    return "（未設定）"
+                    value = None
+                    break
         
-        if curr is None or curr == "" or curr == {}:
+        # 値の整形
+        if value is None or value == {} or value == []:
             return "（未設定）"
-            
-        # リストの場合はカンマ区切りに変換
-        if isinstance(curr, list):
-            return ", ".join(map(str, curr))
-            
-        return str(curr)
+        if isinstance(value, list):
+            return ", ".join(str(v) for v in value)
+        return str(value)
     except Exception as e:
         print(f"get_current_value error: {e}")
         return "（取得エラー）"
@@ -248,7 +242,13 @@ def render_chat_panel():
                     st.caption(str(current_val))
                 with col_right:
                     st.markdown("**【提案】**")
-                    st.info(str(prop.get('after', '')))
+                    # after_value の整形
+                    after_val = prop.get('after', '')
+                    if isinstance(after_val, list):
+                        after_display = ", ".join(str(v) for v in after_val)
+                    else:
+                        after_display = str(after_val)
+                    st.info(after_display)
                 
                 if prop.get('reason'):
                     st.markdown(f"💬 *{prop.get('reason')}*")
