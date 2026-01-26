@@ -250,12 +250,18 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
             parsed = {}
             display = ""
         
-        # 参照LP画像パス
+        # 参照LP画像パス (URL優先)
         ref_image_path = None
         if lp_analyses and reference_page <= len(lp_analyses):
-            ref_images = product_data.get('reference_lp_images', [])
-            if ref_images and reference_page <= len(ref_images):
-                ref_image_path = ref_images[reference_page - 1]
+            # まずURLリストを確認
+            ref_urls = product_data.get('reference_lp_image_urls') or []
+            if ref_urls and reference_page <= len(ref_urls):
+                ref_image_path = ref_urls[reference_page - 1]
+            else:
+                # 無ければローカルパス
+                ref_images = product_data.get('reference_lp_images', [])
+                if ref_images and reference_page <= len(ref_images):
+                    ref_image_path = ref_images[reference_page - 1]
         
         # ========== 決定事項・参照情報セクション ==========
         with st.expander("📋 決定事項・参照情報", expanded=True):
@@ -326,9 +332,14 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
             
             with info_col2:
                 # 参照LP
-                if ref_image_path and Path(ref_image_path).exists():
+                if ref_image_path:
                     st.markdown("**📷 参照LP**")
-                    st.image(ref_image_path, width="stretch")
+                    # URLかファイルパスかを判定して表示（Pathlibのエラー回避）
+                    is_local = not str(ref_image_path).startswith("http")
+                    if not is_local or Path(ref_image_path).exists():
+                        st.image(ref_image_path, width="stretch")
+                    else:
+                        st.warning("参照画像が見つかりません (削除された可能性があります)")
                 
                 # トーンマナー簡易表示
                 if tone_manner:

@@ -206,6 +206,40 @@ class AIProvider:
         except Exception as e:
             return {"error": f"DALL-E APIエラー: {str(e)}"}
     
+    def _get_image_info(self, source: str) -> Optional[dict]:
+        """画像ソース（パスまたはURL）からデータとMIMEタイプを取得"""
+        import base64
+        import requests
+        from pathlib import Path
+
+        try:
+            if source.startswith("http"):
+                headers = {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+                }
+                response = requests.get(source, headers=headers, timeout=30)
+                response.raise_for_status()
+                image_bytes = response.content
+                content_type = response.headers.get("Content-Type", "image/jpeg")
+                mime_type = "image/png" if "png" in content_type else "image/jpeg"
+                if "gif" in content_type: mime_type = "image/gif"
+            else:
+                if not Path(source).exists():
+                    return None
+                with open(source, "rb") as f:
+                    image_bytes = f.read()
+                ext = source.lower().split('.')[-1]
+                mime_types = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "gif": "image/gif"}
+                mime_type = mime_types.get(ext, "image/jpeg")
+            
+            return {
+                "mime_type": mime_type,
+                "data": base64.b64encode(image_bytes).decode()
+            }
+        except Exception as e:
+            print(f"Error loading image {source}: {e}")
+            return None
+
     def _generate_image_gemini(self, prompt: str, model: str = "nano-banana-pro-preview", reference_image_path: str = None) -> dict:
         """Gemini/Imagen系で画像生成（参照画像対応）"""
         try:
@@ -222,16 +256,10 @@ class AIProvider:
             contents = []
             
             # 参照画像がある場合は追加
-            if reference_image_path and Path(reference_image_path).exists():
-                with open(reference_image_path, "rb") as f:
-                    ref_image_data = f.read()
-                ext = reference_image_path.lower().split('.')[-1]
-                mime_types = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png"}
-                mime_type = mime_types.get(ext, "image/jpeg")
-                contents.append({
-                    "mime_type": mime_type,
-                    "data": base64.b64encode(ref_image_data).decode()
-                })
+            if reference_image_path:
+                img_info = self._get_image_info(reference_image_path)
+                if img_info:
+                    contents.append(img_info)
             
             contents.append(prompt)
             
@@ -274,37 +302,12 @@ class AIProvider:
 
     def analyze_image(self, image_path: str, prompt: str) -> str:
         """画像を分析（Vision API）- ローカルパスまたはURL対応"""
-        import base64
-        import requests
+        img_info = self._get_image_info(image_path)
+        if not img_info:
+            return f"画像分析エラー: 画像の読み込みに失敗しました ({image_path})"
         
-        # URLの場合はダウンロード
-        if image_path.startswith("http"):
-            try:
-                headers = {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-                }
-                response = requests.get(image_path, headers=headers, timeout=30)
-                response.raise_for_status()
-                image_data = base64.b64encode(response.content).decode("utf-8")
-                # URLからContent-Typeを推測、またはデフォルト
-                content_type = response.headers.get("Content-Type", "image/jpeg")
-                if "png" in content_type:
-                    mime_type = "image/png"
-                elif "gif" in content_type:
-                    mime_type = "image/gif"
-                else:
-                    mime_type = "image/jpeg"
-            except Exception as e:
-                return f"画像ダウンロードエラー: {e}"
-        else:
-            # ローカルファイルを読み込み
-            with open(image_path, "rb") as f:
-                image_data = base64.b64encode(f.read()).decode("utf-8")
-            
-            # 画像の拡張子からMIMEタイプを判定
-            ext = image_path.lower().split('.')[-1]
-            mime_types = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "gif": "image/gif"}
-            mime_type = mime_types.get(ext, "image/jpeg")
+        image_data = img_info["data"]
+        mime_type = img_info["mime_type"]
         
         provider = self.settings.get("llm_provider", "gemini")
         
