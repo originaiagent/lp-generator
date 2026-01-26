@@ -65,11 +65,20 @@ def get_common_styles():
         border: none;
         border-radius: 8px;
         padding: 0.75rem 1.5rem;
-        font-weight: 700;
-        color: #0a0f1a;
         box-shadow: 0 0 20px rgba(0, 212, 255, 0.3),
                     0 0 40px rgba(168, 85, 247, 0.2);
         transition: all 0.3s ease;
+    }
+
+    /* プライマリボタンの文字を濃く */
+    .stButton > button,
+    .stButton button,
+    button[kind="primary"],
+    [data-testid="stFormSubmitButton"] button,
+    .stDownloadButton button {
+        color: #0a0f1a !important;
+        font-weight: 700 !important;
+        text-shadow: none !important;
     }
     
     .stButton > button[kind="primary"]:hover,
@@ -131,7 +140,13 @@ def get_common_styles():
         color: #94a3b8;
     }
     
-    label, .stTextInput label, .stTextArea label, .stSelectbox label {
+    /* ラベルを明るく */
+    .stTextInput label,
+    .stTextArea label,
+    .stSelectbox label,
+    .stRadio label,
+    .stCheckbox label,
+    [data-testid="stWidgetLabel"] {
         color: #cbd5e1 !important;
     }
     
