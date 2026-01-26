@@ -1197,6 +1197,43 @@ def render_reference_images_upload(data_store, product_id):
             args=(product_id, data_store)
         )
 
+        # プリセット選択
+        st.markdown("---")
+        lp_presets = data_store.get_presets('reference_lp')
+        lp_preset_options = ["なし"] + [p['name'] for p in lp_presets]
+        selected_lp_preset = st.selectbox("📁 プリセットから選択", lp_preset_options, key="ref_lp_preset")
+
+        if selected_lp_preset != "なし":
+            preset = next((p for p in lp_presets if p['name'] == selected_lp_preset), None)
+            if preset:
+                col_p1, col_p2 = st.columns([3, 1])
+                with col_p1:
+                    if st.button("このプリセットを適用", key="apply_ref_preset", width="stretch"):
+                        product = data_store.get_product(product_id) or {}
+                        product['reference_lp_image_urls'] = preset['images']
+                        data_store.update_product(product_id, product)
+                        st.success(f"プリセット「{selected_lp_preset}」を適用しました")
+                        st.rerun()
+                with col_p2:
+                    if st.button("🗑️ 削除", key=f"del_ref_preset_{preset['id']}", width="stretch"):
+                        data_store.delete_preset(preset['id'])
+                        st.rerun()
+
+        # 現在の画像をプリセット保存
+        current_lp_images = (data_store.get_product(product_id) or {}).get('reference_lp_image_urls') or []
+        if current_lp_images:
+            with st.expander("💾 現在の画像をプリセットとして保存"):
+                new_lp_preset_name = st.text_input("プリセット名（必須）", key="new_ref_preset_name")
+                if st.button("保存", key="save_ref_preset"):
+                    if not new_lp_preset_name.strip():
+                        st.error("プリセット名を入力してください")
+                    else:
+                        data_store.save_preset(new_lp_preset_name.strip(), 'reference_lp', current_lp_images)
+                        st.success(f"プリセット「{new_lp_preset_name}」を保存しました")
+                        st.rerun()
+
+        st.markdown("---")
+
     
         
         # アップロード済み参考LP画像表示（クラウドURL優先）
@@ -1341,6 +1378,43 @@ def render_reference_images_upload(data_store, product_id):
             on_change=handle_tone_upload,
             args=(product_id, data_store)
         )
+
+        # プリセット選択
+        st.markdown("---")
+        tm_presets = data_store.get_presets('tone_manner')
+        tm_preset_options = ["なし"] + [p['name'] for p in tm_presets]
+        selected_tm_preset = st.selectbox("📁 プリセットから選択", tm_preset_options, key="tm_preset")
+
+        if selected_tm_preset != "なし":
+            preset = next((p for p in tm_presets if p['name'] == selected_tm_preset), None)
+            if preset:
+                col_tp1, col_tp2 = st.columns([3, 1])
+                with col_tp1:
+                    if st.button("このプリセットを適用", key="apply_tm_preset", width="stretch"):
+                        product = data_store.get_product(product_id) or {}
+                        product['tone_manner_image_urls'] = preset['images']
+                        data_store.update_product(product_id, product)
+                        st.success(f"プリセット「{selected_tm_preset}」を適用しました")
+                        st.rerun()
+                with col_tp2:
+                    if st.button("🗑️ 削除", key=f"del_tm_preset_{preset['id']}", width="stretch"):
+                        data_store.delete_preset(preset['id'])
+                        st.rerun()
+
+        # 現在の画像をプリセット保存
+        current_tm_images = (data_store.get_product(product_id) or {}).get('tone_manner_image_urls') or []
+        if current_tm_images:
+            with st.expander("💾 現在の画像をプリセットとして保存"):
+                new_tm_preset_name = st.text_input("プリセット名（必須）", key="new_tm_preset_name")
+                if st.button("保存", key="save_tm_preset"):
+                    if not new_tm_preset_name.strip():
+                        st.error("プリセット名を入力してください")
+                    else:
+                        data_store.save_preset(new_tm_preset_name.strip(), 'tone_manner', current_tm_images)
+                        st.success(f"プリセット「{new_tm_preset_name}」を保存しました")
+                        st.rerun()
+
+        st.markdown("---")
 
         
         # アップロード済みトンマナ画像表示（クラウドURL優先）

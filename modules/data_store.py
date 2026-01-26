@@ -298,3 +298,41 @@ class DataStore:
             print(f"Supabase storage delete error: {e}")
             return False
 
+    def get_presets(self, preset_type):
+        """プリセット一覧を取得"""
+        if not self.supabase:
+            return []
+        try:
+            response = self.supabase.table('image_presets').select('*').eq('type', preset_type).order('created_at', desc=True).execute()
+            return response.data or []
+        except Exception as e:
+            print(f"Error fetching presets: {e}")
+            return []
+
+    def save_preset(self, name, preset_type, images):
+        """プリセットを保存"""
+        if not self.supabase:
+            return None
+        try:
+            data = {
+                'name': name,
+                'type': preset_type,
+                'images': images
+            }
+            response = self.supabase.table('image_presets').insert(data).execute()
+            return response.data[0] if response.data else None
+        except Exception as e:
+            print(f"Error saving preset: {e}")
+            return None
+
+    def delete_preset(self, preset_id):
+        """プリセットを削除"""
+        if not self.supabase:
+            return False
+        try:
+            self.supabase.table('image_presets').delete().eq('id', preset_id).execute()
+            return True
+        except Exception as e:
+            print(f"Error deleting preset: {e}")
+            return False
+
