@@ -42,6 +42,23 @@ def set_value_by_path(obj, path, value):
         curr[last_key] = value
     return obj
 
+def get_tab_name(target):
+    """targetパスからタブ名を取得"""
+    if target.startswith("structure"):
+        return "全体構成"
+    elif target.startswith("page_contents"):
+        return "ページ詳細"
+    elif target.startswith("keyword"):
+        return "情報入力"
+    elif target.startswith("tone_manner"):
+        return "情報入力"
+    elif target.startswith("competitor"):
+        return "情報入力"
+    elif target.startswith("product_sheet"):
+        return "情報入力"
+    else:
+        return ""
+
 
 def render_ai_sidebar():
     """サイドバーにAIボタン、メインエリアに大きなパネル表示"""
@@ -184,7 +201,10 @@ def render_chat_panel():
             # カード風UI
             with st.container():
                 st.markdown(f"#### 💡 提案 {idx + 1}/{len(proposals)}")
-                st.markdown(f"📍 **{prop.get('label', '設定変更')}**")
+                
+                tab_name = get_tab_name(prop.get('target', ''))
+                display_label = f"{tab_name} > {prop.get('label', '設定変更')}" if tab_name else prop.get('label', '設定変更')
+                st.markdown(f"📍 **{display_label}**")
                 
                 col_left, col_right = st.columns(2)
                 with col_left:
@@ -420,7 +440,7 @@ def generate_ai_response(user_input, context, images=None):
   "proposals": [
     {{
       "target": "JSONのパス（例: structure.pages[0].appeals）",
-      "label": "ユーザー向け表示名（例: P1: 訴求ポイント）",
+      "label": "タブ名 > 項目名（例: 全体構成 > P1: 訴求ポイント）",
       "before": "現在の値（文字列）",
       "after": "提案する新しい値（文字列または配列。targetの型に合わせる）",
       "reason": "変更の理由"
