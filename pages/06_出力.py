@@ -142,6 +142,7 @@ def apply_fix(parsed, issue, new_value, page_contents, page_id, data_store, prod
 
 
 
+def render_output_page():
     page_header("Output", "最終的なLP画像と指示書の生成・書き出し")
     
     data_store = DataStore()

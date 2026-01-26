@@ -18,6 +18,7 @@ from modules.ai_provider import AIProvider
 from modules.settings_manager import SettingsManager
 import json
 
+def render_structure_page():
     page_header("Page Structure", "LPの全体構成と訴求ポイントの設計")
     
     data_store = DataStore()

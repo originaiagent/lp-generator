@@ -22,6 +22,7 @@ from modules.prompt_manager import PromptManager
 from modules.settings_manager import SettingsManager
 from modules.data_store import DataStore
 
+def render_model_page():
     page_header("Model Settings", "AIによるモデル画像の生成と設定")
     
     # AIサイドバー表示
@@ -141,7 +142,7 @@ def render_model_config(index: int, options: dict, model_generator, data_store, 
                 st.error(f"アップロードエラー: {e}")
         
         # ボタン
-        bc1, bc2, bc3 = st.columns(3)
+        with bc1:
             if st.button('生成', key=f'model_generate_btn_{index}', type='primary', use_container_width=True):
                 generate_single_model(model_generator, index, {
                     'age': age,

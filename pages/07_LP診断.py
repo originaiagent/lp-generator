@@ -350,6 +350,7 @@ def run_diagnosis(product, exposure_type, diagnosis_target):
     # 結果を表示
     display_results(personas, evaluations, summary, exposure_type)
 
+def render_diagnosis_page():
     page_header("LP Audit", "AIペルソナによる客観的なLPの診断と分析")
 
     data_store = DataStore()
