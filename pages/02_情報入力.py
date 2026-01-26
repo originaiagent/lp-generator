@@ -1129,22 +1129,35 @@ def handle_lp_upload(product_id, data_store):
                 existing.append(path)
         product['reference_lp_images'] = existing
         
-        # Supabaseへアップロード
         if data_store.use_supabase:
             remote_urls = product.get('reference_lp_image_urls') or []
+            uploaded_count = 0
             for uploaded_file in lp_images:
                 try:
                     uploaded_file.seek(0)
                     file_bytes = uploaded_file.read()
                     remote_path = f"{product_id}/reference_lp/{uploaded_file.name}"
                     url = data_store.upload_image(file_bytes, remote_path, bucket_name="lp-generator-images")
-                    if url and url not in remote_urls:
-                        remote_urls.append(url)
+                    
+                    if url:
+                        # 文字列であることを保証
+                        if not isinstance(url, str) and hasattr(url, 'public_url'):
+                            url = url.public_url
+                        
+                        if url not in remote_urls:
+                            remote_urls.append(url)
+                            uploaded_count += 1
                 except Exception as e:
-                    print(f"Ref Upload failed: {e}")
+                    st.error(f"Supabaseへのアップロードに失敗しました ({uploaded_file.name}): {e}")
+            
+            if uploaded_count > 0:
+                st.toast(f"{uploaded_count}枚の画像をクラウドに保存しました ☁️", icon="☁️")
             product['reference_lp_image_urls'] = remote_urls
 
-        data_store.update_product(product_id, product)
+        if data_store.update_product(product_id, product):
+            pass
+        else:
+            st.error("製品情報の更新に失敗しました")
         
         # 次回レンダリング時にフォームをクリアするためにキーを更新
         st.session_state.uploader_key_lp += 1
@@ -1180,19 +1193,33 @@ def handle_tone_upload(product_id, data_store):
         
         if data_store.use_supabase:
             remote_urls = product.get('tone_manner_image_urls') or []
+            uploaded_count = 0
             for uploaded_file in tone_images:
                 try:
                     uploaded_file.seek(0)
                     file_bytes = uploaded_file.read()
                     remote_path = f"{product_id}/tone_manner/{uploaded_file.name}"
                     url = data_store.upload_image(file_bytes, remote_path, bucket_name="lp-generator-images")
-                    if url and url not in remote_urls:
-                        remote_urls.append(url)
+                    
+                    if url:
+                        # 文字列であることを保証
+                        if not isinstance(url, str) and hasattr(url, 'public_url'):
+                            url = url.public_url
+
+                        if url not in remote_urls:
+                            remote_urls.append(url)
+                            uploaded_count += 1
                 except Exception as e:
-                    print(f"Tone Upload failed: {e}")
+                    st.error(f"Supabaseへのアップロードに失敗しました ({uploaded_file.name}): {e}")
+            
+            if uploaded_count > 0:
+                st.toast(f"{uploaded_count}枚の画像をクラウドに保存しました ☁️", icon="☁️")
             product['tone_manner_image_urls'] = remote_urls
         
-        data_store.update_product(product_id, product)
+        if data_store.update_product(product_id, product):
+            pass
+        else:
+            st.error("製品情報の更新に失敗しました")
         
         st.session_state.uploader_key_tone += 1
 
@@ -1301,8 +1328,9 @@ def render_reference_images_upload(data_store, product_id):
         
         # ローカルパスも（URLに含まれていないものがあれば）
         if product and product.get("reference_lp_images"):
-            # URLのファイル名と比較して重複を除く簡易ロジック
-            url_filenames = [u.split("/")[-1] for u in (product.get("reference_lp_image_urls") or [])]
+            # URLからファイル名を抽出（デコードして比較）
+            from urllib.parse import unquote
+            url_filenames = [unquote(u.split("/")[-1].split('?')[0]) for u in (product.get("reference_lp_image_urls") or [])]
             for img in product["reference_lp_images"]:
                 if Path(img).name not in url_filenames and Path(img).exists():
                      display_images.append({"type": "local", "path": img})
@@ -1511,7 +1539,9 @@ def render_reference_images_upload(data_store, product_id):
             tm_display_images.extend([{"type": "url", "path": url} for url in valid_urls])
             
         if product and product.get("tone_manner_images"):
-            url_filenames = [u.split("/")[-1] for u in (product.get("tone_manner_image_urls") or [])]
+            # URLからファイル名を抽出（デコードして比較）
+            from urllib.parse import unquote
+            url_filenames = [unquote(u.split("/")[-1].split('?')[0]) for u in (product.get("tone_manner_image_urls") or [])]
             for img in product["tone_manner_images"]:
                 if Path(img).name not in url_filenames and Path(img).exists():
                      tm_display_images.append({"type": "local", "path": img})
