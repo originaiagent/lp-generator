@@ -21,4 +21,4 @@
 
 【出力形式】
 JSON形式のみ。説明文は不要。
-{{"pages": [{{"id": "P1", "order": 1, "title": "...", "summary": "..."}}]}}
+{{"pages": [{{"id": "P1", "order": 1, "title": "...", "summary": "...", "appeals": ["...", "..."], "reference_page": 1}}]}}

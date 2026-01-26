@@ -389,7 +389,7 @@ def render_page_structure(product, data_store, product_id):
             order = page.get('order', '')
             title = page.get('title', '')
             role = page.get('role', page.get('summary', ''))
-            appeals = page.get('appeals', [])
+            appeals = page.get('appeals') or []
             appeals_str = ', '.join(appeals) if appeals else ''
             
             with st.expander(f"P{order} - {title}", expanded=False):
@@ -406,8 +406,11 @@ def render_page_structure(product, data_store, product_id):
                     page['summary'] = new_role  # summaryも更新
                     structure_changed = True
                 
-                if appeals_str:
-                    st.write(f"**訴求:** {appeals_str}")
+                # 訴求ポイント表示・編集（簡易表示のみだが、構造を維持）
+                new_appeals_str = st.text_input("訴求ポイント（カンマ区切り）", value=appeals_str, key=f"edit_appeals_{page_id}")
+                if new_appeals_str != appeals_str:
+                    page['appeals'] = [a.strip() for a in new_appeals_str.split(',') if a.strip()]
+                    structure_changed = True
                 
                 # 参照LP編集
                 ref_page = page.get('reference_page', 1)
@@ -419,11 +422,16 @@ def render_page_structure(product, data_store, product_id):
 
         # 変更があれば保存
         if structure_changed:
+            # pagesリスト全体の訴求ポイントをリスト形式に保つ
+            # すでに内部のpageオブジェクトが更新されているので、そのまま保存処理へ
+            
             if isinstance(raw_structure, dict) and "result" in raw_structure:
-                raw_structure["result"] = structure
+                raw_structure["result"]["pages"] = pages
                 product['structure'] = raw_structure
             else:
-                product['structure'] = structure
+                raw_structure["pages"] = pages
+                product['structure'] = raw_structure
+            
             data_store.update_product(product_id, product)
             st.success("構成を更新しました")
             st.rerun()
@@ -513,6 +521,8 @@ def generate_structure_from_elements(product, data_store, product_id):
                 page['id'] = f"pg_{uuid.uuid4().hex[:8]}"
                 page['order'] = i + 1
                 page['reference_page'] = i + 1
+                if 'appeals' not in page:
+                    page['appeals'] = []
         
         traced = save_with_trace(
             result=structure,
