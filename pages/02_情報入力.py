@@ -30,6 +30,7 @@ from modules.prompt_manager import PromptManager
 from modules.settings_manager import SettingsManager
 import base64
 import uuid
+import requests
 from pathlib import Path
 
 def get_valid_image_urls(urls):
@@ -1306,7 +1307,7 @@ def render_reference_images_upload(data_store, product_id):
                         st.write(f"📁 {p['name']}（{len(p.get('images', []))}枚）")
                     with col_m2:
                         if st.button("削除", key=f"del_ref_preset_{p['id']}"):
-                            data_store.delete_preset(p['id'])
+                            data_store.delete_preset_with_images(p['id'], p.get('images', []))
                             st.success(f"「{p['name']}」を削除しました")
                             st.rerun()
 
@@ -1327,9 +1328,42 @@ def render_reference_images_upload(data_store, product_id):
                         if existing:
                             st.warning(f"「{new_lp_preset_name}」は既に存在します。別の名前を入力してください。")
                         else:
-                            data_store.save_preset(new_lp_preset_name.strip(), 'reference_lp', valid_lp_images)
-                            st.success(f"✅ プリセット「{new_lp_preset_name}」を保存しました！")
-                            st.rerun()
+                            with st.spinner("画像をプリセット用フォルダにコピー中..."):
+                                # プリセット用のフォルダを作成
+                                preset_id_short = uuid.uuid4().hex[:12]
+                                preset_folder = f"presets/{preset_id_short}"
+                                
+                                # 現在の画像をプリセットフォルダにコピー
+                                copied_urls = []
+                                for img_url in valid_lp_images:
+                                    try:
+                                        # 画像をダウンロード
+                                        response = requests.get(img_url)
+                                        if response.status_code == 200:
+                                            # 新しいファイル名を生成
+                                            extension = img_url.split('.')[-1].split('?')[0]
+                                            if len(extension) > 5: extension = 'jpg' # 異常な拡張子対策
+                                            new_filename = f"{uuid.uuid4().hex[:12]}.{extension}"
+                                            new_path = f"{preset_folder}/{new_filename}"
+                                            
+                                            # プリセットフォルダにアップロード
+                                            new_url = data_store.upload_image(
+                                                response.content, 
+                                                new_path, 
+                                                bucket_name="lp-generator-images"
+                                            )
+                                            if new_url:
+                                                copied_urls.append(new_url)
+                                    except Exception as e:
+                                        st.warning(f"画像のコピーに失敗: {e}")
+                                
+                                if copied_urls:
+                                    # コピーしたURLでプリセットを保存
+                                    data_store.save_preset(new_lp_preset_name.strip(), 'reference_lp', copied_urls)
+                                    st.success(f"✅ プリセット「{new_lp_preset_name}」を保存しました！（{len(copied_urls)}枚）")
+                                    st.rerun()
+                                else:
+                                    st.error("画像のコピーに失敗しました")
 
         st.markdown("---")
 
@@ -1519,7 +1553,7 @@ def render_reference_images_upload(data_store, product_id):
                         st.write(f"📁 {p['name']}（{len(p.get('images', []))}枚）")
                     with col_tm2:
                         if st.button("削除", key=f"del_tm_preset_{p['id']}"):
-                            data_store.delete_preset(p['id'])
+                            data_store.delete_preset_with_images(p['id'], p.get('images', []))
                             st.success(f"「{p['name']}」を削除しました")
                             st.rerun()
 
@@ -1540,9 +1574,42 @@ def render_reference_images_upload(data_store, product_id):
                         if existing:
                             st.warning(f"「{new_tm_preset_name}」は既に存在します。別の名前を入力してください。")
                         else:
-                            data_store.save_preset(new_tm_preset_name.strip(), 'tone_manner', valid_tm_images)
-                            st.success(f"✅ プリセット「{new_tm_preset_name}」を保存しました！")
-                            st.rerun()
+                            with st.spinner("画像をプリセット用フォルダにコピー中..."):
+                                # プリセット用のフォルダを作成
+                                preset_id_short = uuid.uuid4().hex[:12]
+                                preset_folder = f"presets/{preset_id_short}"
+                                
+                                # 現在の画像をプリセットフォルダにコピー
+                                copied_urls = []
+                                for img_url in valid_tm_images:
+                                    try:
+                                        # 画像をダウンロード
+                                        response = requests.get(img_url)
+                                        if response.status_code == 200:
+                                            # 新しいファイル名を生成
+                                            extension = img_url.split('.')[-1].split('?')[0]
+                                            if len(extension) > 5: extension = 'jpg' # 異常な拡張子対策
+                                            new_filename = f"{uuid.uuid4().hex[:12]}.{extension}"
+                                            new_path = f"{preset_folder}/{new_filename}"
+                                            
+                                            # プリセットフォルダにアップロード
+                                            new_url = data_store.upload_image(
+                                                response.content, 
+                                                new_path, 
+                                                bucket_name="lp-generator-images"
+                                            )
+                                            if new_url:
+                                                copied_urls.append(new_url)
+                                    except Exception as e:
+                                        st.warning(f"画像のコピーに失敗: {e}")
+                                
+                                if copied_urls:
+                                    # コピーしたURLでプリセットを保存
+                                    data_store.save_preset(new_tm_preset_name.strip(), 'tone_manner', copied_urls)
+                                    st.success(f"✅ プリセット「{new_tm_preset_name}」を保存しました！（{len(copied_urls)}枚）")
+                                    st.rerun()
+                                else:
+                                    st.error("画像のコピーに失敗しました")
 
         st.markdown("---")
 

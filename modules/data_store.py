@@ -373,3 +373,16 @@ class DataStore:
             print(f"Error deleting preset: {e}")
             return False
 
+    def delete_preset_with_images(self, preset_id, preset_images):
+        """プリセットとその画像を削除"""
+        # Storage内のプリセット画像を削除
+        if preset_images:
+            for img_url in preset_images:
+                try:
+                    self.delete_storage_file(img_url)
+                except Exception as e:
+                    print(f"Error deleting storage file during preset deletion: {e}")
+        
+        # DBからプリセットを削除
+        return self.delete_preset(preset_id)
+
