@@ -16,6 +16,16 @@ def set_value_by_path(obj, path, value):
     curr = obj
     for i in range(len(parts) - 1):
         key = parts[i]
+        
+        # structureの正規化
+        if key == "structure" and i == 0:
+            if "structure" not in curr:
+                curr["structure"] = {}
+            curr = curr["structure"]
+            if isinstance(curr, dict) and "result" in curr:
+                curr = curr["result"]
+            continue
+
         if key.isdigit():
             key = int(key)
         
@@ -41,6 +51,51 @@ def set_value_by_path(obj, path, value):
     else:
         curr[last_key] = value
     return obj
+
+
+def get_current_value(product, target):
+    """
+    targetパス（例: structure.pages[0].appeals）に基づいて現在の値を取得する
+    """
+    try:
+        if not product or not target:
+            return "（未設定）"
+            
+        parts = re.split(r'\.|\[(\d+)\]', target)
+        parts = [p for p in parts if p is not None and p != '']
+        
+        curr = product
+        for i, part in enumerate(parts):
+            # structureの正規化
+            if part == "structure" and i == 0:
+                curr = curr.get('structure', {})
+                if isinstance(curr, dict) and 'result' in curr:
+                    curr = curr['result']
+                continue
+                
+            if part.isdigit():
+                idx = int(part)
+                if isinstance(curr, list) and idx < len(curr):
+                    curr = curr[idx]
+                else:
+                    return "（未設定）"
+            else:
+                if isinstance(curr, dict) and part in curr:
+                    curr = curr[part]
+                else:
+                    return "（未設定）"
+        
+        if curr is None or curr == "" or curr == {}:
+            return "（未設定）"
+            
+        # リストの場合はカンマ区切りに変換
+        if isinstance(curr, list):
+            return ", ".join(map(str, curr))
+            
+        return str(curr)
+    except Exception as e:
+        print(f"get_current_value error: {e}")
+        return "（取得エラー）"
 
 
 def render_ai_sidebar():
@@ -190,7 +245,8 @@ def render_chat_panel():
                 col_left, col_right = st.columns(2)
                 with col_left:
                     st.markdown("**【現在】**")
-                    st.caption(str(prop.get('before', '')))
+                    current_val = get_current_value(context, prop.get('target', ''))
+                    st.caption(str(current_val))
                 with col_right:
                     st.markdown("**【提案】**")
                     st.info(str(prop.get('after', '')))
