@@ -298,6 +298,32 @@ class DataStore:
             print(f"Supabase storage delete error: {e}")
             return False
 
+    def delete_storage_file(self, file_url, bucket_name: str = "lp-generator-images") -> bool:
+        """Supabase StorageのファイルをURLから削除"""
+        if not self.supabase:
+            return False
+        try:
+            # URLからパスを抽出
+            # 例: https://xxx.supabase.co/storage/v1/object/public/lp-generator-images/prod_xxx/reference_lp/image.jpg
+            # → prod_xxx/reference_lp/image.jpg
+            if f'{bucket_name}/' in file_url:
+                path = file_url.split(f'{bucket_name}/')[1]
+                # クエリパラメータ等が含まれている場合は除去
+                path = path.split('?')[0]
+                self.supabase.storage.from_(bucket_name).remove([path])
+                return True
+        except Exception as e:
+            print(f"Storage削除エラー: {e}")
+        return False
+
+    def delete_storage_files(self, file_urls, bucket_name: str = "lp-generator-images"):
+        """複数ファイルを削除"""
+        if not file_urls:
+            return
+        for url in file_urls:
+            if url:
+                self.delete_storage_file(url, bucket_name)
+
     def get_presets(self, preset_type):
         """プリセット一覧を取得"""
         if not self.supabase:

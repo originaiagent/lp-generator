@@ -84,6 +84,26 @@ if products:
                     col_yes, col_no = st.columns(2)
                     with col_yes:
                         if st.button("はい", key=f"yes_{delete_key}", type="primary"):
+                            # 関連画像をすべてStorageから削除
+                            prod_data = data_store.get_product(product_id)
+                            if prod_data:
+                                urls_to_delete = []
+                                # 基底の画像URL
+                                urls_to_delete.extend(prod_data.get('reference_lp_image_urls') or [])
+                                urls_to_delete.extend(prod_data.get('tone_manner_image_urls') or [])
+                                urls_to_delete.extend(prod_data.get('product_image_urls') or [])
+                                
+                                # 競合分析データの画像（v2形式）
+                                comp_analysis = prod_data.get('competitor_analysis_v2') or {}
+                                for comp in comp_analysis.get('competitors', []):
+                                    urls_to_delete.extend(comp.get('image_urls') or [])
+                                
+                                # 旧形式やその他の場所にある可能性のあるURLも考慮（必要に応じて）
+                                
+                                if urls_to_delete:
+                                    data_store.delete_storage_files(urls_to_delete)
+                            
+                            # DBから製品を削除
                             data_store.delete_product(product_id)
                             st.session_state[confirm_key] = False
                             st.warning(f"「{product.get('name', '名称未設定')}」を削除しました")

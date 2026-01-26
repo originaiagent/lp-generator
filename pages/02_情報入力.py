@@ -187,7 +187,7 @@ def render_product_images_upload(data_store, product_id):
                 if st.button("🗑️", key=f"del_prod_img_url_{i}"):
                     if img_url in (product.get("product_image_urls") or []):
                         # Storageから削除
-                        data_store.delete_image(img_url)
+                        data_store.delete_storage_file(img_url)
                         product["product_image_urls"].remove(img_url)
                         data_store.update_product(product_id, product)
                         st.rerun()
@@ -227,7 +227,7 @@ def delete_competitor(product_id, data_store, delete_idx):
         
         # 1.5 Storageから実ファイルを削除
         for url in (deleted.get("file_urls") or []):
-            data_store.delete_image(url)
+            data_store.delete_storage_file(url)
         
         if not competitors:
             # 競合が0になった場合は分析データ全体をクリア
@@ -1334,7 +1334,7 @@ def render_reference_images_upload(data_store, product_id):
                             target_url = next((u for u in urls if u.split('/')[-1].split('?')[0] == target_filename), None)
                             if target_url:
                                 # Storageから実ファイルを削除
-                                data_store.delete_image(target_url)
+                                data_store.delete_storage_file(target_url)
                                 urls.remove(target_url)
                             current_product["reference_lp_image_urls"] = urls
                         
@@ -1541,7 +1541,7 @@ def render_reference_images_upload(data_store, product_id):
                             target_url = next((u for u in urls if u.split('/')[-1].split('?')[0] == target_filename), None)
                             if target_url:
                                 # Storageから実ファイルを削除
-                                data_store.delete_image(target_url)
+                                data_store.delete_storage_file(target_url)
                                 urls.remove(target_url)
                             current_product["tone_manner_image_urls"] = urls
                             
