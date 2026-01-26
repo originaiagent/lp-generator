@@ -70,24 +70,24 @@ def get_common_styles():
         transition: all 0.3s ease;
     }
 
-    /* プライマリボタンの文字を濃く */
+    /* プライマリボタンの文字を白に */
     .stButton > button,
     .stButton button,
     button[kind="primary"],
     [data-testid="stFormSubmitButton"] button,
     .stDownloadButton button {
-        color: #0a0f1a !important;
-        font-weight: 700 !important;
+        color: #ffffff !important;
+        font-weight: 600 !important;
         text-shadow: none !important;
     }
 
-    /* ボタン内のテキストを濃く */
+    /* ボタン内のテキストを白に */
     button p,
     .stButton button p,
     [data-testid="stFormSubmitButton"] button p,
     [data-testid="stBaseButton-secondaryFormSubmit"] p {
-        color: #0a0f1a !important;
-        font-weight: 700 !important;
+        color: #ffffff !important;
+        font-weight: 600 !important;
     }
     
     .stButton > button[kind="primary"]:hover,
