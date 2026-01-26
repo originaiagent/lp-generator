@@ -186,6 +186,52 @@ def generate_page_content(product_id, product, selected_page):
     data_store.update_product(product_id, product)
     return True
 
+def clear_brushup_state():
+    """ブラッシュアップ関連のセッション状態をクリア"""
+    for k in ['brushup_target', 'brushup_original', 'brushup_candidates', 'brushup_direction', 'brushup_phase']:
+        if k in st.session_state:
+            del st.session_state[k]
+
+def generate_brushup_query(original_text, product, direction=None):
+    """AIにブラッシュアップ案を依頼"""
+    from modules.settings_manager import SettingsManager
+    from modules.ai_provider import AIProvider
+    from modules.prompt_manager import PromptManager
+    import json as json_module
+
+    settings = SettingsManager().get_settings()
+    ai_provider = AIProvider(settings)
+    prompt_manager = PromptManager()
+    
+    product_info = f"製品名: {product.get('name', '')}\n説明: {product.get('description', '')}"
+    
+    if not direction:
+        instruction = "以下の3つの方向性で、それぞれブラッシュアップ案を1つずつ提案してください。\n\nインパクト重視: 目を引く、記憶に残る表現\n信頼感重視: 安心感、品質の高さを感じる表現\n簡潔・シンプル: 無駄を削ぎ落とした本質的な表現"
+    else:
+        instruction = f"「{direction}」の方向性で、さらに3つのバリエーションを提案してください。それぞれ異なるアプローチで、選択肢を広げてください。"
+    
+    prompt = prompt_manager.get_prompt("brushup_copy", {
+        "original_text": original_text,
+        "product_info": product_info,
+        "instruction": instruction
+    })
+    
+    result = ai_provider.ask(prompt, "brushup_copy")
+    
+    try:
+        if "```json" in result:
+            json_str = result.split("```json")[1].split("```")[0]
+        elif "```" in result:
+            json_str = result.split("```")[1].split("```")[0]
+        else:
+            json_str = result
+        
+        parsed = json_module.loads(json_str.strip())
+        return parsed.get("candidates", [])
+    except Exception as e:
+        st.error(f"AI提案のパースに失敗しました: {e}")
+        return []
+
 st.title('📄 ページ詳細')
 
 data_store = DataStore()
@@ -319,12 +365,55 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                 
                 new_items = []
                 for j, item in enumerate(items):
-                    new_item = st.text_input(
-                        f"項目{j+1}",
-                        value=item,
-                        key=f"item_{page_id}_{i}_{j}",
-                        label_visibility="collapsed"
-                    )
+                    item_key = f"item_{page_id}_{i}_{j}"
+                    col_input, col_brush = st.columns([10, 1])
+                    with col_input:
+                        new_item = st.text_input(
+                            f"項目{j+1}",
+                            value=item,
+                            key=item_key,
+                            label_visibility="collapsed"
+                        )
+                    with col_brush:
+                        if st.button("✨", key=f"brush_{item_key}", help="AIでブラッシュアップ"):
+                            st.session_state['brushup_target'] = item_key
+                            st.session_state['brushup_original'] = item
+                            st.session_state['brushup_phase'] = 'initial'
+                            with st.spinner("案を生成中..."):
+                                st.session_state['brushup_candidates'] = generate_brushup_query(item, product)
+                            st.rerun()
+                    
+                    # ブラッシュアップ候補の表示
+                    if st.session_state.get('brushup_target') == item_key:
+                        st.markdown(f"> **💡 ブラッシュアップ案 ({st.session_state.get('brushup_phase', 'initial')})**")
+                        candidates = st.session_state.get('brushup_candidates', [])
+                        
+                        for c_idx, candidate in enumerate(candidates):
+                            c_col_text, c_col_ref, c_col_adopt = st.columns([6, 2, 2])
+                            with c_col_text:
+                                st.info(f"**{candidate['direction']}**\n{candidate['text']}")
+                            with c_col_ref:
+                                # 初期段階なら「この方向で」
+                                if st.session_state.get('brushup_phase') == 'initial':
+                                    if st.button("この方向で", key=f"refine_{item_key}_{c_idx}"):
+                                        st.session_state['brushup_direction'] = candidate['direction']
+                                        st.session_state['brushup_phase'] = 'refine'
+                                        with st.spinner("バリエーションを生成中..."):
+                                            st.session_state['brushup_candidates'] = generate_brushup_query(
+                                                st.session_state['brushup_original'], product, direction=candidate['direction']
+                                            )
+                                        st.rerun()
+                            with c_col_adopt:
+                                if st.button("採用", key=f"adopt_{item_key}_{c_idx}", type="primary"):
+                                    # 配列内の値を直接更新（text_elements[i] は elements の一部）
+                                    elem["items"][j] = candidate['text']
+                                    clear_brushup_state()
+                                    st.rerun()
+                        
+                        if st.button("❌ キャンセル", key=f"cancel_{item_key}"):
+                            clear_brushup_state()
+                            st.rerun()
+
                     new_items.append(new_item)
                 
                 if new_items != items:
@@ -332,18 +421,60 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                     elem["item_count"] = len(new_items)
             else:
                 # 単一テキスト形式
-                col1, col2 = st.columns([4, 1])
+                text_key = f"text_elem_{page_id}_{i}"
+                col1, col2, col3 = st.columns([8, 2, 1])
                 with col1:
                     new_content = st.text_input(
                         f"{elem_type}",
                         value=elem_content,
-                        key=f"text_elem_{page_id}_{i}"
+                        key=text_key
                     )
                 with col2:
                     if char_count:
                         st.caption(f"{char_count}文字")
                     else:
                         st.caption(f"{len(new_content)}文字")
+                with col3:
+                    st.write("") # 調整
+                    st.write("")
+                    if st.button("✨", key=f"brush_{text_key}", help="AIでブラッシュアップ"):
+                        st.session_state['brushup_target'] = text_key
+                        st.session_state['brushup_original'] = elem_content
+                        st.session_state['brushup_phase'] = 'initial'
+                        with st.spinner("案を生成中..."):
+                            st.session_state['brushup_candidates'] = generate_brushup_query(elem_content, product)
+                        st.rerun()
+                
+                # ブラッシュアップ候補の表示
+                if st.session_state.get('brushup_target') == text_key:
+                    st.markdown(f"> **💡 ブラッシュアップ案 ({st.session_state.get('brushup_phase', 'initial')})**")
+                    candidates = st.session_state.get('brushup_candidates', [])
+                    
+                    for c_idx, candidate in enumerate(candidates):
+                        c_col_text, c_col_ref, c_col_adopt = st.columns([6, 2, 2])
+                        with c_col_text:
+                            st.info(f"**{candidate['direction']}**\n{candidate['text']}")
+                        with c_col_ref:
+                            if st.session_state.get('brushup_phase') == 'initial':
+                                if st.button("この方向で", key=f"refine_{text_key}_{c_idx}"):
+                                    st.session_state['brushup_direction'] = candidate['direction']
+                                    st.session_state['brushup_phase'] = 'refine'
+                                    with st.spinner("バリエーションを生成中..."):
+                                        st.session_state['brushup_candidates'] = generate_brushup_query(
+                                            st.session_state['brushup_original'], product, direction=candidate['direction']
+                                        )
+                                    st.rerun()
+                        with c_col_adopt:
+                            if st.button("採用", key=f"adopt_{text_key}_{c_idx}", type="primary"):
+                                elem["content"] = candidate['text']
+                                # 文字数も更新
+                                elem["char_count"] = len(candidate['text'])
+                                clear_brushup_state()
+                                st.rerun()
+                    
+                    if st.button("❌ キャンセル", key=f"cancel_{text_key}"):
+                        clear_brushup_state()
+                        st.rerun()
                 
                 if new_content != elem_content:
                     elem["content"] = new_content
