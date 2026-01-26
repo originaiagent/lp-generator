@@ -1206,11 +1206,27 @@ def render_reference_images_upload(data_store, product_id):
         if selected_lp_preset != "なし":
             preset = next((p for p in lp_presets if p['name'] == selected_lp_preset), None)
             if preset:
+                images = preset.get('images') or []
+                
+                # プレビュー表示
+                if images:
+                    st.write(f"**プレビュー（{len(images)}枚）**")
+                    preview_cols = st.columns(min(len(images), 5))
+                    for i, img_url in enumerate(images[:5]):
+                        with preview_cols[i]:
+                            try:
+                                st.image(img_url, width=100)
+                            except:
+                                st.write("⚠️ 読込エラー")
+                    if len(images) > 5:
+                        st.caption(f"他 {len(images) - 5} 枚...")
+                
+                # 適用ボタン
                 if st.button("このプリセットを適用", key="apply_ref_preset", width="stretch"):
                     product = data_store.get_product(product_id) or {}
-                    product['reference_lp_image_urls'] = preset['images']
+                    product['reference_lp_image_urls'] = images
                     data_store.update_product(product_id, product)
-                    st.success(f"プリセット「{selected_lp_preset}」を適用しました")
+                    st.success(f"✅ プリセット「{selected_lp_preset}」を適用しました")
                     st.rerun()
 
         # プリセット管理
@@ -1400,11 +1416,27 @@ def render_reference_images_upload(data_store, product_id):
         if selected_tm_preset != "なし":
             preset = next((p for p in tm_presets if p['name'] == selected_tm_preset), None)
             if preset:
+                images = preset.get('images') or []
+                
+                # プレビュー表示
+                if images:
+                    st.write(f"**プレビュー（{len(images)}枚）**")
+                    preview_cols = st.columns(min(len(images), 5))
+                    for i, img_url in enumerate(images[:5]):
+                        with preview_cols[i]:
+                            try:
+                                st.image(img_url, width=100)
+                            except:
+                                st.write("⚠️ 読込エラー")
+                    if len(images) > 5:
+                        st.caption(f"他 {len(images) - 5} 枚...")
+                
+                # 適用ボタン
                 if st.button("このプリセットを適用", key="apply_tm_preset", width="stretch"):
                     product = data_store.get_product(product_id) or {}
-                    product['tone_manner_image_urls'] = preset['images']
+                    product['tone_manner_image_urls'] = images
                     data_store.update_product(product_id, product)
-                    st.success(f"プリセット「{selected_tm_preset}」を適用しました")
+                    st.success(f"✅ プリセット「{selected_tm_preset}」を適用しました")
                     st.rerun()
 
         # プリセット管理
