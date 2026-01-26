@@ -29,6 +29,7 @@ from modules.ai_provider import AIProvider
 from modules.prompt_manager import PromptManager
 from modules.settings_manager import SettingsManager
 import base64
+import uuid
 from pathlib import Path
 
 def get_valid_image_urls(urls):
@@ -138,10 +139,13 @@ def render_product_images_upload(data_store, product_id):
             # 今回アップロードされたファイルをSync
             for uploaded_file in uploaded_files:
                 try:
-                    # ファイルポインタを戻す
                     uploaded_file.seek(0)
                     file_bytes = uploaded_file.read()
-                    remote_path = f"{product_id}/product_images/{uploaded_file.name}"
+                    
+                    # ファイル名をサニタイズ（UUID + 拡張子）
+                    ext = uploaded_file.name.split('.')[-1].lower() if '.' in uploaded_file.name else 'jpg'
+                    safe_name = f"{uuid.uuid4().hex[:12]}.{ext}"
+                    remote_path = f"{product_id}/product_images/{safe_name}"
                     
                     # アップロード試行
                     url = data_store.upload_image(file_bytes, remote_path, bucket_name="lp-generator-images")
@@ -321,7 +325,12 @@ def handle_competitor_upload(product_id, data_store, comp_idx):
                 try:
                     uf.seek(0)
                     file_bytes = uf.read()
-                    remote_path = f"{product_id}/competitors/comp_{comp_idx}/{uf.name}"
+                    
+                    # ファイル名をサニタイズ（UUID + 拡張子）
+                    ext = uf.name.split('.')[-1].lower() if '.' in uf.name else 'jpg'
+                    safe_name = f"{uuid.uuid4().hex[:12]}.{ext}"
+                    remote_path = f"{product_id}/competitors/comp_{comp_idx}/{safe_name}"
+                    
                     url = data_store.upload_image(file_bytes, remote_path, bucket_name="lp-generator-images")
                     if url and url not in remote_urls:
                         remote_urls.append(url)
@@ -1131,39 +1140,34 @@ def handle_lp_upload(product_id, data_store):
         
         # Supabase Storageへアップロード
         if data_store.use_supabase:
-            st.toast("Supabaseモード: ON")  # デバッグ
             remote_urls = product.get('reference_lp_image_urls') or []
             uploaded_count = 0
             for uploaded_file in lp_images:
                 try:
                     uploaded_file.seek(0)
                     file_bytes = uploaded_file.read()
-                    remote_path = f"{product_id}/reference_lp/{uploaded_file.name}"
-                    st.toast(f"アップロード試行: {remote_path}")  # デバッグ
+                    
+                    # ファイル名をサニタイズ（UUID + 拡張子）
+                    ext = uploaded_file.name.split('.')[-1].lower() if '.' in uploaded_file.name else 'jpg'
+                    safe_name = f"{uuid.uuid4().hex[:12]}.{ext}"
+                    remote_path = f"{product_id}/reference_lp/{safe_name}"
                     
                     url = data_store.upload_image(file_bytes, remote_path, bucket_name="lp-generator-images")
                     
-                    st.toast(f"返却URL: {url}")  # デバッグ
-                    st.toast(f"URL型: {type(url)}")  # デバッグ
-                    
                     if url:
+                        # 文字列であることを保証
                         if not isinstance(url, str) and hasattr(url, 'public_url'):
                             url = url.public_url
-                            st.toast(f"変換後URL: {url}")  # デバッグ
                         
                         if url not in remote_urls:
                             remote_urls.append(url)
                             uploaded_count += 1
                 except Exception as e:
                     st.error(f"Supabaseへのアップロードに失敗しました ({uploaded_file.name}): {e}")
-                    import traceback
-                    st.code(traceback.format_exc())  # 詳細エラー
             
             if uploaded_count > 0:
                 st.toast(f"{uploaded_count}枚の画像をクラウドに保存しました ☁️", icon="☁️")
             product['reference_lp_image_urls'] = remote_urls
-        else:
-            st.toast("Supabaseモード: OFF")  # デバッグ
         
 
         if data_store.update_product(product_id, product):
@@ -1210,7 +1214,12 @@ def handle_tone_upload(product_id, data_store):
                 try:
                     uploaded_file.seek(0)
                     file_bytes = uploaded_file.read()
-                    remote_path = f"{product_id}/tone_manner/{uploaded_file.name}"
+                    
+                    # ファイル名をサニタイズ（UUID + 拡張子）
+                    ext = uploaded_file.name.split('.')[-1].lower() if '.' in uploaded_file.name else 'jpg'
+                    safe_name = f"{uuid.uuid4().hex[:12]}.{ext}"
+                    remote_path = f"{product_id}/tone_manner/{safe_name}"
+                    
                     url = data_store.upload_image(file_bytes, remote_path, bucket_name="lp-generator-images")
                     
                     if url:

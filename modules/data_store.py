@@ -247,16 +247,9 @@ class DataStore:
 
     def upload_image(self, file_data, file_name: str, bucket_name: str = "lp-generator-images") -> str:
         """画像をSupabase Storageにアップロードし、公開URLを返す"""
-        import streamlit as st
-        import traceback
-        
         if not self.supabase:
-            st.error("Supabase client is not initialized.")
             return None
         
-        st.toast(f"upload_image開始: {file_name}")
-        
-        # 1. アップロード処理
         try:
             # バケットの存在確認と作成
             buckets = self.supabase.storage.list_buckets()
@@ -270,21 +263,15 @@ class DataStore:
             elif file_name.lower().endswith(".webp"):
                 file_options["content-type"] = "image/webp"
             
-            result = self.supabase.storage.from_(bucket_name).upload(
+            # 1. アップロード処理
+            self.supabase.storage.from_(bucket_name).upload(
                 path=file_name,
                 file=file_data,
                 file_options=file_options
             )
-            st.toast(f"upload成功: {result}")
-        except Exception as e:
-            st.warning(f"upload中に例外が発生しました（既にファイルがある場合などは続行）: {e}")
-            # print(traceback.format_exc())
-        
-        # 2. 公開URLを取得
-        try:
+            
+            # 2. 公開URLを取得
             url_result = self.supabase.storage.from_(bucket_name).get_public_url(file_name)
-            st.toast(f"get_public_url結果: {url_result}")
-            st.toast(f"get_public_url型: {type(url_result)}")
             
             # URLの抽出
             url = None
@@ -295,12 +282,11 @@ class DataStore:
             elif hasattr(url_result, 'public_url'):
                 url = url_result.public_url
             
-            st.toast(f"最終URL: {url}")
             return url
             
         except Exception as e:
-            st.error(f"get_public_url失敗: {e}")
-            st.code(traceback.format_exc())
+            # 失敗しても続行（URL取得は試みる価値がある場合もあるが、ここではメソッド全体で例外処理）
+            print(f"Supabase storage upload error: {e}")
             return None
 
     def delete_image(self, file_path: str, bucket_name: str = "lp-generator-images") -> bool:

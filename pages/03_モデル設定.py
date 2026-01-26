@@ -133,7 +133,10 @@ def render_model_config(index: int, options: dict, model_generator, data_store, 
             # 手動アップロード処理
             try:
                 file_bytes = uploaded_file.read()
-                filename = f"{product_id}/models/manual_{index}_{int(time.time())}.png"
+                ext = uploaded_file.name.split('.')[-1].lower() if '.' in uploaded_file.name else 'png'
+                import uuid
+                safe_name = f"{uuid.uuid4().hex[:12]}.{ext}"
+                filename = f"{product_id}/models/{safe_name}"
                 if data_store.use_supabase:
                     url = data_store.upload_image(file_bytes, filename)
                     if url:
