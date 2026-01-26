@@ -80,6 +80,15 @@ def get_common_styles():
         font-weight: 700 !important;
         text-shadow: none !important;
     }
+
+    /* ボタン内のテキストを濃く */
+    button p,
+    .stButton button p,
+    [data-testid="stFormSubmitButton"] button p,
+    [data-testid="stBaseButton-secondaryFormSubmit"] p {
+        color: #0a0f1a !important;
+        font-weight: 700 !important;
+    }
     
     .stButton > button[kind="primary"]:hover,
     div[data-testid="stFormSubmitButton"] > button:hover {
