@@ -259,11 +259,11 @@ class DataStore:
                 self.supabase.storage.create_bucket(bucket_name, options={"public": True})
             
             # ファイルのアップロード
-            # 重複を避けるためにタイムスタンプなどを付与するか、呼び出し元で制御
-            # ここでは単純に上書き(upsert)設定
-            file_options = {"upsert": "true", "content-type": "image/jpeg"} # 簡易的にjpegとする
+            file_options = {"upsert": "true", "content-type": "image/jpeg"}
             if file_name.lower().endswith(".png"):
-                 file_options["content-type"] = "image/png"
+                file_options["content-type"] = "image/png"
+            elif file_name.lower().endswith(".webp"):
+                file_options["content-type"] = "image/webp"
             
             res = self.supabase.storage.from_(bucket_name).upload(
                 path=file_name,
@@ -272,13 +272,24 @@ class DataStore:
             )
             
             # 公開URLを取得
-            public_url = self.supabase.storage.from_(bucket_name).get_public_url(file_name)
-            return public_url
+            url = self.supabase.storage.from_(bucket_name).get_public_url(file_name)
+            
+            # urlが辞書やオブジェクトの場合の対応
+            if isinstance(url, dict) and 'publicUrl' in url:
+                url = url['publicUrl']
+            elif hasattr(url, 'public_url'):
+                url = url.public_url
+            
+            return url
             
         except Exception as e:
+            import traceback
             import streamlit as st
-            st.error(f"Supabase storage upload error details: {str(e)}")
-            print(f"Supabase storage upload error: {e}")
+            error_msg = f"Supabase storage upload error: {str(e)}"
+            st.error(error_msg)
+            st.code(traceback.format_exc())
+            print(error_msg)
+            print(traceback.format_exc())
             return None
 
     def delete_image(self, file_path: str, bucket_name: str = "lp-generator-images") -> bool:
