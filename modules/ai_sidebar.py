@@ -10,8 +10,8 @@ def set_value_by_path(obj, path, value):
     """
     JSONパス（例: structure.pages[0].appeals）に基づいてオブジェクトの値を更新する
     """
-    parts = re.split(r'\.|\[(\d+)\]', path)
-    parts = [p for p in parts if p is not None and p != '']
+    parts = path.replace(']', '').replace('[', '.').split('.')
+    parts = [p for p in parts if p != '']
     
     curr = obj
     for i in range(len(parts) - 1):
@@ -21,9 +21,11 @@ def set_value_by_path(obj, path, value):
         if key == "structure" and i == 0:
             if "structure" not in curr:
                 curr["structure"] = {}
-            curr = curr["structure"]
-            if isinstance(curr, dict) and "result" in curr:
-                curr = curr["result"]
+            struct_obj = curr["structure"]
+            if isinstance(struct_obj, dict) and "result" in struct_obj:
+                curr = struct_obj["result"]
+            else:
+                curr = struct_obj
             continue
 
         if key.isdigit():
@@ -56,12 +58,8 @@ def set_value_by_path(obj, path, value):
 def get_current_value(product, target):
     """targetパスから現在の値を取得"""
     try:
-        if not product or not target:
-            return "（未設定）"
-            
         parts = target.replace(']', '').replace('[', '.').split('.')
         parts = [p for p in parts if p != '']
-        
         value = product
         for i, part in enumerate(parts):
             if part == 'structure' and isinstance(value.get('structure'), dict):
@@ -72,24 +70,18 @@ def get_current_value(product, target):
                 if isinstance(value, list) and int(part) < len(value):
                     value = value[int(part)]
                 else:
-                    value = None
-                    break
+                    value = {} # 途切れた場合は空辞書扱いにして最終的に（なし）へ
             else:
-                if isinstance(value, dict):
-                    value = value.get(part)
-                else:
-                    value = None
-                    break
+                value = (value.get(part) or {}) if isinstance(value, dict) else {}
         
         # 値の整形
         if value is None or value == {} or value == []:
-            return "（未設定）"
+            return "（なし）"
         if isinstance(value, list):
             return ", ".join(str(v) for v in value)
         return str(value)
     except Exception as e:
-        print(f"get_current_value error: {e}")
-        return "（取得エラー）"
+        return "（なし）"
 
 
 def render_ai_sidebar():
