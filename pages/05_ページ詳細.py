@@ -391,7 +391,7 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                         for c_idx, candidate in enumerate(candidates):
                             c_col_text, c_col_ref, c_col_adopt = st.columns([6, 2, 2])
                             with c_col_text:
-                                st.info(f"**{candidate['direction']}**\n{candidate['text']}")
+                                st.info(f"**【{candidate['direction']}】**\n\n{candidate['text']}")
                             with c_col_ref:
                                 # 初期段階なら「この方向で」
                                 if st.session_state.get('brushup_phase') == 'initial':
@@ -453,7 +453,7 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                     for c_idx, candidate in enumerate(candidates):
                         c_col_text, c_col_ref, c_col_adopt = st.columns([6, 2, 2])
                         with c_col_text:
-                            st.info(f"**{candidate['direction']}**\n{candidate['text']}")
+                            st.info(f"**【{candidate['direction']}】**\n\n{candidate['text']}")
                         with c_col_ref:
                             if st.session_state.get('brushup_phase') == 'initial':
                                 if st.button("この方向で", key=f"refine_{text_key}_{c_idx}"):
