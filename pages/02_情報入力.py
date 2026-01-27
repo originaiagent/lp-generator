@@ -100,6 +100,9 @@ def render_product_images_upload(data_store, product_id):
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
     st.markdown('<div class="step-header">製品画像</div>', unsafe_allow_html=True)
     
+    # 先頭で product を取得
+    product = data_store.get_product(product_id) or {}
+    
     uploaded_files = st.file_uploader(
         "製品画像をアップロードしてください",
         type=['png', 'jpg', 'jpeg'],
@@ -120,10 +123,7 @@ def render_product_images_upload(data_store, product_id):
                 image_paths.append(str(file_path))  # 絶対パスとして保存
                 st.success(f"アップロード完了: {uploaded_file.name}")
             
-            # データを更新
-            product = data_store.get_product(product_id)
-            if not product:
-                product = {}
+            # データを更新 (既に先頭で取得済み)
             
             # 既存リストとマージ
             existing_images = product.get('product_images') or []
