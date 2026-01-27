@@ -55,7 +55,7 @@ products = [p for p in data_store.list_products() if p.get('id') and p.get('name
 if products:
     for idx, product in enumerate(products):
         with st.container():
-            col1, col2, col3 = st.columns([3, 1, 1])
+            col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
             
             with col1:
                 st.markdown(f"**{product.get('name', '名称未設定')}**")
@@ -72,8 +72,17 @@ if products:
                     st.session_state['current_product_name'] = product.get('name', '名称未設定')
                     st.success(f"「{product.get('name')}」を選択しました")
                     st.rerun()
-            
+
             with col3:
+                if st.button("複製", key=f"duplicate_{idx}_{product_id}", use_container_width=True):
+                    new_product = data_store.duplicate_product(product_id)
+                    if new_product:
+                        st.success(f"「{new_product['name']}」を作成しました")
+                        st.rerun()
+                    else:
+                        st.error("複製に失敗しました")
+            
+            with col4:
                 delete_key = f"delete_{idx}_{product_id}"
                 confirm_key = f"confirm_delete_{product_id}"
                 

@@ -215,7 +215,51 @@ class DataStore:
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(product, f, ensure_ascii=False, indent=2, default=str)
         return True
-    
+
+    def duplicate_product(self, product_id):
+        """製品を複製して新しい製品を作成"""
+        import uuid
+        
+        # 元の製品を取得
+        original = self.get_product(product_id)
+        if not original:
+            return None
+        
+        # 新しい製品IDを生成
+        new_product_id = f"prod_{uuid.uuid4().hex[:8]}"
+        
+        # 複製データを作成（IDと名前を変更）
+        new_product = original.copy()
+        new_product['id'] = new_product_id
+        new_product['name'] = f"{original.get('name', '')}のコピー"
+        new_product['created_at'] = datetime.now().isoformat()
+        new_product['updated_at'] = datetime.now().isoformat()
+        
+        # 画像URLはそのまま参照（ファイルはコピーしない）
+        # product_image_urls, reference_lp_image_urls, tone_manner_image_urls はそのまま
+        
+        # ローカルパスは空にする（Supabase使用時は不要）
+        if self.use_supabase:
+            new_product['product_images'] = []
+            new_product['reference_lp_images'] = []
+            new_product['tone_manner_images'] = []
+        
+        # 新しい製品を保存
+        if self.use_supabase:
+            # lp_productsテーブルの既存カラムに合わせるため
+            # 必要であればスキーマに含まれないフィールドを削除
+            data_to_save = new_product.copy()
+            exclude_keys = ["review_sheet_data"]
+            for key in exclude_keys:
+                if key in data_to_save:
+                    del data_to_save[key]
+            
+            result = self.supabase.table("lp_products").insert(data_to_save).execute()
+            return result.data[0] if result.data else None
+        else:
+            self.save_product(new_product)
+            return new_product
+
     def delete_product(self, product_id: str) -> bool:
         # Supabaseから削除
         self._delete_from_supabase(product_id)
