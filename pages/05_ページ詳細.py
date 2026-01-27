@@ -189,6 +189,12 @@ def clear_brushup_state():
         if k in st.session_state:
             del st.session_state[k]
 
+def adopt_candidate(key, text):
+    """採用候補をpending状態にするコールバック"""
+    st.session_state[key] = text
+    # 状態クリアもここで行う
+    clear_brushup_state()
+
 def generate_brushup_query(original_text, product, direction=None):
     """AIにブラッシュアップ案を依頼"""
     from modules.settings_manager import SettingsManager
@@ -453,13 +459,13 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                                             )
                                         st.rerun()
                             with c_col_adopt:
-                                if st.button("採用", key=f"adopt_{item_key}_{c_idx}", type="primary"):
-                                    # pending状態に保存
-                                    pending_key = f"{item_key}_pending"
-                                    st.session_state[pending_key] = candidate['text']
-                                    st.write(f"DEBUG: pending保存(item) - key={pending_key}, value={candidate['text'][:30]}...")
-                                    # clear_brushup_state()
-                                    st.rerun()
+                                st.button(
+                                    "採用", 
+                                    key=f"adopt_{item_key}_{c_idx}", 
+                                    type="primary",
+                                    on_click=adopt_candidate,
+                                    args=(f"{item_key}_pending", candidate['text'])
+                                )
                                     
                         # キャンセルボタンは候補ループの外に配置
                         if st.button("❌ キャンセル", key=f"cancel_btn_{item_key}"):
@@ -567,13 +573,13 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                                         )
                                     st.rerun()
                         with c_col_adopt:
-                            if st.button("採用", key=f"adopt_{text_key}_{c_idx}", type="primary"):
-                                # pending状態に保存
-                                pending_key = f"{text_key}_pending"
-                                st.session_state[pending_key] = candidate['text']
-                                st.write(f"DEBUG: pending保存(text) - key={pending_key}, value={candidate['text'][:30]}...")
-                                # clear_brushup_state()
-                                st.rerun()
+                            st.button(
+                                "採用", 
+                                key=f"adopt_{text_key}_{c_idx}", 
+                                type="primary",
+                                on_click=adopt_candidate,
+                                args=(f"{text_key}_pending", candidate['text'])
+                            )
                                 
                     # キャンセルボタンは候補ループの外に配置
                     if st.button("❌ キャンセル", key=f"cancel_btn_{text_key}"):
