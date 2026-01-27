@@ -309,8 +309,14 @@ def render_images_with_bulk_delete(images, image_type, product_id, data_store):
                             new_image_order = [original_urls[pair[0]] for pair in sorted_pairs if pair[0] < len(original_urls)]
                             
                             if new_image_order:
-                                product[url_field] = new_image_order
                                 data_store.update_product(product_id, product)
+                                
+                                # 入力欄をクリア (session_stateから削除)
+                                for idx in range(num_images):
+                                    key = f"new_order_form_input_{image_type}_{idx}"
+                                    if key in st.session_state:
+                                        del st.session_state[key]
+                                
                                 st.success("✅ 並び替えを適用しました")
                                 st.rerun()
 
