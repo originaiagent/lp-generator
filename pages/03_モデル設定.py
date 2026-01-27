@@ -147,6 +147,7 @@ def render_model_config(index: int, options: dict, model_generator, data_store, 
                 st.error(f"アップロードエラー: {e}")
         
         # ボタン
+        bc1, bc2, bc3 = st.columns(3)
         with bc1:
             if st.button('生成', key=f'model_generate_btn_{index}', type='primary', use_container_width=True):
                 generate_single_model(model_generator, index, {
