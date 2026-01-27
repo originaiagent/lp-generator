@@ -219,17 +219,16 @@ def render_images_with_bulk_delete(images, image_type, product_id, data_store):
                 st.success(f"{selected_count} 枚の画像を削除しました")
                 st.rerun()
     else:
-        # 通常モード: サムネイル + プルダウン
-        st.caption("💡 順番を選択して「並び替えを適用」を押すと順番が変わります")
-        
+        # 通常モード: サムネイル + テキスト入力
         num_images = len(images)
         if num_images == 0:
             st.info("画像がありません")
             return
             
         cols_per_row = 4
-        order_options = list(range(1, num_images + 1))
-        new_orders = []
+        st.caption("💡 新しい順番を入力して「並び替えを適用」を押すと順番が変わります")
+        
+        new_orders = {}
         
         # 画像をグリッド表示（行ごとに処理して揃える）
         for row_start in range(0, num_images, cols_per_row):
@@ -244,21 +243,23 @@ def render_images_with_bulk_delete(images, image_type, product_id, data_store):
                             st.image(img_info["path"], width=120)
                         except:
                             st.caption("⚠️ 読込失敗")
+                        st.caption(f"現在: {idx + 1}")
             
-            # 2. プルダウン行（画像の下に揃える）
-            select_cols = st.columns(cols_per_row)
+            # 2. 新しい順番入力行
+            input_cols = st.columns(cols_per_row)
             for i in range(cols_per_row):
                 idx = row_start + i
                 if idx < num_images:
-                    with select_cols[i]:
-                        selected = st.selectbox(
-                            "順番",
-                            options=order_options,
-                            index=idx,
-                            key=f"order_select_{image_type}_{idx}",
+                    with input_cols[i]:
+                        # テキスト入力（on_changeなし = リロードしない）
+                        new_order_val = st.text_input(
+                            "新順番",
+                            value="",
+                            key=f"new_order_input_{image_type}_{idx}",
+                            placeholder=str(idx + 1),
                             label_visibility="collapsed"
                         )
-                        new_orders.append((idx, selected))
+                        new_orders[idx] = new_order_val
             
             # 3. 削除ボタン行
             del_cols = st.columns(cols_per_row)
@@ -271,13 +272,44 @@ def render_images_with_bulk_delete(images, image_type, product_id, data_store):
                             st.rerun()
             
             # 行間にスペース
-            st.markdown("<br>", unsafe_allow_html=True)
+            st.divider()
         
-        st.markdown("---")
         # 並び替え適用ボタン
         if st.button("🔄 並び替えを適用", key=f"apply_order_{image_type}", type="primary", use_container_width=True):
+            # 入力された順番を処理
+            order_list = []
+            has_input = False
+            
+            for idx in range(num_images):
+                input_val = new_orders.get(idx, "")
+                if input_val.strip():
+                    has_input = True
+                    try:
+                        order_num = int(input_val)
+                        if 1 <= order_num <= num_images:
+                            order_list.append((idx, order_num))
+                        else:
+                            st.warning(f"⚠️ 順番は1〜{num_images}の範囲で入力してください (現在: {idx+1}番目)")
+                            return
+                    except ValueError:
+                        st.warning(f"⚠️ 順番は数字で入力してください (現在: {idx+1}番目)")
+                        return
+                else:
+                    # 入力がない場合は現在の順番を維持
+                    order_list.append((idx, idx + 1))
+            
+            if not has_input:
+                st.info("💡 順番を変更する画像の欄に数字を入力してください")
+                return
+            
+            # 重複チェック
+            orders_only = [pair[1] for pair in order_list]
+            if len(orders_only) != len(set(orders_only)):
+                st.warning("⚠️ 同じ番号が複数あります。異なる番号を指定してください。")
+                return
+            
             # 番号でソート
-            sorted_pairs = sorted(new_orders, key=lambda x: x[1])
+            sorted_pairs = sorted(order_list, key=lambda x: x[1])
             
             # 最新の製品情報を取得
             product = data_store.get_product(product_id) or {}
@@ -285,18 +317,13 @@ def render_images_with_bulk_delete(images, image_type, product_id, data_store):
             original_urls = product.get(url_field) or []
             
             if len(original_urls) >= num_images:
-                # 重複番号チェック
-                orders_only = [p[1] for p in new_orders]
-                if len(orders_only) != len(set(orders_only)):
-                    st.warning("⚠️ 同じ番号が複数あります。異なる番号を指定してください。")
-                else:
-                    new_image_order = [original_urls[pair[0]] for pair in sorted_pairs if pair[0] < len(original_urls)]
-                    
-                    if new_image_order:
-                        product[url_field] = new_image_order
-                        data_store.update_product(product_id, product)
-                        st.success("✅ 並び替えを適用しました")
-                        st.rerun()
+                new_image_order = [original_urls[pair[0]] for pair in sorted_pairs if pair[0] < len(original_urls)]
+                
+                if new_image_order:
+                    product[url_field] = new_image_order
+                    data_store.update_product(product_id, product)
+                    st.success("✅ 並び替えを適用しました")
+                    st.rerun()
 
 def render_input_page():
     '''入力情報ページのメイン関数'''
