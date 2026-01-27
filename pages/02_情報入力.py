@@ -603,15 +603,19 @@ def render_competitor_analysis(data_store, product_id):
                 if st.button("この競合を削除", key=f"del_comp_{i}"):
                     delete_competitor(product_id, data_store, i)
             
+            # DBから既存データを取得（ループの各回で最新のcompを参照するため）
+            product = data_store.get_product(product_id) or {}
+            current_data = product.get("competitor_analysis_v2") or {}
+            competitors = current_data.get("competitors") or []
+            comp = competitors[i] if i < len(competitors) else {}
+
             # キーとデフォルト値の準備
             name_key = f"comp_name_{i}"
-            default_name = f"競合{i+1}"
             if name_key not in st.session_state:
-                st.session_state[name_key] = default_name
+                st.session_state[name_key] = comp.get("name", f"競合{i+1}")
 
             comp_name = st.text_input(
                 "競合名",
-                # value引数は削除（session_state優先）
                 key=name_key,
                 placeholder="例: A社、B社",
                 on_change=save_competitor_field,
@@ -670,7 +674,7 @@ def render_competitor_analysis(data_store, product_id):
                 # キーの準備
                 text_key = f"comp_text_{i}"
                 if text_key not in st.session_state:
-                    st.session_state[text_key] = ""
+                    st.session_state[text_key] = comp.get('text', '')
 
                 comp_text = st.text_area(
                     "競合のLP情報をコピペ",
