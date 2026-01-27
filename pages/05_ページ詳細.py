@@ -189,12 +189,6 @@ def clear_brushup_state():
         if k in st.session_state:
             del st.session_state[k]
 
-def adopt_candidate(key, text):
-    """採用候補をpending状態にするコールバック"""
-    st.session_state[key] = text
-    # 状態クリアもここで行う
-    clear_brushup_state()
-
 def generate_brushup_query(original_text, product, direction=None):
     """AIにブラッシュアップ案を依頼"""
     from modules.settings_manager import SettingsManager
@@ -379,61 +373,6 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                             label_visibility="collapsed"
                         )
                     
-                    # 採用済みテキストがあれば表示
-                    pending_key = f"{item_key}_pending"
-                    st.write(f"DEBUG: pending確認(item) - key={pending_key}, exists={pending_key in st.session_state}")
-                    if pending_key in st.session_state:
-                        st.write(f"DEBUG: pending値 = {st.session_state[pending_key][:30]}...")
-                        st.success("✅ 採用したテキスト:")
-                        st.info(st.session_state[pending_key])
-                        
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            if st.button("この内容で確定", key=f"confirm_{item_key}", type="primary"):
-                                adopted_text = st.session_state[pending_key]
-                                st.write(f"DEBUG: 確定処理開始(item) - adopted_text = {adopted_text[:30]}...")
-
-                                elem["items"][j] = adopted_text
-                                st.write(f"DEBUG: elem更新後(item) - elem['items'][{j}] = {elem['items'][j][:30]}...")
-                                
-                                # DBへ即時保存（既存の保存ロジックと同期）
-                                product = data_store.get_product(product_id)
-                                if product:
-                                    st.write("DEBUG: product取得成功")
-                                    if 'page_contents' not in product:
-                                        product['page_contents'] = {}
-                                    if page_id in product['page_contents'] and isinstance(product['page_contents'][page_id], dict):
-                                        existing = product['page_contents'][page_id]
-                                        if "result" in existing:
-                                            existing["result"]["parsed"] = parsed_data
-                                            # displayも更新
-                                            display_lines = []
-                                            for e in parsed_data.get("elements", []):
-                                                e_type = e.get("type", "")
-                                                e_order = e.get("order", "")
-                                                display_lines.append(f"## 要素{e_order}: {e_type}")
-                                                if e_type in ["表", "チェックリスト"]:
-                                                    its = e.get("items", [])
-                                                    for idx_it, it in enumerate(its, 1):
-                                                        display_lines.append(f"- 項目{idx_it}: {it}")
-                                                elif e_type in ["メインビジュアル", "サブビジュアル", "画像"]:
-                                                    display_lines.append(f"（画像指示）{e.get('description', '')}")
-                                                else:
-                                                    display_lines.append(f"{e.get('content', '')}")
-                                                display_lines.append("")
-                                            existing["result"]["display"] = "\n".join(display_lines)
-                                        product['page_contents'][page_id] = existing
-                                    result = data_store.update_product(product_id, product)
-                                    st.write(f"DEBUG: DB保存結果(item) = {result}")
-                                
-                                del st.session_state[pending_key]
-                                st.success("確定しました")
-                                st.rerun()
-                        
-                        with col2:
-                            if st.button("キャンセル", key=f"cancel_pending_{item_key}"):
-                                del st.session_state[pending_key]
-                                st.rerun()
                     with col_brush:
                         if st.button("✨", key=f"brush_{item_key}", help="AIでブラッシュアップ"):
                             st.session_state['brushup_target'] = item_key
@@ -464,13 +403,9 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                                             )
                                         st.rerun()
                             with c_col_adopt:
-                                st.button(
-                                    "採用", 
-                                    key=f"adopt_{item_key}_{c_idx}", 
-                                    type="primary",
-                                    on_click=adopt_candidate,
-                                    args=(f"{item_key}_pending", candidate['text'])
-                                )
+                                if st.button("採用", key=f"adopt_{item_key}_{c_idx}"):
+                                    st.code(candidate['text'])
+                                    st.info("↑ 上のテキストを選択してコピーしてください")
                                     
                         # キャンセルボタンは候補ループの外に配置
                         if st.button("❌ キャンセル", key=f"cancel_btn_{item_key}"):
@@ -493,59 +428,6 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                         value=elem_content,
                         key=text_key
                     )
-                
-                # 採用済みテキストがあれば表示
-                pending_key = f"{text_key}_pending"
-                st.write(f"DEBUG: pending確認(text) - key={pending_key}, exists={pending_key in st.session_state}")
-                if pending_key in st.session_state:
-                    st.write(f"DEBUG: pending値 = {st.session_state[pending_key][:30]}...")
-                    st.success("✅ 採用したテキスト:")
-                    st.info(st.session_state[pending_key])
-                    
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        if st.button("この内容で確定", key=f"confirm_{text_key}", type="primary"):
-                            adopted_text = st.session_state[pending_key]
-                            st.write(f"DEBUG: 確定処理開始(text) - adopted_text = {adopted_text[:30]}...")
-
-                            elem["content"] = adopted_text
-                            elem["char_count"] = len(adopted_text)
-                            st.write(f"DEBUG: elem更新後(text) - elem['content'] = {elem['content'][:30]}...")
-                            
-                            # DBへ即時保存
-                            product = data_store.get_product(product_id)
-                            if product:
-                                st.write("DEBUG: product取得成功")
-                                if 'page_contents' not in product:
-                                    product['page_contents'] = {}
-                                if page_id in product['page_contents'] and isinstance(product['page_contents'][page_id], dict):
-                                    existing = product['page_contents'][page_id]
-                                    if "result" in existing:
-                                        existing["result"]["parsed"] = parsed_data
-                                        # displayも更新
-                                        display_lines = []
-                                        for e in parsed_data.get("elements", []):
-                                            e_type = e.get("type", "")
-                                            e_order = e.get("order", "")
-                                            display_lines.append(f"## 要素{e_order}: {e_type}")
-                                            if e_type in ["メインビジュアル", "サブビジュアル", "画像"]:
-                                                display_lines.append(f"（画像指示）{e.get('description', '')}")
-                                            else:
-                                                display_lines.append(f"{e.get('content', '')}")
-                                            display_lines.append("")
-                                        existing["result"]["display"] = "\n".join(display_lines)
-                                    product['page_contents'][page_id] = existing
-                                result = data_store.update_product(product_id, product)
-                                st.write(f"DEBUG: DB保存結果(text) = {result}")
-                            
-                            del st.session_state[pending_key]
-                            st.success("確定しました")
-                            st.rerun()
-                    
-                    with col2:
-                        if st.button("キャンセル", key=f"cancel_pending_{text_key}"):
-                            del st.session_state[pending_key]
-                            st.rerun()
                 
                 with col2:
                     if char_count:
@@ -583,13 +465,9 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                                         )
                                     st.rerun()
                         with c_col_adopt:
-                            st.button(
-                                "採用", 
-                                key=f"adopt_{text_key}_{c_idx}", 
-                                type="primary",
-                                on_click=adopt_candidate,
-                                args=(f"{text_key}_pending", candidate['text'])
-                            )
+                            if st.button("採用", key=f"adopt_{text_key}_{c_idx}"):
+                                st.code(candidate['text'])
+                                st.info("↑ 上のテキストを選択してコピーしてください")
                                 
                     # キャンセルボタンは候補ループの外に配置
                     if st.button("❌ キャンセル", key=f"cancel_btn_{text_key}"):
