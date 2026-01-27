@@ -219,61 +219,67 @@ def render_images_with_bulk_delete(images, image_type, product_id, data_store):
                 st.success(f"{selected_count} 枚の画像を削除しました")
                 st.rerun()
     else:
-        # 通常モード: サムネイル + 番号入力
-        st.caption("💡 番号を変更して「並び替えを適用」を押すと順番が変わります")
+        # 通常モード: サムネイル + プルダウン
+        st.caption("💡 順番を選択して「並び替えを適用」を押すと順番が変わります")
         
-        # 画像と番号入力をグリッド表示
         num_images = len(images)
         if num_images == 0:
             st.info("画像がありません")
             return
             
         cols_per_row = 4
-        
-        # 番号入力の初期化メンテ
-        if f"order_list_{image_type}" not in st.session_state or len(st.session_state[f"order_list_{image_type}"]) != num_images:
-            st.session_state[f"order_list_{image_type}"] = list(range(1, num_images + 1))
-        
+        order_options = list(range(1, num_images + 1))
         new_orders = []
         
-        # 画像をグリッド表示
+        # 画像をグリッド表示（行ごとに処理して揃える）
         for row_start in range(0, num_images, cols_per_row):
-            cols = st.columns(cols_per_row)
-            for i, col in enumerate(cols):
+            # 1. 画像行
+            img_cols = st.columns(cols_per_row)
+            for i in range(cols_per_row):
                 idx = row_start + i
                 if idx < num_images:
-                    with col:
+                    with img_cols[i]:
                         img_info = images[idx]
-                        img_path = img_info["path"]
                         try:
-                            st.image(img_path, width=120)
+                            st.image(img_info["path"], width=120)
                         except:
                             st.caption("⚠️ 読込失敗")
-                        
-                        # 番号入力
-                        val = st.number_input(
+            
+            # 2. プルダウン行（画像の下に揃える）
+            select_cols = st.columns(cols_per_row)
+            for i in range(cols_per_row):
+                idx = row_start + i
+                if idx < num_images:
+                    with select_cols[i]:
+                        selected = st.selectbox(
                             "順番",
-                            min_value=1,
-                            max_value=num_images,
-                            value=idx + 1,
-                            key=f"num_order_{image_type}_{idx}",
+                            options=order_options,
+                            index=idx,
+                            key=f"order_select_{image_type}_{idx}",
                             label_visibility="collapsed"
                         )
-                        new_orders.append((idx, val))
-                        
-                        # 削除ボタン
+                        new_orders.append((idx, selected))
+            
+            # 3. 削除ボタン行
+            del_cols = st.columns(cols_per_row)
+            for i in range(cols_per_row):
+                idx = row_start + i
+                if idx < num_images:
+                    with del_cols[i]:
                         if st.button("🗑️ 削除", key=f"single_del_{image_type}_{idx}", use_container_width=True):
-                            delete_single_image(product_id, data_store, image_type, idx, img_info)
+                            delete_single_image(product_id, data_store, image_type, idx, images[idx])
                             st.rerun()
+            
+            # 行間にスペース
+            st.markdown("<br>", unsafe_allow_html=True)
         
         st.markdown("---")
         # 並び替え適用ボタン
         if st.button("🔄 並び替えを適用", key=f"apply_order_{image_type}", type="primary", use_container_width=True):
             # 番号でソート
-            # new_orders は (元のインデックス, 指定された番号) のリスト
             sorted_pairs = sorted(new_orders, key=lambda x: x[1])
             
-            # 元のURLリストを取得 (imagesからではなくDBの値から確実に構築)
+            # 最新の製品情報を取得
             product = data_store.get_product(product_id) or {}
             url_field = fields["urls"]
             original_urls = product.get(url_field) or []
