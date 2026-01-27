@@ -228,26 +228,54 @@ class DataStore:
         # 新しい製品IDを生成
         new_product_id = f"prod_{uuid.uuid4().hex[:8]}"
         
-        # 複製データを作成（IDと名前を変更）
+        # 複製データを作成
         new_product = original.copy()
         new_product['id'] = new_product_id
         new_product['name'] = f"{original.get('name', '')}のコピー"
         new_product['created_at'] = datetime.now().isoformat()
         new_product['updated_at'] = datetime.now().isoformat()
         
-        # 画像URLはそのまま参照（ファイルはコピーしない）
-        # product_image_urls, reference_lp_image_urls, tone_manner_image_urls はそのまま
-        
-        # ローカルパスは空にする（Supabase使用時は不要）
+        # 画像をコピー（Supabase使用時）
         if self.use_supabase:
+            # 製品画像をコピー
+            new_product['product_image_urls'] = self._copy_images_to_new_product(
+                original.get('product_image_urls') or [],
+                new_product_id,
+                'product_images'
+            )
+            
+            # 参考LP画像をコピー
+            new_product['reference_lp_image_urls'] = self._copy_images_to_new_product(
+                original.get('reference_lp_image_urls') or [],
+                new_product_id,
+                'reference_lp'
+            )
+            
+            # トンマナ画像をコピー
+            new_product['tone_manner_image_urls'] = self._copy_images_to_new_product(
+                original.get('tone_manner_image_urls') or [],
+                new_product_id,
+                'tone_manner'
+            )
+            
+            # 競合画像をコピー
+            competitor_data = new_product.get('competitor_analysis_v2') or {}
+            competitors = competitor_data.get('competitors') or []
+            for i, comp in enumerate(competitors):
+                comp['file_urls'] = self._copy_images_to_new_product(
+                    comp.get('file_urls') or [],
+                    new_product_id,
+                    f'competitors/{i}'
+                )
+            new_product['competitor_analysis_v2'] = competitor_data
+            
+            # ローカルパスは空にする
             new_product['product_images'] = []
             new_product['reference_lp_images'] = []
             new_product['tone_manner_images'] = []
         
         # 新しい製品を保存
         if self.use_supabase:
-            # lp_productsテーブルの既存カラムに合わせるため
-            # 必要であればスキーマに含まれないフィールドを削除
             data_to_save = new_product.copy()
             exclude_keys = ["review_sheet_data"]
             for key in exclude_keys:
@@ -259,6 +287,43 @@ class DataStore:
         else:
             self.save_product(new_product)
             return new_product
+
+    def _copy_images_to_new_product(self, image_urls, new_product_id, folder):
+        """画像を新しい製品フォルダにコピー"""
+        import uuid
+        import requests
+        
+        new_urls = []
+        for url in image_urls:
+            try:
+                # 画像をダウンロード
+                response = requests.get(url, timeout=10)
+                if response.status_code == 200:
+                    # 新しいファイル名を生成
+                    extension = url.split('.')[-1].split('?')[0]
+                    if len(extension) > 5: # 拡張子がおかしい場合はjpgにフォールバック
+                        extension = 'jpg'
+                    new_filename = f"{uuid.uuid4().hex[:12]}.{extension}"
+                    new_path = f"{new_product_id}/{folder}/{new_filename}"
+                    
+                    # 新しい場所にアップロード
+                    new_url = self.upload_image(
+                        response.content,
+                        new_path,
+                        bucket_name="lp-generator-images"
+                    )
+                    if new_url:
+                        new_urls.append(new_url)
+                    else:
+                        # アップロード失敗時は元のURLを使用（フォールバック）
+                        new_urls.append(url)
+                else:
+                    new_urls.append(url)
+            except Exception as e:
+                print(f"画像コピーエラー: {e}")
+                new_urls.append(url)
+        
+        return new_urls
 
     def delete_product(self, product_id: str) -> bool:
         # Supabaseから削除
