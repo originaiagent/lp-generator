@@ -391,11 +391,15 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                         with col1:
                             if st.button("この内容で確定", key=f"confirm_{item_key}", type="primary"):
                                 adopted_text = st.session_state[pending_key]
+                                st.write(f"DEBUG: 確定処理開始(item) - adopted_text = {adopted_text[:30]}...")
+
                                 elem["items"][j] = adopted_text
+                                st.write(f"DEBUG: elem更新後(item) - elem['items'][{j}] = {elem['items'][j][:30]}...")
                                 
                                 # DBへ即時保存（既存の保存ロジックと同期）
                                 product = data_store.get_product(product_id)
                                 if product:
+                                    st.write("DEBUG: product取得成功")
                                     if 'page_contents' not in product:
                                         product['page_contents'] = {}
                                     if page_id in product['page_contents'] and isinstance(product['page_contents'][page_id], dict):
@@ -419,7 +423,8 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                                                 display_lines.append("")
                                             existing["result"]["display"] = "\n".join(display_lines)
                                         product['page_contents'][page_id] = existing
-                                    data_store.update_product(product_id, product)
+                                    result = data_store.update_product(product_id, product)
+                                    st.write(f"DEBUG: DB保存結果(item) = {result}")
                                 
                                 del st.session_state[pending_key]
                                 st.success("確定しました")
@@ -501,12 +506,16 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                     with col1:
                         if st.button("この内容で確定", key=f"confirm_{text_key}", type="primary"):
                             adopted_text = st.session_state[pending_key]
+                            st.write(f"DEBUG: 確定処理開始(text) - adopted_text = {adopted_text[:30]}...")
+
                             elem["content"] = adopted_text
                             elem["char_count"] = len(adopted_text)
+                            st.write(f"DEBUG: elem更新後(text) - elem['content'] = {elem['content'][:30]}...")
                             
                             # DBへ即時保存
                             product = data_store.get_product(product_id)
                             if product:
+                                st.write("DEBUG: product取得成功")
                                 if 'page_contents' not in product:
                                     product['page_contents'] = {}
                                 if page_id in product['page_contents'] and isinstance(product['page_contents'][page_id], dict):
@@ -526,7 +535,8 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                                             display_lines.append("")
                                         existing["result"]["display"] = "\n".join(display_lines)
                                     product['page_contents'][page_id] = existing
-                                data_store.update_product(product_id, product)
+                                result = data_store.update_product(product_id, product)
+                                st.write(f"DEBUG: DB保存結果(text) = {result}")
                             
                             del st.session_state[pending_key]
                             st.success("確定しました")
