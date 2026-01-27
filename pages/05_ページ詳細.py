@@ -445,8 +445,9 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                                     
                                     clear_brushup_state()
                                     st.rerun()
-                        
-                        if st.button("❌ キャンセル", key=f"cancel_{item_key}"):
+                                    
+                        # キャンセルボタンは候補ループの外に配置
+                        if st.button("❌ キャンセル", key=f"cancel_btn_{item_key}"):
                             clear_brushup_state()
                             st.rerun()
 
@@ -543,10 +544,11 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                                 
                                 clear_brushup_state()
                                 st.rerun()
-                        
-                        if st.button("❌ キャンセル", key=f"cancel_{text_key}"):
-                            clear_brushup_state()
-                            st.rerun()
+                                
+                    # キャンセルボタンは候補ループの外に配置
+                    if st.button("❌ キャンセル", key=f"cancel_btn_{text_key}"):
+                        clear_brushup_state()
+                        st.rerun()
                 
                 if new_content != elem_content:
                     elem["content"] = new_content
