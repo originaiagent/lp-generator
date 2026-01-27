@@ -585,17 +585,21 @@ def render_diagnosis_page():
         if proposal:
             st.markdown("---")
             st.markdown("### 📝 改善案")
-            st.info(f"**対象**: {proposal.get('target_page_name')} > {proposal.get('target_element_type')}")
+            st.markdown(f"""
+📍 **対象箇所**
+- **ページ**: {proposal.get('target_page_index', 0) + 1}. {proposal.get('target_page_name', '不明')}
+- **要素**: {proposal.get('target_element_type', '不明')}（{proposal.get('target_element_index', 0) + 1}番目）
+""")
             
             col1, col2 = st.columns(2)
             with col1:
                 st.markdown("**修正前**")
-                st.warning(proposal.get('before_text', 'なし'))
+                st.error(proposal.get('before_text', 'なし'))
             with col2:
                 st.markdown("**修正後**")
                 st.success(proposal.get('after_text', 'なし'))
             
-            st.caption(f"💡 {proposal.get('reason', '')}")
+            st.info(f"💡 {proposal.get('reason', '')}")
             
             col1, col2, col3 = st.columns(3)
             with col1:
