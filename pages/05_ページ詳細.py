@@ -364,32 +364,14 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                 for j, item in enumerate(items):
                     item_key = f"item_{page_id}_{i}_{j}"
                     
-                    # 採用された値があればそれを使う
-                    adopted_key = f"{item_key}_adopted"
-                    
-                    st.write(f"DEBUG: item_adopted_key = {adopted_key}")
-                    st.write(f"DEBUG: key in session_state = {adopted_key in st.session_state}")
-                    
-                    if adopted_key in st.session_state:
-                        st.write(f"DEBUG: session_state[{adopted_key}] = {st.session_state[adopted_key]}")
-                        default_value = st.session_state[adopted_key]
-                    else:
-                        default_value = item
-
-                    st.write(f"DEBUG: item_default_value = {default_value}")
-
                     col_input, col_brush = st.columns([10, 1])
                     with col_input:
                         new_item = st.text_input(
                             f"項目{j+1}",
-                            value=default_value,
+                            value=item,
                             key=item_key,
                             label_visibility="collapsed"
                         )
-                    
-                    # 使用後に削除
-                    if adopted_key in st.session_state:
-                        del st.session_state[adopted_key]
                     with col_brush:
                         if st.button("✨", key=f"brush_{item_key}", help="AIでブラッシュアップ"):
                             st.session_state['brushup_target'] = item_key
@@ -421,10 +403,9 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                                         st.rerun()
                             with c_col_adopt:
                                 if st.button("採用", key=f"adopt_{item_key}_{c_idx}", type="primary"):
-                                    st.write(f"DEBUG: 採用ボタン押下(item) - candidate['text'] = {candidate['text']}")
-                                    st.write(f"DEBUG: item_key = {item_key}")
-                                    # 橋渡し用キーに保存（ウィジェット用）
-                                    st.session_state[f"{item_key}_adopted"] = candidate['text']
+                                    # text_input の key を直接更新
+                                    st.session_state[item_key] = candidate['text']
+                                    
                                     # 内部データを更新
                                     elem["items"][j] = candidate['text']
                                     
@@ -472,31 +453,14 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                 # 単一テキスト形式
                 text_key = f"text_elem_{page_id}_{i}"
                 
-                # 採用された値があればそれを使う
-                adopted_key = f"{text_key}_adopted"
-                
-                st.write(f"DEBUG: text_adopted_key = {adopted_key}")
-                st.write(f"DEBUG: key in session_state = {adopted_key in st.session_state}")
-
-                if adopted_key in st.session_state:
-                    st.write(f"DEBUG: session_state[{adopted_key}] = {st.session_state[adopted_key]}")
-                    default_value = st.session_state[adopted_key]
-                else:
-                    default_value = elem_content
-
-                st.write(f"DEBUG: text_default_value = {default_value}")
-
                 col1, col2, col3 = st.columns([8, 2, 1])
                 with col1:
                     new_content = st.text_input(
                         f"{elem_type}",
-                        value=default_value,
+                        value=elem_content,
                         key=text_key
                     )
                 
-                # 使用後に削除
-                if adopted_key in st.session_state:
-                    del st.session_state[adopted_key]
                 with col2:
                     if char_count:
                         st.caption(f"{char_count}文字")
@@ -534,16 +498,9 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                                     st.rerun()
                         with c_col_adopt:
                             if st.button("採用", key=f"adopt_{text_key}_{c_idx}", type="primary"):
-                                st.write(f"DEBUG: 採用ボタン押下 - candidate['text'] = {candidate['text']}")
-                                st.write(f"DEBUG: text_key = {text_key}")
+                                # text_input の key を直接更新
+                                st.session_state[text_key] = candidate['text']
                                 
-                                adopted_key = f"{text_key}_adopted"
-                                st.session_state[adopted_key] = candidate['text']
-                                
-                                # 保存直後に確認
-                                st.write(f"DEBUG: 保存後 - adopted_key = {adopted_key}")
-                                st.write(f"DEBUG: 保存後 - session_state[adopted_key] = {st.session_state.get(adopted_key, 'NOT FOUND')}")
-
                                 # 内部データを更新
                                 elem["content"] = candidate['text']
                                 # 文字数も更新
@@ -572,7 +529,6 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                                     product['page_contents'][page_id] = existing
                                 data_store.update_product(product_id, product)
                                 
-                                st.write("DEBUG: st.rerun() を実行します")
                                 clear_brushup_state()
                                 st.rerun()
                                 
