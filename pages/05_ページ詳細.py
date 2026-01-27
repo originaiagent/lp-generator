@@ -368,7 +368,6 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                     adopted_key = f"{item_key}_adopted"
                     if adopted_key in st.session_state:
                         default_value = st.session_state[adopted_key]
-                        del st.session_state[adopted_key]
                     else:
                         default_value = item
 
@@ -380,6 +379,10 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                             key=item_key,
                             label_visibility="collapsed"
                         )
+                    
+                    # 使用後に削除
+                    if adopted_key in st.session_state:
+                        del st.session_state[adopted_key]
                     with col_brush:
                         if st.button("✨", key=f"brush_{item_key}", help="AIでブラッシュアップ"):
                             st.session_state['brushup_target'] = item_key
@@ -464,7 +467,6 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                 adopted_key = f"{text_key}_adopted"
                 if adopted_key in st.session_state:
                     default_value = st.session_state[adopted_key]
-                    del st.session_state[adopted_key]
                 else:
                     default_value = elem_content
 
@@ -475,6 +477,10 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                         value=default_value,
                         key=text_key
                     )
+                
+                # 使用後に削除
+                if adopted_key in st.session_state:
+                    del st.session_state[adopted_key]
                 with col2:
                     if char_count:
                         st.caption(f"{char_count}文字")
