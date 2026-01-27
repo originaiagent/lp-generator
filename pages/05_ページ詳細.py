@@ -375,7 +375,9 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                     
                     # 採用済みテキストがあれば表示
                     pending_key = f"{item_key}_pending"
+                    st.write(f"DEBUG: pending確認(item) - key={pending_key}, exists={pending_key in st.session_state}")
                     if pending_key in st.session_state:
+                        st.write(f"DEBUG: pending値 = {st.session_state[pending_key][:30]}...")
                         st.success("✅ 採用したテキスト:")
                         st.info(st.session_state[pending_key])
                         
@@ -453,8 +455,10 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                             with c_col_adopt:
                                 if st.button("採用", key=f"adopt_{item_key}_{c_idx}", type="primary"):
                                     # pending状態に保存
-                                    st.session_state[f"{item_key}_pending"] = candidate['text']
-                                    clear_brushup_state()
+                                    pending_key = f"{item_key}_pending"
+                                    st.session_state[pending_key] = candidate['text']
+                                    st.write(f"DEBUG: pending保存(item) - key={pending_key}, value={candidate['text'][:30]}...")
+                                    # clear_brushup_state()
                                     st.rerun()
                                     
                         # キャンセルボタンは候補ループの外に配置
@@ -481,7 +485,9 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                 
                 # 採用済みテキストがあれば表示
                 pending_key = f"{text_key}_pending"
+                st.write(f"DEBUG: pending確認(text) - key={pending_key}, exists={pending_key in st.session_state}")
                 if pending_key in st.session_state:
+                    st.write(f"DEBUG: pending値 = {st.session_state[pending_key][:30]}...")
                     st.success("✅ 採用したテキスト:")
                     st.info(st.session_state[pending_key])
                     
@@ -563,8 +569,10 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                         with c_col_adopt:
                             if st.button("採用", key=f"adopt_{text_key}_{c_idx}", type="primary"):
                                 # pending状態に保存
-                                st.session_state[f"{text_key}_pending"] = candidate['text']
-                                clear_brushup_state()
+                                pending_key = f"{text_key}_pending"
+                                st.session_state[pending_key] = candidate['text']
+                                st.write(f"DEBUG: pending保存(text) - key={pending_key}, value={candidate['text'][:30]}...")
+                                # clear_brushup_state()
                                 st.rerun()
                                 
                     # キャンセルボタンは候補ループの外に配置
