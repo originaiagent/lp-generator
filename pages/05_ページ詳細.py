@@ -414,6 +414,8 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                                         st.rerun()
                             with c_col_adopt:
                                 if st.button("採用", key=f"adopt_{item_key}_{c_idx}", type="primary"):
+                                    st.write(f"DEBUG: 採用ボタン押下(item) - candidate['text'] = {candidate['text']}")
+                                    st.write(f"DEBUG: item_key = {item_key}")
                                     # 橋渡し用キーに保存（ウィジェット用）
                                     st.session_state[f"{item_key}_adopted"] = candidate['text']
                                     # 内部データを更新
@@ -518,6 +520,8 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                                     st.rerun()
                         with c_col_adopt:
                             if st.button("採用", key=f"adopt_{text_key}_{c_idx}", type="primary"):
+                                st.write(f"DEBUG: 採用ボタン押下(text) - candidate['text'] = {candidate['text']}")
+                                st.write(f"DEBUG: text_key = {text_key}")
                                 # 橋渡し用キーに保存（ウィジェット用）
                                 st.session_state[f"{text_key}_adopted"] = candidate['text']
                                 # 内部データを更新
