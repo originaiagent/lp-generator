@@ -219,56 +219,78 @@ def render_images_with_bulk_delete(images, image_type, product_id, data_store):
                 st.success(f"{selected_count} 枚の画像を削除しました")
                 st.rerun()
     else:
-        # ドラッグ&ドロップモード
-        st.info("💡 下のリストをドラッグして順番を入れ替えられます。")
+        # 通常モード: サムネイル + 番号入力
+        st.caption("💡 番号を変更して「並び替えを適用」を押すと順番が変わります")
         
-        # ファイル名リストを作成（sortables用）
-        items = []
-        for i, img_info in enumerate(images):
-            img_path = img_info["path"]
-            filename = Path(img_path).name if img_info["type"] == "local" else img_path.split('/')[-1].split('?')[0]
-            items.append(f"{i+1}. {filename[:30]}")
-        
-        # ドラッグ&ドロップで並び替え
-        from streamlit_sortables import sort_items
-        sorted_items = sort_items(items, key=f"sort_{image_type}")
-        
-        # 並び順が変わったかチェック
-        if sorted_items != items:
-            new_order = []
-            for item in sorted_items:
-                try:
-                    # インデックスを抽出 (例: "1. filename" -> 1 -> 0)
-                    idx = int(item.split('.')[0]) - 1
-                    # 元の画像リストから対応するURLを取得（imagesの中身はURL文字列のリストではなく、表示用の情報オブジェクトのリストなので、元のproductのURLフィールドを操作する）
-                    # 既に images は get_valid_image_urls を通った後のもの
-                    path = images[idx]["path"]
-                    new_order.append(path)
-                except (ValueError, IndexError):
-                    continue
+        # 画像と番号入力をグリッド表示
+        num_images = len(images)
+        if num_images == 0:
+            st.info("画像がありません")
+            return
             
-            # DBを更新
-            if new_order:
-                product = data_store.get_product(product_id) or {}
-                url_field = fields["urls"]
-                product[url_field] = new_order
-                data_store.update_product(product_id, product)
-                st.rerun()
+        cols_per_row = 4
         
-        # 画像をグリッド表示（個別削除ボタン付き）
+        # 番号入力の初期化メンテ
+        if f"order_list_{image_type}" not in st.session_state or len(st.session_state[f"order_list_{image_type}"]) != num_images:
+            st.session_state[f"order_list_{image_type}"] = list(range(1, num_images + 1))
+        
+        new_orders = []
+        
+        # 画像をグリッド表示
+        for row_start in range(0, num_images, cols_per_row):
+            cols = st.columns(cols_per_row)
+            for i, col in enumerate(cols):
+                idx = row_start + i
+                if idx < num_images:
+                    with col:
+                        img_info = images[idx]
+                        img_path = img_info["path"]
+                        try:
+                            st.image(img_path, width=120)
+                        except:
+                            st.caption("⚠️ 読込失敗")
+                        
+                        # 番号入力
+                        val = st.number_input(
+                            "順番",
+                            min_value=1,
+                            max_value=num_images,
+                            value=idx + 1,
+                            key=f"num_order_{image_type}_{idx}",
+                            label_visibility="collapsed"
+                        )
+                        new_orders.append((idx, val))
+                        
+                        # 削除ボタン
+                        if st.button("🗑️ 削除", key=f"single_del_{image_type}_{idx}", use_container_width=True):
+                            delete_single_image(product_id, data_store, image_type, idx, img_info)
+                            st.rerun()
+        
         st.markdown("---")
-        cols = st.columns(4)
-        for i, img_info in enumerate(images):
-            with cols[i % 4]:
-                img_path = img_info["path"]
-                try:
-                    st.image(img_path, width=120)
-                except:
-                    st.caption("⚠️ 読込失敗")
-                
-                if st.button("🗑️ 削除", key=f"del_{image_type}_{i}", use_container_width=True):
-                    delete_single_image(product_id, data_store, image_type, i, img_info)
-                    st.rerun()
+        # 並び替え適用ボタン
+        if st.button("🔄 並び替えを適用", key=f"apply_order_{image_type}", type="primary", use_container_width=True):
+            # 番号でソート
+            # new_orders は (元のインデックス, 指定された番号) のリスト
+            sorted_pairs = sorted(new_orders, key=lambda x: x[1])
+            
+            # 元のURLリストを取得 (imagesからではなくDBの値から確実に構築)
+            product = data_store.get_product(product_id) or {}
+            url_field = fields["urls"]
+            original_urls = product.get(url_field) or []
+            
+            if len(original_urls) >= num_images:
+                # 重複番号チェック
+                orders_only = [p[1] for p in new_orders]
+                if len(orders_only) != len(set(orders_only)):
+                    st.warning("⚠️ 同じ番号が複数あります。異なる番号を指定してください。")
+                else:
+                    new_image_order = [original_urls[pair[0]] for pair in sorted_pairs if pair[0] < len(original_urls)]
+                    
+                    if new_image_order:
+                        product[url_field] = new_image_order
+                        data_store.update_product(product_id, product)
+                        st.success("✅ 並び替えを適用しました")
+                        st.rerun()
 
 def render_input_page():
     '''入力情報ページのメイン関数'''
