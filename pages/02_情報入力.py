@@ -1791,8 +1791,22 @@ def render_reference_images_upload(data_store, product_id):
     
     if st.button("🎨 トンマナ画像を分析", type="primary", width="stretch"):
         product = data_store.get_product(product_id)
-        if product and product.get("tone_manner_images"):
-            analyze_tone_manner_images(product["tone_manner_images"], product_id, data_store)
+        
+        # 画像ソースを統合（URL優先）
+        tm_sources = []
+        if product:
+            # クラウド画像
+            tm_urls = product.get("tone_manner_image_urls") or []
+            tm_sources.extend(get_valid_image_urls(tm_urls))
+            
+            # ローカル画像（Supabase未使用時やバックアップ用）
+            tm_locals = product.get("tone_manner_images") or []
+            for path in tm_locals:
+                if Path(path).exists() and path not in tm_sources:
+                    tm_sources.append(path)
+        
+        if tm_sources:
+            analyze_tone_manner_images(tm_sources, product_id, data_store)
         else:
             st.warning("トンマナ画像をアップロードしてください")
     # ボタンを押したら直接分析を実行
