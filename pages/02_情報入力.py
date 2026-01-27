@@ -524,6 +524,32 @@ def save_competitor_field(product_id, data_store, comp_idx, field_name):
     if data_store.update_product(product_id, product):
         st.toast(f"保存完了: {competitors[comp_idx].get('name', '競合')}")
 
+def save_competitor_text(product_id, competitor_index, data_store):
+    """競合テキストを自動保存"""
+    key = f"comp_text_{competitor_index}"
+    if key in st.session_state:
+        text = st.session_state[key]
+        product = data_store.get_product(product_id)
+        if product:
+            current_data = product.get("competitor_analysis_v2") or {}
+            competitors = (current_data.get("competitors") or []).copy()
+            
+            # インデックスの整合性確保
+            while len(competitors) <= competitor_index:
+                competitors.append({
+                    "name": f"競合{len(competitors)+1}", 
+                    "text": "", 
+                    "files": [], 
+                    "file_urls": []
+                })
+            
+            competitors[competitor_index]['text'] = text
+            current_data["competitors"] = competitors
+            product["competitor_analysis_v2"] = current_data
+            
+            if data_store.update_product(product_id, product):
+                st.toast(f"テキストを保存しました: {competitors[competitor_index].get('name', '競合')}")
+
 def render_competitor_analysis(data_store, product_id):
     '''競合情報分析セクション'''
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
@@ -652,8 +678,8 @@ def render_competitor_analysis(data_store, product_id):
                     key=text_key,
                     placeholder="競合商品ページから情報をコピー&ペースト...",
                     label_visibility="collapsed",
-                    on_change=save_competitor_field,
-                    args=(product_id, data_store, i, "text")
+                    on_change=save_competitor_text,
+                    args=(product_id, i, data_store)
                 )
     
     st.markdown("---")
