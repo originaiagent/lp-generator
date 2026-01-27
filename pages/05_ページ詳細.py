@@ -363,11 +363,20 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                 new_items = []
                 for j, item in enumerate(items):
                     item_key = f"item_{page_id}_{i}_{j}"
+                    
+                    # 採用された値があればそれを使う
+                    adopted_key = f"{item_key}_adopted"
+                    if adopted_key in st.session_state:
+                        default_value = st.session_state[adopted_key]
+                        del st.session_state[adopted_key]
+                    else:
+                        default_value = item
+
                     col_input, col_brush = st.columns([10, 1])
                     with col_input:
                         new_item = st.text_input(
                             f"項目{j+1}",
-                            value=item,
+                            value=default_value,
                             key=item_key,
                             label_visibility="collapsed"
                         )
@@ -402,8 +411,8 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                                         st.rerun()
                             with c_col_adopt:
                                 if st.button("採用", key=f"adopt_{item_key}_{c_idx}", type="primary"):
-                                    # セッション状態を直接更新（表示用）
-                                    st.session_state[item_key] = candidate['text']
+                                    # 橋渡し用キーに保存（ウィジェット用）
+                                    st.session_state[f"{item_key}_adopted"] = candidate['text']
                                     # 内部データを更新
                                     elem["items"][j] = candidate['text']
                                     
@@ -449,11 +458,20 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
             else:
                 # 単一テキスト形式
                 text_key = f"text_elem_{page_id}_{i}"
+                
+                # 採用された値があればそれを使う
+                adopted_key = f"{text_key}_adopted"
+                if adopted_key in st.session_state:
+                    default_value = st.session_state[adopted_key]
+                    del st.session_state[adopted_key]
+                else:
+                    default_value = elem_content
+
                 col1, col2, col3 = st.columns([8, 2, 1])
                 with col1:
                     new_content = st.text_input(
                         f"{elem_type}",
-                        value=elem_content,
+                        value=default_value,
                         key=text_key
                     )
                 with col2:
@@ -493,8 +511,8 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                                     st.rerun()
                         with c_col_adopt:
                             if st.button("採用", key=f"adopt_{text_key}_{c_idx}", type="primary"):
-                                # セッション状態を直接更新（表示用）
-                                st.session_state[text_key] = candidate['text']
+                                # 橋渡し用キーに保存（ウィジェット用）
+                                st.session_state[f"{text_key}_adopted"] = candidate['text']
                                 # 内部データを更新
                                 elem["content"] = candidate['text']
                                 # 文字数も更新
