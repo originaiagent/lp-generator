@@ -148,63 +148,102 @@ def render_appeal_analysis(product, data_store, product_id):
         appeals = raw_appeals
     
     if appeals:
+        selected = product.get('selected_appeals') or []
+        
+        # 共通の保存・削除・追加ヘルパー
+        def save_and_rerun():
+            product['selected_appeals'] = selected
+            data_store.update_product(product_id, product)
+            st.rerun()
+
+        def render_appeal_list(appeal_list, key_prefix, section_name, list_id_in_appeals):
+            st.markdown(f"**{section_name}**")
+            # 削除対象のインデックス
+            delete_idx = -1
+            
+            for i, item in enumerate(appeal_list):
+                name = item.get('name', item.get('title', '')) # 'name'と'title'両対応
+                desc = item.get('description', item.get('reason', ''))
+                is_manual = item.get('manual', False)
+                checked = name in selected
+                
+                col_check, col_del = st.columns([9, 1])
+                with col_check:
+                    if st.checkbox(f"**{name}**", value=checked, key=f"{key_prefix}_{i}"):
+                        if name not in selected:
+                            selected.append(name)
+                    else:
+                        if name in selected:
+                            selected.remove(name)
+                    st.caption(f"　{desc}")
+                
+                with col_del:
+                    if is_manual:
+                        if st.button("🗑️", key=f"del_{key_prefix}_{i}"):
+                            delete_idx = i
+            
+            if delete_idx != -1:
+                removed_item = appeal_list.pop(delete_idx)
+                removed_name = removed_item.get('name', removed_item.get('title', ''))
+                if removed_name in selected:
+                    selected.remove(removed_name)
+                save_and_rerun()
+
+            # 手動追加機能
+            st.markdown("---")
+            if f"show_add_{key_prefix}" not in st.session_state:
+                st.session_state[f"show_add_{key_prefix}"] = False
+
+            if st.button(f"+ {section_name}を追加", key=f"add_{key_prefix}_btn"):
+                st.session_state[f"show_add_{key_prefix}"] = True
+
+            if st.session_state[f"show_add_{key_prefix}"]:
+                with st.form(key=f"add_{key_prefix}_form"):
+                    new_title = st.text_input("タイトル", placeholder="例: 環境配慮訴求")
+                    new_desc = st.text_area("説明", placeholder="例: リサイクル素材を使用し、環境に優しい製品設計", height=100)
+                    
+                    form_col1, form_col2 = st.columns(2)
+                    with form_col1:
+                        submitted = st.form_submit_button("追加", type="primary")
+                    with form_col2:
+                        cancelled = st.form_submit_button("キャンセル")
+                    
+                    if submitted and new_title:
+                        new_appeal = {
+                            "name": new_title,
+                            "description": new_desc,
+                            "selected": True,
+                            "manual": True
+                        }
+                        appeal_list.append(new_appeal)
+                        if new_title not in selected:
+                            selected.append(new_title)
+                        st.session_state[f"show_add_{key_prefix}"] = False
+                        save_and_rerun()
+                    
+                    if cancelled:
+                        st.session_state[f"show_add_{key_prefix}"] = False
+                        st.rerun()
+
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("**💪 自社の訴求ポイント**")
             st.caption("製品情報シートから抽出")
-            selected = product.get('selected_appeals') or []
             own_appeals = appeals.get('own_appeals') or []
+            render_appeal_list(own_appeals, "own", "自社の訴求ポイント", "own_appeals")
             
-            for i, item in enumerate(own_appeals):
-                name = item.get('name', '')
-                desc = item.get('description', '')
-                checked = name in selected
-                
-                if st.checkbox(f"**{name}**", value=checked, key=f"own_{i}"):
-                    if name not in selected:
-                        selected.append(name)
-                else:
-                    if name in selected:
-                        selected.remove(name)
-                st.caption(f"　{desc}")
-            
-            product['selected_appeals'] = selected
-            data_store.update_product(product_id, product)
-        
         with col2:
-            st.markdown("**🔍 競合の訴求ポイント**")
             st.caption("競合分析から抽出（参考にする場合はチェック）")
             competitor_appeals = appeals.get('competitor_appeals') or []
-            for i, item in enumerate(competitor_appeals):
-                name = item.get('name', '')
-                desc = item.get('description', '')
-                checked = name in selected
-                if st.checkbox(f"**{name}**", value=checked, key=f"comp_{i}"):
-                    if name not in selected:
-                        selected.append(name)
-                else:
-                    if name in selected:
-                        selected.remove(name)
-                st.caption(f"　{desc}")
+            render_appeal_list(competitor_appeals, "comp", "競合の訴求ポイント", "competitor_appeals")
             
-            st.markdown("**✨ 差別化ポイント**")
+            st.markdown("<br>", unsafe_allow_html=True)
             diff_appeals = appeals.get('differentiation') or []
-            for i, item in enumerate(diff_appeals):
-                name = item.get('name', '')
-                reason = item.get('reason', '')
-                checked = name in selected
-                if st.checkbox(f"**{name}**", value=checked, key=f"diff_{i}"):
-                    if name not in selected:
-                        selected.append(name)
-                else:
-                    if name in selected:
-                        selected.remove(name)
-                st.caption(f"　{reason}")
-            
-            # 保存
-            product['selected_appeals'] = selected
-            data_store.update_product(product_id, product)
+            render_appeal_list(diff_appeals, "diff", "差別化ポイント", "differentiation")
+
+        # 最終保存
+        product['selected_appeals'] = selected
+        data_store.update_product(product_id, product)
     else:
         st.info("「訴求ポイントを抽出」ボタンを押して分析を開始してください")
 
