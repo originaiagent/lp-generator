@@ -402,8 +402,38 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                                         st.rerun()
                             with c_col_adopt:
                                 if st.button("採用", key=f"adopt_{item_key}_{c_idx}", type="primary"):
-                                    # 配列内の値を直接更新（text_elements[i] は elements の一部）
+                                    # セッション状態を直接更新（表示用）
+                                    st.session_state[item_key] = candidate['text']
+                                    # 内部データを更新
                                     elem["items"][j] = candidate['text']
+                                    
+                                    # DBへ即時保存（既存の保存ロジックと同期）
+                                    if 'page_contents' not in product:
+                                        product['page_contents'] = {}
+                                    
+                                    if page_id in product['page_contents'] and isinstance(product['page_contents'][page_id], dict):
+                                        existing = product['page_contents'][page_id]
+                                        if "result" in existing:
+                                            existing["result"]["parsed"] = parsed_data
+                                            # displayも更新
+                                            display_lines = []
+                                            for e in parsed_data.get("elements", []):
+                                                e_type = e.get("type", "")
+                                                e_order = e.get("order", "")
+                                                display_lines.append(f"## 要素{e_order}: {e_type}")
+                                                if e_type in ["表", "チェックリスト"]:
+                                                    its = e.get("items", [])
+                                                    for idx_it, it in enumerate(its, 1):
+                                                        display_lines.append(f"- 項目{idx_it}: {it}")
+                                                elif e_type in ["メインビジュアル", "サブビジュアル", "画像"]:
+                                                    display_lines.append(f"（画像指示）{e.get('description', '')}")
+                                                else:
+                                                    display_lines.append(f"{e.get('content', '')}")
+                                                display_lines.append("")
+                                            existing["result"]["display"] = "\n".join(display_lines)
+                                        product['page_contents'][page_id] = existing
+                                    data_store.update_product(product_id, product)
+                                    
                                     clear_brushup_state()
                                     st.rerun()
                         
@@ -463,15 +493,42 @@ if parsed_data and isinstance(parsed_data, dict) and "elements" in parsed_data:
                                     st.rerun()
                         with c_col_adopt:
                             if st.button("採用", key=f"adopt_{text_key}_{c_idx}", type="primary"):
+                                # セッション状態を直接更新（表示用）
+                                st.session_state[text_key] = candidate['text']
+                                # 内部データを更新
                                 elem["content"] = candidate['text']
                                 # 文字数も更新
                                 elem["char_count"] = len(candidate['text'])
+                                
+                                # DBへ即時保存（既存の保存ロジックと同期）
+                                if 'page_contents' not in product:
+                                    product['page_contents'] = {}
+                                
+                                if page_id in product['page_contents'] and isinstance(product['page_contents'][page_id], dict):
+                                    existing = product['page_contents'][page_id]
+                                    if "result" in existing:
+                                        existing["result"]["parsed"] = parsed_data
+                                        # displayも更新
+                                        display_lines = []
+                                        for e in parsed_data.get("elements", []):
+                                            e_type = e.get("type", "")
+                                            e_order = e.get("order", "")
+                                            display_lines.append(f"## 要素{e_order}: {e_type}")
+                                            if e_type in ["メインビジュアル", "サブビジュアル", "画像"]:
+                                                display_lines.append(f"（画像指示）{e.get('description', '')}")
+                                            else:
+                                                display_lines.append(f"{e.get('content', '')}")
+                                            display_lines.append("")
+                                        existing["result"]["display"] = "\n".join(display_lines)
+                                    product['page_contents'][page_id] = existing
+                                data_store.update_product(product_id, product)
+                                
                                 clear_brushup_state()
                                 st.rerun()
-                    
-                    if st.button("❌ キャンセル", key=f"cancel_{text_key}"):
-                        clear_brushup_state()
-                        st.rerun()
+                        
+                        if st.button("❌ キャンセル", key=f"cancel_{text_key}"):
+                            clear_brushup_state()
+                            st.rerun()
                 
                 if new_content != elem_content:
                     elem["content"] = new_content
