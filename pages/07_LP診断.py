@@ -258,6 +258,108 @@ def generate_summary(ai_provider, evaluations, exposure_type):
         st.code(response)
         return None
 
+def generate_improvement_proposal(ai_provider, product, improvement_text, pages_data):
+    """改善提案から具体的な修正案を生成"""
+    
+    prompt = f"""
+あなたはLPの改善エキスパートです。
+
+以下の改善提案を、具体的なテキスト修正に落とし込んでください。
+現在のページ構成とコンテンツを参考に、最も効果の高い箇所の修正案を1つ作成してください。
+
+【改善提案】
+{improvement_text}
+
+【現在のページ構成とコンテンツ】
+{json.dumps(pages_data, ensure_ascii=False, indent=2)}
+
+【出力形式】JSONで出力してください。Markdownのコードブロックなどは含めず、純粋なJSONのみを返してください。
+{{
+    "target_page_index": 0,
+    "target_page_name": "ファーストビュー",
+    "target_element_index": 0,
+    "target_element_type": "サブヘッド",
+    "before_text": "修正前のテキスト",
+    "after_text": "修正後のテキスト",
+    "reason": "この修正により〇〇が改善されます"
+}}
+"""
+    
+    response = ai_provider.ask(prompt, "improvement_proposal")
+    
+    try:
+        if "```json" in response:
+            json_str = response.split("```json")[1].split("```")[0]
+        elif "```" in response:
+            json_str = response.split("```")[1].split("```")[0]
+        else:
+            json_str = response
+            
+        return json.loads(json_str.strip())
+    except Exception as e:
+        st.error(f"改善案のパースに失敗しました: {e}")
+        return None
+
+def apply_improvement(product_id, data_store, page_index, element_index, new_text):
+    """改善案をページ詳細に反映"""
+    product = data_store.get_product(product_id)
+    if not product:
+        return False
+    
+    # ページ情報を取得
+    page_contents = product.get('page_contents', {})
+    # インデックスからpage_idを特定する必要がある
+    raw_structure = product.get('structure', {})
+    if isinstance(raw_structure, dict) and "result" in raw_structure:
+        structure = raw_structure["result"]
+    else:
+        structure = raw_structure
+    
+    pages = structure.get('pages', [])
+    if page_index >= len(pages):
+        return False
+        
+    target_page = pages[page_index]
+    page_id = target_page.get('id')
+    
+    if not page_id or page_id not in page_contents:
+        return False
+        
+    page_data = page_contents[page_id]
+    if not isinstance(page_data, dict) or "result" not in page_data:
+        return False
+        
+    result_data = page_data["result"]
+    if not isinstance(result_data, dict) or "parsed" not in result_data:
+        return False
+        
+    parsed = result_data["parsed"]
+    elements = parsed.get("elements", [])
+    
+    if element_index < len(elements):
+        elem = elements[element_index]
+        elem['content'] = new_text
+        elem['char_count'] = len(new_text)
+        
+        # displayも更新
+        display_lines = []
+        for e in elements:
+            e_type = e.get("type", "")
+            e_order = e.get("order", "")
+            display_lines.append(f"## 要素{e_order}: {e_type}")
+            if e_type in ["メインビジュアル", "サブビジュアル", "画像"]:
+                display_lines.append(f"（画像指示）{e.get('description', '')}")
+            else:
+                display_lines.append(f"{e.get('content', '')}")
+            display_lines.append("")
+        result_data["display"] = "\n".join(display_lines)
+        
+        # 保存
+        data_store.update_product(product_id, product)
+        return True
+        
+    return False
+
 def display_results(personas, evaluations, summary, exposure_type):
     """診断結果を表示"""
     
@@ -313,9 +415,22 @@ def display_results(personas, evaluations, summary, exposure_type):
             st.write(f"・{w}")
         
         st.markdown("**🔧 改善優先度**")
-        for imp in summary.get('improvements', []):
-            priority_icon = {"高": "🔴", "中": "🟡", "低": "🟢"}.get(imp.get('priority'), "⚪")
-            st.write(f"{priority_icon} [{imp.get('priority', '')}] {imp.get('content', '')}")
+        for i, imp in enumerate(summary.get('improvements', [])):
+            priority = imp.get('priority', '中')
+            content = imp.get('content', '')
+            priority_icon = {"高": "🔴", "中": "🟡", "低": "🟢"}.get(priority, "⚪")
+            
+            col1, col2 = st.columns([4, 1])
+            with col1:
+                st.write(f"{priority_icon} [{priority}] {content}")
+            with col2:
+                if st.button("反映案を作成", key=f"improve_{i}"):
+                    st.session_state['selected_improvement'] = {
+                        'index': i,
+                        'text': content
+                    }
+                    st.session_state['improvement_step'] = 'generating'
+                    st.rerun()
         
         st.markdown("**💡 総合アドバイス**")
         st.success(summary.get('overall_advice', ''))
@@ -431,6 +546,88 @@ def render_diagnosis_page():
     # 診断実行ボタン
     if st.button("診断を実行", type="primary", use_container_width=True):
         run_diagnosis(product, exposure_type, diagnosis_target)
+
+    # 改善案の生成と表示フロー
+    if st.session_state.get('improvement_step') == 'generating':
+        improvement = st.session_state.get('selected_improvement')
+        if improvement:
+            with st.spinner("AIが改善案を生成中..."):
+                settings = SettingsManager().get_settings()
+                ai_provider = AIProvider(settings)
+                
+                # 全ページの内容を取得してコンテキストにする
+                pages_data = []
+                page_contents = product.get('page_contents', {})
+                raw_structure = product.get('structure', {})
+                structure = raw_structure.get("result", raw_structure) if isinstance(raw_structure, dict) else {}
+                pages = structure.get('pages', [])
+                
+                for p in pages:
+                    p_id = p.get('id')
+                    content = page_contents.get(p_id, {}).get("result", {}).get("parsed", {})
+                    pages_data.append({
+                        "id": p_id,
+                        "title": p.get('title'),
+                        "content": content
+                    })
+                
+                proposal = generate_improvement_proposal(ai_provider, product, improvement['text'], pages_data)
+                if proposal:
+                    st.session_state['improvement_proposal'] = proposal
+                    st.session_state['improvement_step'] = 'review'
+                    st.rerun()
+                else:
+                    st.error("改善案の生成に失敗しました")
+                    st.session_state['improvement_step'] = None
+
+    if st.session_state.get('improvement_step') == 'review':
+        proposal = st.session_state.get('improvement_proposal')
+        if proposal:
+            st.markdown("---")
+            st.markdown("### 📝 改善案")
+            st.info(f"**対象**: {proposal.get('target_page_name')} > {proposal.get('target_element_type')}")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("**修正前**")
+                st.warning(proposal.get('before_text', 'なし'))
+            with col2:
+                st.markdown("**修正後**")
+                st.success(proposal.get('after_text', 'なし'))
+            
+            st.caption(f"💡 {proposal.get('reason', '')}")
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                if st.button("この内容で反映", type="primary"):
+                    success = apply_improvement(
+                        product_id,
+                        data_store,
+                        proposal.get('target_page_index', 0),
+                        proposal.get('target_element_index', 0),
+                        proposal.get('after_text', '')
+                    )
+                    if success:
+                        st.success("反映しました！")
+                        # ステートをクリア
+                        for k in ['selected_improvement', 'improvement_proposal', 'improvement_step']:
+                            if k in st.session_state:
+                                del st.session_state[k]
+                        st.rerun()
+                    else:
+                        st.error("反映に失敗しました。対象ページや構成が見つからない可能性があります。")
+            
+            with col2:
+                if st.button("やり直し"):
+                    st.session_state['improvement_step'] = 'generating'
+                    st.rerun()
+            
+            with col3:
+                if st.button("キャンセル"):
+                    for k in ['selected_improvement', 'improvement_proposal', 'improvement_step']:
+                        if k in st.session_state:
+                            del st.session_state[k]
+                    st.rerun()
 
 if __name__ == "__main__":
     render_diagnosis_page()
