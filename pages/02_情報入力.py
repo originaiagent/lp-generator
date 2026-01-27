@@ -38,6 +38,77 @@ def get_valid_image_urls(urls):
     # 有効なURL（httpで始まる文字列）のみを抽出
     return [url for url in urls if url and isinstance(url, str) and (url.startswith('http') or url.startswith('/'))]
 
+
+def move_image(product_id, data_store, image_type, from_idx, to_idx):
+    """画像の順番を入れ替え"""
+    product = data_store.get_product(product_id)
+    if not product:
+        return
+
+    field_map = {
+        "product": "product_image_urls",
+        "reference_lp": "reference_lp_image_urls",
+        "tone_manner": "tone_manner_image_urls"
+    }
+    url_field = field_map.get(image_type)
+    if not url_field or url_field not in product:
+        return
+
+    urls = product.get(url_field) or []
+    if 0 <= from_idx < len(urls) and 0 <= to_idx < len(urls):
+        # 入れ替え
+        urls[from_idx], urls[to_idx] = urls[to_idx], urls[from_idx]
+        product[url_field] = urls
+        data_store.update_product(product_id, product)
+
+
+def delete_single_image(product_id, data_store, image_type, index, img_info):
+    """単一の画像を削除"""
+    product = data_store.get_product(product_id)
+    if not product:
+        return
+
+    field_map = {
+        "product": {"urls": "product_image_urls", "local": "product_images"},
+        "reference_lp": {"urls": "reference_lp_image_urls", "local": "reference_lp_images"},
+        "tone_manner": {"urls": "tone_manner_image_urls", "local": "tone_manner_images"}
+    }
+    fields = field_map.get(image_type)
+    if not fields:
+        return
+
+    img_path = img_info["path"]
+    filename = Path(img_path).name if img_info["type"] == "local" else img_path.split('/')[-1].split('?')[0]
+
+    # Storageから削除
+    if img_info["type"] == "url":
+        data_store.delete_storage_file(img_path)
+        if fields["urls"] in product:
+            urls = product.get(fields["urls"]) or []
+            if img_path in urls:
+                urls.remove(img_path)
+            product[fields["urls"]] = urls
+
+    # ローカルリストから削除
+    if fields["local"] in product:
+        product[fields["local"]] = [p for p in product[fields["local"]] if Path(p).name != filename]
+
+    # Reference LP 特有の処理
+    if image_type == "reference_lp":
+        if "lp_analyses_dict" in product:
+            analyses_dict = product["lp_analyses_dict"] or {}
+            if filename in analyses_dict:
+                del analyses_dict[filename]
+            product["lp_analyses_dict"] = analyses_dict
+            new_lp_analyses = []
+            for local_p in (product.get("reference_lp_images") or []):
+                fname = Path(local_p).name
+                if fname in analyses_dict:
+                    new_lp_analyses.append(analyses_dict[fname])
+            product["lp_analyses"] = new_lp_analyses
+
+    data_store.update_product(product_id, product)
+
 def render_images_with_bulk_delete(images, image_type, product_id, data_store):
     """画像表示と一括削除機能"""
     
@@ -148,47 +219,37 @@ def render_images_with_bulk_delete(images, image_type, product_id, data_store):
                 st.success(f"{selected_count} 枚の画像を削除しました")
                 st.rerun()
     else:
-        # 通常モード（現状の表示）
+        # 通常モード（順番入れ替え機能付き）
         cols = st.columns(4)
         for i, img_info in enumerate(images):
             with cols[i % 4]:
                 img_path = img_info["path"]
-                filename = Path(img_path).name if img_info["type"] == "local" else img_path.split('/')[-1].split('?')[0]
                 try:
                     st.image(img_path, width=100)
                 except:
                     st.caption("⚠️ 読込失敗")
                 
-                if st.button("削除", key=f"delete_{image_type}_{i}", use_container_width=True):
-                    # 最新の製品情報を再取得
-                    current_product = data_store.get_product(product_id) or {}
-                    
-                    # Storageから削除
-                    if img_info["type"] == "url":
-                        data_store.delete_storage_file(img_path)
-                        if fields["urls"] in current_product:
-                            current_product[fields["urls"]].remove(img_path)
-                    
-                    # ローカルリストから削除
-                    if fields["local"] in current_product:
-                        current_product[fields["local"]] = [p for p in current_product[fields["local"]] if Path(p).name != filename]
-
-                    # Reference LP 特有の処理
-                    if image_type == "reference_lp":
-                        if "lp_analyses_dict" in current_product:
-                            analyses_dict = current_product["lp_analyses_dict"] or {}
-                            if filename in analyses_dict:
-                                del analyses_dict[filename]
-                            current_product["lp_analyses_dict"] = analyses_dict
-                            new_lp_analyses = []
-                            for local_p in (current_product.get("reference_lp_images") or []):
-                                fname = Path(local_p).name
-                                if fname in analyses_dict:
-                                    new_lp_analyses.append(analyses_dict[fname])
-                            current_product["lp_analyses"] = new_lp_analyses
-                    
-                    data_store.update_product(product_id, current_product)
-                    st.rerun()
+                # 操作ボタン（3列）
+                btn_col1, btn_col2, btn_col3 = st.columns(3)
+                
+                with btn_col1:
+                    # 上に移動（最初の要素以外）
+                    if i > 0 and img_info["type"] == "url":
+                        if st.button("↑", key=f"up_{image_type}_{i}"):
+                            move_image(product_id, data_store, image_type, i, i - 1)
+                            st.rerun()
+                
+                with btn_col2:
+                    # 下に移動（最後の要素以外）
+                    if i < len(images) - 1 and img_info["type"] == "url":
+                        if st.button("↓", key=f"down_{image_type}_{i}"):
+                            move_image(product_id, data_store, image_type, i, i + 1)
+                            st.rerun()
+                
+                with btn_col3:
+                    if st.button("🗑️", key=f"delete_{image_type}_{i}"):
+                        delete_single_image(product_id, data_store, image_type, i, img_info)
+                        st.rerun()
 
 def render_input_page():
     '''入力情報ページのメイン関数'''
