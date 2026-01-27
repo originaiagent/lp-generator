@@ -282,43 +282,40 @@ def render_images_with_bulk_delete(images, image_type, product_id, data_store):
                                 order_list.append((idx, order_num))
                             else:
                                 st.warning(f"⚠️ 順番は1〜{num_images}の範囲で入力してください (現在: {idx+1}番目)")
-                                return
+                                st.stop()
                         except ValueError:
                             st.warning(f"⚠️ 順番は数字で入力してください (現在: {idx+1}番目)")
-                            return
+                            st.stop()
                     else:
                         order_list.append((idx, idx + 1))
                 
                 if not has_input:
                     st.info("💡 順番を変更する画像の欄に数字を入力してください")
-                else:
-                    # 重複チェック
-                    orders_only = [pair[1] for pair in order_list]
-                    if len(orders_only) != len(set(orders_only)):
-                        st.warning("⚠️ 同じ番号が複数あります。異なる番号を指定してください。")
-                    else:
-                        # 番号でソート
-                        sorted_pairs = sorted(order_list, key=lambda x: x[1])
-                        
-                        # DBを取得
-                        product = data_store.get_product(product_id) or {}
-                        url_field = fields["urls"]
-                        original_urls = product.get(url_field) or []
-                        
-                        if len(original_urls) >= num_images:
-                            new_image_order = [original_urls[pair[0]] for pair in sorted_pairs if pair[0] < len(original_urls)]
-                            
-                            if new_image_order:
-                                data_store.update_product(product_id, product)
-                                
-                                # 入力欄をクリア (session_stateから削除)
-                                for idx in range(num_images):
-                                    key = f"new_order_form_input_{image_type}_{idx}"
-                                    if key in st.session_state:
-                                        del st.session_state[key]
-                                
-                                st.success("✅ 並び替えを適用しました")
-                                st.rerun()
+                    st.stop()
+                
+                # 重複チェック
+                orders_only = [pair[1] for pair in order_list]
+                if len(orders_only) != len(set(orders_only)):
+                    st.warning("⚠️ 同じ番号が複数あります。異なる番号を指定してください。")
+                    st.stop()
+                
+                # 番号でソート
+                sorted_pairs = sorted(order_list, key=lambda x: x[1])
+                
+                # 最新の製品情報を取得
+                product = data_store.get_product(product_id) or {}
+                url_field = fields["urls"]
+                original_urls = product.get(url_field) or []
+                
+                if len(original_urls) >= num_images:
+                    new_image_order = [original_urls[pair[0]] for pair in sorted_pairs if pair[0] < len(original_urls)]
+                    
+                    if new_image_order:
+                        product[url_field] = new_image_order
+                        data_store.update_product(product_id, product)
+                        st.success("✅ 並び替えを適用しました")
+                        # session_stateの削除は行わない（st.rerunで自然にリセットされる）
+                        st.rerun()
 
         # 削除ボタン（フォームの外に置く: 削除は即時反映したいから）
         st.write("---")
