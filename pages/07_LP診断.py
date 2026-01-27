@@ -360,7 +360,7 @@ def apply_improvement(product_id, data_store, page_index, element_index, new_tex
         
     return False
 
-def display_results(personas, evaluations, summary, exposure_type):
+def display_results(personas, evaluations, summary, exposure_type, key_suffix=""):
     """診断結果を表示"""
     
     st.markdown("---")
@@ -424,7 +424,7 @@ def display_results(personas, evaluations, summary, exposure_type):
             with col1:
                 st.write(f"{priority_icon} [{priority}] {content}")
             with col2:
-                if st.button("反映案を作成", key=f"improve_{i}"):
+                if st.button("反映案を作成", key=f"improve_{key_suffix}_{i}"):
                     st.session_state['selected_improvement'] = {
                         'index': i,
                         'text': content
@@ -473,7 +473,7 @@ def run_diagnosis(product, exposure_type, diagnosis_target):
         summary = generate_summary(ai_provider, evaluations, exposure_type)
     
     # 結果を表示
-    display_results(personas, evaluations, summary, exposure_type)
+    display_results(personas, evaluations, summary, exposure_type, key_suffix="new")
 
     # 診断完了後、保存
     if product_id:
@@ -509,7 +509,7 @@ def render_diagnosis_page():
     if latest:
         st.info(f"最終診断: {latest['created_at'][:10]} - {latest['exposure_type']}")
         with st.expander("前回の診断結果を見る"):
-            display_results(latest['personas'], latest['evaluations'], latest['summary'], latest['exposure_type'])
+            display_results(latest['personas'], latest['evaluations'], latest['summary'], latest['exposure_type'], key_suffix="latest")
 
     st.subheader("診断設定")
 
