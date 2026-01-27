@@ -303,7 +303,8 @@ def render_product_images_upload(data_store, product_id):
                     url = data_store.upload_image(file_bytes, remote_path, bucket_name="lp-generator-images")
                     
                     if url:
-                        if url not in remote_urls:
+                        # 既存URLに含まれていなければ追加
+                        if url and url not in remote_urls:
                             remote_urls.append(url)
                             st.toast(f"クラウド保存完了: {uploaded_file.name}", icon="☁️")
                     else:
@@ -312,6 +313,8 @@ def render_product_images_upload(data_store, product_id):
                 except Exception as e:
                     st.error(f"Upload failed for {uploaded_file.name}: {e}")
             
+            # 保存前に重複を除去
+            remote_urls = list(dict.fromkeys(remote_urls))
             product['product_image_urls'] = remote_urls
 
         # データベース更新
@@ -1291,7 +1294,8 @@ def handle_lp_upload(product_id, data_store):
                         if not isinstance(url, str) and hasattr(url, 'public_url'):
                             url = url.public_url
                         
-                        if url not in remote_urls:
+                        # 重複チェック
+                        if url and url not in remote_urls:
                             remote_urls.append(url)
                             uploaded_count += 1
                 except Exception as e:
@@ -1299,6 +1303,9 @@ def handle_lp_upload(product_id, data_store):
             
             if uploaded_count > 0:
                 st.toast(f"{uploaded_count}枚の画像をクラウドに保存しました")
+            
+            # 保存前に重複を除去
+            remote_urls = list(dict.fromkeys(remote_urls))
             product['reference_lp_image_urls'] = remote_urls
         
 
@@ -1362,7 +1369,8 @@ def handle_tone_upload(product_id, data_store):
                         if not isinstance(url, str) and hasattr(url, 'public_url'):
                             url = url.public_url
 
-                        if url not in remote_urls:
+                        # 重複チェック
+                        if url and url not in remote_urls:
                             remote_urls.append(url)
                             uploaded_count += 1
                 except Exception as e:
@@ -1370,6 +1378,9 @@ def handle_tone_upload(product_id, data_store):
             
             if uploaded_count > 0:
                 st.toast(f"{uploaded_count}枚の画像をクラウドに保存しました")
+            
+            # 保存前に重複を除去
+            remote_urls = list(dict.fromkeys(remote_urls))
             product['tone_manner_image_urls'] = remote_urls
         
         if data_store.update_product(product_id, product):
