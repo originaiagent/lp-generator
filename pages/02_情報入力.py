@@ -2181,9 +2181,15 @@ def analyze_reference_images(image_analyzer, image_paths, product_id, data_store
             ai_provider = AIProvider(settings)
             prompt_manager = PromptManager()
             
-            # 既存の分析結果を取得
+            # 【修正】分析開始時に既にある分析結果をクリアする
             product = data_store.get_product(product_id)
-            existing_analyses = (product.get('lp_analyses_dict') or {}) if product else {}
+            if product:
+                product['lp_analyses'] = []
+                product['lp_analyses_dict'] = {}
+                data_store.update_product(product_id, product)
+            
+            # 既存の分析結果を空の状態から開始
+            existing_analyses = {}
             
             analyses = []
             status_text = st.empty()
@@ -2192,13 +2198,6 @@ def analyze_reference_images(image_analyzer, image_paths, product_id, data_store
             for i, image_path in enumerate(image_paths):
                 file_name = image_path.split('/')[-1].split('?')[0] if image_path.startswith('http') else Path(image_path).name
                 
-                # 既に分析済みならスキップ
-                if file_name in existing_analyses:
-                    st.write(f"✅ 分析済み（スキップ）: {file_name}")
-                    analyses.append(existing_analyses[file_name])
-                    progress_bar.progress((i + 1) / len(image_paths))
-                    continue
-
                 status_text.text(f"分析中: {i+1}/{len(image_paths)}枚目... ({file_name})")
                 progress_bar.progress((i) / len(image_paths))
                 
