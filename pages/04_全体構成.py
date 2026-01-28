@@ -52,16 +52,26 @@ def render_structure_page():
 def render_input_summary(product):
     """入力情報サマリー（折りたたみ）"""
     with st.expander("入力情報サマリー（クリックで展開）", expanded=False):
-        # LP分析結果サマリー
-        lp_analyses = product.get('lp_analyses') or []
-        if lp_analyses:
-            st.markdown(f"**LP分析:** {len(lp_analyses)}枚分析済み")
-            for i, analysis in enumerate(lp_analyses):
-                if isinstance(analysis, dict) and "result" in analysis:
+        # LP分析結果サマリー（画像順序に対応）
+        from pathlib import Path
+        image_urls = product.get("reference_lp_image_urls") or product.get("reference_lp_images") or []
+        lp_analyses_dict = product.get("lp_analyses_dict") or {}
+        
+        if image_urls:
+            analyzed_count = len([url for url in image_urls if (url.split('/')[-1].split('?')[0] if url.startswith('http') else Path(url).name) in lp_analyses_dict])
+            st.markdown(f"**LP分析:** {len(image_urls)}枚中 {analyzed_count}枚分析済み")
+            for i, url in enumerate(image_urls):
+                file_name = url.split('/')[-1].split('?')[0] if url.startswith('http') else Path(url).name
+                analysis = lp_analyses_dict.get(file_name)
+                
+                if analysis and isinstance(analysis, dict) and "result" in analysis:
                     result = analysis["result"]
                     page_type = result.get("page_type", "不明")
-                    text_count = len(result.get("texts", []))
-                    st.write(f"  - {i+1}枚目: {page_type}（テキスト{text_count}個）")
+                    # 新形式(elements)と旧形式(texts)両対応
+                    texts = result.get("elements", result.get("texts", []))
+                    st.write(f"  - {i+1}枚目 ({file_name}): {page_type}（要素{len(texts)}個）")
+                else:
+                    st.write(f"  - {i+1}枚目 ({file_name}): 未分析")
         
         # トンマナ分析結果サマリー
         tone = product.get('tone_manner') or {}
@@ -489,8 +499,11 @@ def generate_structure_from_elements(product, data_store, product_id):
         
         confirmed = product.get('confirmed_elements', [])
         
-        # LP分析結果からページ構成情報を抽出
-        lp_analyses = product.get('lp_analyses') or []
+        # LP分析結果からページ構成情報を抽出（画像順序に対応）
+        from pathlib import Path
+        image_urls = product.get("reference_lp_image_urls") or product.get("reference_lp_images") or []
+        lp_analyses_dict = product.get("lp_analyses_dict") or {}
+        page_count = len(image_urls)
         
         # 選択された訴求ポイント
         selected_appeals = product.get('selected_appeals') or []
@@ -499,25 +512,34 @@ def generate_structure_from_elements(product, data_store, product_id):
             "製品名": product.get('name', '未設定'),
             "整理済み情報": "あり" if product.get('product_sheet_organized') else "なし",
             "訴求ポイント": f"{len(selected_appeals)}個",
-            "参考LP": f"{len(lp_analyses)}枚"
+            "参考LP": f"{len(image_urls)}枚"
         }
-        page_count = len(lp_analyses)
+        
         lp_summary = ""
-        for i, analysis in enumerate(lp_analyses):
-            if isinstance(analysis, dict) and "result" in analysis:
+        for i, url in enumerate(image_urls):
+            file_name = url.split('/')[-1].split('?')[0] if url.startswith('http') else Path(url).name
+            analysis = lp_analyses_dict.get(file_name)
+            
+            if analysis and isinstance(analysis, dict) and "result" in analysis:
                 result = analysis["result"]
                 lp_summary += f"\n\n【{i+1}枚目】種別: {result.get('page_type', '不明')}"
                 if result.get('main_message'):
                     lp_summary += f"\nメッセージ: {result.get('main_message')}"
                 if result.get('page_role'):
                     lp_summary += f"\n役割: {result.get('page_role')}"
-                texts = result.get("texts", [])
-                if texts:
-                    lp_summary += f"\nテキスト要素:"
-                    for t in texts[:5]:
-                        lp_summary += f"\n  - {t.get('type')}: {t.get('content', '')[:50]}"
-                        if t.get('aim'):
-                            lp_summary += f" → {t.get('aim')}"
+                
+                # 新形式(elements)と旧形式(texts)両対応
+                elements = result.get("elements", result.get("texts", []))
+                if elements:
+                    lp_summary += f"\n構成要素:"
+                    for elem in elements[:8]: # 情報を少し多めに渡す
+                        elem_type = elem.get("type", elem.get("element_type", ""))
+                        content = str(elem.get("content", ""))[:50]
+                        aim = elem.get("aim", "")
+                        lp_summary += f"\n  - [{elem_type}] {content}"
+                        if aim: lp_summary += f" (狙い:{aim})"
+            else:
+                lp_summary += f"\n\n【{i+1}枚目】未分析"
         
         # 訴求ポイント
         appeals_str = ', '.join(selected_appeals) if selected_appeals else "未選択"
