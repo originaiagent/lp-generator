@@ -1716,11 +1716,22 @@ def render_reference_images_upload(data_store, product_id):
         
         # LP分析結果表示
         from modules.trace_viewer import show_trace
-        if product.get("lp_analyses"):
+        # 画像リストの順序を正と見なし、それに対応する分析結果を表示する
+        if display_images:
             st.markdown("**LP分析結果:**")
-            for i, analysis in enumerate(product["lp_analyses"]):
-                with st.expander(f"📄 {i+1}枚目の分析", expanded=False):
-                    if isinstance(analysis, dict) and "result" in analysis:
+            
+            # 分析結果を辞書形式で取得（再分析時や表示時にマッチングしやすくするため）
+            lp_analyses_dict = product.get("lp_analyses_dict") or {}
+            
+            for i, img_info in enumerate(display_images):
+                img_path = img_info["path"]
+                file_name = img_path.split('/')[-1].split('?')[0] if img_info["type"] == "url" else Path(img_path).name
+                
+                # 辞書から分析結果を取得
+                analysis = lp_analyses_dict.get(file_name)
+                
+                with st.expander(f"📄 {i+1}枚目の分析 ({file_name})", expanded=False):
+                    if analysis and isinstance(analysis, dict) and "result" in analysis:
                         from modules.trace_viewer import show_lp_analysis
                         show_lp_analysis(analysis)
                         
@@ -1766,7 +1777,11 @@ def render_reference_images_upload(data_store, product_id):
                         
                         show_trace(analysis, f"{i+1}枚目の生成情報")
                     else:
-                        st.write(analysis)
+                        st.info("この画像はまだ分析されていません。")
+                        if st.button("🔍 個別分析を実行", key=f"analyze_lp_single_{i}"):
+                            reanalyze_lp_image(product, data_store, product_id, i)
+                        
+                        show_trace(analysis, f"{i+1}枚目の生成情報")
     
     with col2:
         st.write("**トンマナ参考画像**")
