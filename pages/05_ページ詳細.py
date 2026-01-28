@@ -48,14 +48,37 @@ def generate_page_content(product_id, product, selected_page):
     ref_page = selected_page.get('reference_page', 1)
     lp_analysis = ""
     output_format = ""
+    
+    # 【修正】画像URLリストを取得して正しい順序でマッピング
+    image_urls = product.get("reference_lp_image_urls") or product.get("reference_lp_images") or []
+    
+    # 分析結果をURL/パスでマッピング
+    analysis_by_url = {}
+    from pathlib import Path
+    for analysis in lp_analyses:
+        if isinstance(analysis, dict):
+            # トレース情報から画像ソースを取得
+            trace = analysis.get("trace", {})
+            input_refs = trace.get("input_refs", {})
+            img_src = input_refs.get("画像")
+            if img_src:
+                # ファイル名またはURLそのものをキーにする
+                key = img_src.split('/')[-1].split('?')[0] if img_src.startswith('http') else Path(img_src).name
+                analysis_by_url[key] = analysis
+    
+    # 参照LP番号に対応する画像から分析結果を取得
     element_num = 1
-    if ref_page and ref_page <= len(lp_analyses):
-        analysis = lp_analyses[ref_page - 1]
-        if isinstance(analysis, dict) and "result" in analysis:
-            result = analysis["result"]
-            # 新形式（elements）と旧形式（texts）両対応
-            elements = result.get("elements", result.get("texts", []))
-            for elem in elements:
+    analysis_match = None
+    if ref_page and ref_page <= len(image_urls):
+        target_src = image_urls[ref_page - 1]
+        target_key = target_src.split('/')[-1].split('?')[0] if target_src.startswith('http') else Path(target_src).name
+        analysis_match = analysis_by_url.get(target_key)
+    
+    if analysis_match and isinstance(analysis_match, dict) and "result" in analysis_match:
+        result = analysis_match["result"]
+        # 新形式（elements）と旧形式（texts）両対応
+        elements = result.get("elements", result.get("texts", []))
+        for elem in elements:
                 elem_type = elem.get('element_type', elem.get('type', ''))
                 aim = elem.get('aim', '')
                 effect = elem.get('effect', '')
