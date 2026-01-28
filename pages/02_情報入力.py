@@ -312,9 +312,16 @@ def render_images_with_bulk_delete(images, image_type, product_id, data_store):
                     
                     if new_image_order:
                         product[url_field] = new_image_order
+                        
+                        # 【追加】LP分析結果も同じ順番で並び替える
+                        if image_type == "reference_lp":
+                            lp_analyses = product.get('lp_analyses') or []
+                            if lp_analyses and len(lp_analyses) == num_images:
+                                new_analyses = [lp_analyses[pair[0]] for pair in sorted_pairs if pair[0] < len(lp_analyses)]
+                                product['lp_analyses'] = new_analyses
+                        
                         data_store.update_product(product_id, product)
                         st.success("✅ 並び替えを適用しました")
-                        # session_stateの削除は行わない（st.rerunで自然にリセットされる）
                         st.rerun()
 
         # 削除ボタン（フォームの外に置く: 削除は即時反映したいから）
