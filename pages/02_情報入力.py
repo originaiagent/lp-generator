@@ -2113,7 +2113,8 @@ def reanalyze_lp_image(product, data_store, product_id, index):
     
     with st.spinner(f'{index+1}枚目を再分析中...'):
         try:
-            lp_images = product.get('reference_lp_images') or []
+            # 【修正】クラウドURLを優先、なければローカルパス
+            lp_images = product.get('reference_lp_image_urls') or product.get('reference_lp_images') or []
             if index >= len(lp_images):
                 st.error("画像が見つかりません")
                 return
@@ -2127,18 +2128,21 @@ def reanalyze_lp_image(product, data_store, product_id, index):
             
             prompt = prompt_manager.get_prompt("lp_image_analysis", {})
             
-            with open(img_path, "rb") as f:
-                img_data = base64.b64encode(f.read()).decode()
+            # 【修正】URLとローカルパスの両方に対応した analyze_image を使用
+            result_str = ai_provider.analyze_image(img_path, prompt)
             
-            result = ai_provider.ask(prompt, "lp_image_analysis", images=[img_data])
-            
-            if isinstance(result, str):
-                result = result.strip()
-                if result.startswith("```"):
-                    result = result.split("```")[1]
-                    if result.startswith("json"):
-                        result = result[4:]
-                result = json.loads(result)
+            # JSON抽出
+            try:
+                if "```json" in result_str:
+                    result_json = result_str.split("```json")[1].split("```")[0]
+                elif "```" in result_str:
+                    result_json = result_str.split("```")[1].split("```")[0]
+                else:
+                    result_json = result_str
+                result = json.loads(result_json.strip())
+            except Exception as e:
+                st.warning(f"JSON解析エラー: {e}")
+                result = {"raw": result_str, "parse_error": True}
             
             # 実際に使用したモデル名を取得
             task_models = settings.get("task_models", {})
@@ -2158,6 +2162,14 @@ def reanalyze_lp_image(product, data_store, product_id, index):
                 lp_analyses.append({})
             lp_analyses[index] = traced
             product['lp_analyses'] = lp_analyses
+            
+            # 【追加】辞書側も更新して不整合を防ぐ
+            from pathlib import Path
+            file_name = img_path.split('/')[-1].split('?')[0] if img_path.startswith('http') else Path(img_path).name
+            lp_analyses_dict = product.get('lp_analyses_dict') or {}
+            lp_analyses_dict[file_name] = traced
+            product['lp_analyses_dict'] = lp_analyses_dict
+            
             data_store.update_product(product_id, product)
             
             st.success("再分析完了！")
