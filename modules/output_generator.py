@@ -102,61 +102,66 @@ class OutputGenerator:
         return ', '.join(parts)
 
     def generate_design_instruction(self, product_data: Dict) -> str:
-        """デザイナー向け指示書を生成"""
-        instruction_parts = []
+        """AIを使用してデザイナー向け指示書を生成"""
+        # 製品名
+        product_name = product_data.get('name', '製品名未設定')
         
-        # 製品情報
-        instruction_parts.append(f"# {product_data.get('name', '製品名未設定')} LP制作指示書\n")
-        
-        # トンマナ
-        tone_manner = self.get_tone_manner(product_data)
-        if tone_manner:
-            instruction_parts.append("## トーン＆マナー\n")
-            colors = tone_manner.get('colors', {})
-            if colors:
-                instruction_parts.append("### カラー")
-                instruction_parts.append(f"- メイン: {colors.get('main', '未設定')}")
-                instruction_parts.append(f"- アクセント: {colors.get('accent', '未設定')}")
-                instruction_parts.append(f"- 背景: {colors.get('background', '未設定')}")
-                instruction_parts.append(f"- テキスト: {colors.get('text', '未設定')}\n")
-            
-            font = tone_manner.get('font', {})
-            if font:
-                instruction_parts.append("### フォント")
-                instruction_parts.append(f"- 種類: {font.get('type', '未設定')}")
-                instruction_parts.append(f"- 太さ: {font.get('weight', '未設定')}")
-                instruction_parts.append(f"- スタイル: {font.get('style', '未設定')}\n")
-            
-            style = tone_manner.get('overall_style', {})
-            if style:
-                instruction_parts.append("### 全体の印象")
-                instruction_parts.append(f"- 印象: {style.get('impression', '未設定')}")
-                instruction_parts.append(f"- ターゲット: {style.get('target_gender', '')} / {style.get('target_age', '')}\n")
-        
-        # ページ構成
+        # 構成情報を取得
         structure = product_data.get('structure', {})
         if isinstance(structure, dict) and 'result' in structure:
             structure = structure['result']
-        
         pages = structure.get('pages', []) if isinstance(structure, dict) else []
-        if pages:
-            instruction_parts.append("## ページ構成\n")
-            for page in pages:
-                instruction_parts.append(f"### P{page.get('order', '')} - {page.get('title', '')}")
-                instruction_parts.append(f"役割: {page.get('role', '')}")
-                appeals = page.get('appeals', [])
-                if appeals:
-                    instruction_parts.append(f"訴求: {', '.join(appeals)}\n")
         
-        # コンテンツ詳細
+        # コンテンツ詳細を取得
         page_contents = product_data.get('page_contents', {})
-        if page_contents:
-            instruction_parts.append("## コンテンツ詳細\n")
-            for page_id, content in page_contents.items():
-                result = content.get('result', {})
-                display = result.get('display', '')
-                if display:
-                    instruction_parts.append(f"### {page_id}")
-                    instruction_parts.append(f"{display}\n")
         
-        return '\n'.join(instruction_parts)
+        # トンマナ情報を取得
+        tone_manner = self.get_tone_manner(product_data)
+        
+        # 指示書生成用にデータを整理
+        input_data_list = []
+        for page in pages:
+            page_id = page.get('id', 'unknown')
+            content_data = page_contents.get(page_id, {})
+            parsed = {}
+            if isinstance(content_data, dict) and 'result' in content_data:
+                res = content_data['result']
+                parsed = res.get('parsed', res) if isinstance(res, dict) else {}
+            
+            input_data_list.append({
+                "order": page.get('order'),
+                "title": page.get('title'),
+                "role": page.get('role'),
+                "appeals": page.get('appeals', []),
+                "elements": page.get('elements', []),
+                "generated_content": parsed
+            })
+        
+        # トンマナ情報のテキスト化
+        tone_manner_text = "未設定"
+        if tone_manner:
+            colors = tone_manner.get('colors', {})
+            style = tone_manner.get('overall_style', {})
+            tone_manner_text = f"""
+- メインカラー: {colors.get('main', '')}
+- アクセントカラー: {colors.get('accent', '')}
+- 背景色: {colors.get('background', '')}
+- 文字色: {colors.get('text', '')}
+- フォント: {tone_manner.get('font', {}).get('type', '')} ({tone_manner.get('font', {}).get('weight', '')})
+- 印象: {style.get('impression', '')}
+- ターゲット: {style.get('target_gender', '')} / {style.get('target_age', '')}
+"""
+
+        # プロンプト変数
+        variables = {
+            "product_name": product_name,
+            "tone_manner": tone_manner_text,
+            "content_json": json.dumps(input_data_list, ensure_ascii=False, indent=2)
+        }
+        
+        prompt = self.prompt_manager.get_prompt("designer_instruction_generation", variables)
+        
+        # AIで生成
+        response = self.ai_provider.generate_text(prompt)
+        
+        return response

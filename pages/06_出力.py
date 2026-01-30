@@ -764,15 +764,36 @@ def render_design_instruction_section(output_generator, product_data):
             else:
                 st.toast("まだ生成していません")
     if instr_clicked:
-        instruction = output_generator.generate_design_instruction(product_data)
-        st.session_state['generated_instruction'] = instruction
+        st.info("ボタンがクリックされました")  # デバッグ1
+        with st.spinner("AIが指示書を生成中..."):
+            try:
+                st.info("generate_design_instruction を呼び出します")  # デバッグ2
+                instruction = output_generator.generate_design_instruction(product_data)
+                st.info(f"結果: {len(instruction) if instruction else 0} 文字")  # デバッグ3
+                if instruction:
+                    st.session_state['generated_instruction'] = instruction
+                    st.success("指示書の生成が完了しました！")
+                else:
+                    st.warning("生成結果が空でした")
+            except Exception as e:
+                import traceback
+                st.error(f"生成エラー: {e}")
+                st.code(traceback.format_exc())
     
     if 'generated_instruction' in st.session_state:
-        st.text_area(
-            "指示書プレビュー",
+        st.markdown("##### 指示書プレビュー（編集可能）")
+        edited_instr = st.text_area(
+            "内容を編集できます",
             value=st.session_state['generated_instruction'],
-            height=400
+            height=500,
+            key="instruction_preview",
+            label_visibility="collapsed"
         )
+        st.session_state['generated_instruction'] = edited_instr
+        
+        st.markdown("##### コピー用")
+        st.caption("右上のコピーボタンで全文をコピーできます")
+        st.code(edited_instr, language=None)
 
 def render_download_section(output_generator, product_data):
     st.markdown('<div class="step-header">ダウンロード</div>', unsafe_allow_html=True)
