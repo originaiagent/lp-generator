@@ -162,6 +162,6 @@ class OutputGenerator:
         prompt = self.prompt_manager.get_prompt("designer_instruction_generation", variables)
         
         # AIで生成
-        response = self.ai_provider.generate_text(prompt)
+        response = self.ai_provider.ask(prompt)
         
         return response
