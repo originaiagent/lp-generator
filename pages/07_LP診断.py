@@ -198,19 +198,11 @@ def evaluate_by_employee(ai_provider, prompt_manager, data_store, product, expos
     
     response = ai_provider.ask(prompt, "employee_evaluation")
     
-    try:
-        if "```json" in response:
-            json_str = response.split("```json")[1].split("```")[0]
-        elif "```" in response:
-            json_str = response.split("```")[1].split("```")[0]
-        else:
-            json_str = response
-            
-        return json.loads(json_str.strip())
-    except Exception as e:
-        st.error(f"従業員AIの評価解析に失敗しました: {e}")
-        st.code(response)
-        return None
+    # JSONパースを廃止し、Markdownテキストとして直接返す
+    return {
+        "evaluation_text": response,
+        "raw_response": response
+    }
 
 def generate_summary(ai_provider, prompt_manager, evaluations, exposure_type):
     """全ペルソナの評価を総合分析"""
@@ -631,29 +623,24 @@ def display_employee_results(results, product_id, employees_list, exposure_type,
         emp = item['employee']
         eval_res = item['evaluation']
         
-        with st.expander(f"**{emp['name']}** ({emp['role']}) - {'⭐' * eval_res.get('overall_rating', 0)}", expanded=True):
+        # evaluation_text または raw_response を取得
+        if isinstance(eval_res, dict):
+            evaluation_text = eval_res.get('evaluation_text', eval_res.get('raw_response', ''))
+            # 互換性：古い辞書形式の場合
+            if not evaluation_text and 'voice' in eval_res:
+                evaluation_text = f"**第一印象:** {eval_res.get('first_impression', '')}\n\n{eval_res.get('voice', '')}"
+        else:
+            evaluation_text = str(eval_res)
+
+        with st.expander(f"**{emp['name']}** ({emp['role']})", expanded=True):
             col1, col2 = st.columns([1, 4])
             with col1:
                 if emp.get('avatar_url'):
                     st.image(emp['avatar_url'], use_container_width=True)
             
             with col2:
-                st.markdown(f"👀 **第一印象:** {eval_res.get('first_impression', '')}")
-                st.info(eval_res.get('voice', ''))
-            
-            st.markdown("---")
-            c1, c2 = st.columns(2)
-            with c1:
-                st.markdown("✅ **評価ポイント**")
-                for p in eval_res.get('resonated_points', []):
-                    st.write(f"・{p}")
-            with c2:
-                st.markdown("⚠️ **懸念・改善点**")
-                for c in eval_res.get('concerns', []):
-                    st.write(f"・{c}")
-            
-            st.caption(f"方針: {eval_res.get('purchase_decision', '')} | 競合比: {eval_res.get('vs_competitors', '')}")
-            st.markdown(f"**アドバイス:** {eval_res.get('improvement_suggestion', '')}")
+                # Markdownを直接表示
+                st.markdown(evaluation_text)
             
             # フィードバック入力
             st.markdown("---")
@@ -666,13 +653,13 @@ def display_employee_results(results, product_id, employees_list, exposure_type,
                     ds.save_employee_feedback(
                         employee_id=emp['id'],
                         product_id=product_id,
-                        ai_evaluation=eval_res.get('voice', ''),
+                        ai_evaluation=evaluation_text[:500] if evaluation_text else "Markdown評価", # 文字数制限に配慮
                         user_feedback=user_fb
                     )
                     st.success("フィードバックを保存しました。次回の評価に反映されます。")
                     # ユーザーのリクエストに基づき、再評価用に情報を保存
                     st.session_state[f"employee_feedback_{emp['id']}"] = user_fb
-                    st.session_state[f"employee_prev_eval_{emp['id']}"] = eval_res.get('voice', '') if isinstance(eval_res, dict) else str(eval_res)
+                    st.session_state[f"employee_prev_eval_{emp['id']}"] = evaluation_text
                     st.rerun()
                 else:
                     st.error("フィードバック内容を入力してください")
