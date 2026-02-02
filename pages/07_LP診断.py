@@ -658,53 +658,58 @@ def display_employee_results(results, product_id, employees_list, exposure_type,
                     )
                     st.success("フィードバックを保存しました。次回の評価に反映されます。")
                     # ユーザーのリクエストに基づき、再評価用に情報を保存
-                    st.session_state[f"employee_feedback_{emp['id']}"] = user_fb
-                    st.session_state[f"employee_prev_eval_{emp['id']}"] = evaluation_text
+                    st.session_state[f'show_reevaluate_{emp["id"]}'] = True
+                    st.session_state[f'employee_feedback_text_{emp["id"]}'] = user_fb
+                    st.session_state[f'employee_prev_eval_{emp["id"]}'] = evaluation_text
                     st.rerun()
                 else:
                     st.error("フィードバック内容を入力してください")
 
-            # 再評価ボタンの表示
-            employee_id = emp['id']
-            if st.session_state.get(f'employee_feedback_{employee_id}'):
+            # 再評価セクション
+            if st.session_state.get(f'show_reevaluate_{employee_id}'):
                 st.divider()
                 if st.button("🔄 再評価（フィードバックを反映）", key=f"reevaluate_{employee_id}"):
                     with st.spinner("フィードバックを反映して再評価中..."):
-                        # 指定された方法で従業員データを再取得
-                        employee = next((e for e in employees_list if e.get('id') == employee_id), {})
-                        
-                        settings = SettingsManager().get_settings()
-                        ai = AIProvider(settings)
-                        pm = PromptManager()
-                        prompt_template = pm.get_prompt("employee_evaluation_revision")
-                        
-                        prompt = prompt_template.format(
-                            employee_name=employee.get('name', ''),
-                            employee_role=employee.get('role', ''),
-                            employee_expertise=employee.get('expertise', ''),
-                            employee_evaluation_perspective=employee.get('evaluation_perspective', ''),
-                            employee_personality_traits=employee.get('personality_traits', ''),
-                            employee_lifestyle=employee.get('lifestyle', '未設定'),
-                            employee_psychographic=employee.get('psychographic', '未設定'),
-                            employee_demographic=employee.get('demographic', '未設定'),
-                            employee_buying_behavior=employee.get('buying_behavior', '未設定'),
-                            employee_ng_points=employee.get('ng_points', '未設定'),
-                            previous_evaluation=st.session_state.get(f'employee_prev_eval_{employee_id}', ''),
-                            feedback=st.session_state.get(f'employee_feedback_{employee_id}', ''),
-                            exposure_type=exposure_type,
-                            lp_content=lp_content_text
-                        )
-                        
-                        # Debug: 送信プロンプトの表示
-                        with st.expander("DEBUG: 送信プロンプト", expanded=False):
-                            st.text(prompt)
-                        
                         try:
-                            # AIに問い合せ
-                            result = ai.ask(prompt, "employee_evaluation_revision")
-                            if result:
-                                st.session_state[f'employee_revised_eval_{employee_id}'] = result
-                                st.rerun()
+                            # 指定された方法で従業員データを再取得
+                            employee = next((e for e in employees_list if e.get('id') == employee_id), {})
+                            
+                            settings = SettingsManager().get_settings()
+                            ai = AIProvider(settings)
+                            pm = PromptManager()
+                            prompt_template = pm.get_prompt("employee_evaluation_revision")
+                            
+                            if prompt_template:
+                                prompt = prompt_template.format(
+                                    employee_name=employee.get('name', ''),
+                                    employee_role=employee.get('role', ''),
+                                    employee_expertise=employee.get('expertise', ''),
+                                    employee_evaluation_perspective=employee.get('evaluation_perspective', ''),
+                                    employee_personality_traits=employee.get('personality_traits', ''),
+                                    employee_lifestyle=employee.get('lifestyle', '未設定'),
+                                    employee_psychographic=employee.get('psychographic', '未設定'),
+                                    employee_demographic=employee.get('demographic', '未設定'),
+                                    employee_buying_behavior=employee.get('buying_behavior', '未設定'),
+                                    employee_ng_points=employee.get('ng_points', '未設定'),
+                                    previous_evaluation=st.session_state.get(f'employee_prev_eval_{employee_id}', ''),
+                                    feedback=st.session_state.get(f'employee_feedback_text_{employee_id}', ''),
+                                    exposure_type=exposure_type,
+                                    lp_content=lp_content_text
+                                )
+                                
+                                # Debug: 送信プロンプトの表示
+                                with st.expander("DEBUG: 送信プロンプト", expanded=False):
+                                    st.text(prompt)
+                                
+                                # AIに問い合せ
+                                result = ai.ask(prompt, "employee_evaluation_revision")
+                                if result:
+                                    st.session_state[f'employee_revised_eval_{employee_id}'] = result
+                                    st.rerun()
+                                else:
+                                    st.error("再評価の生成に失敗しました")
+                            else:
+                                st.error("employee_evaluation_revision プロンプトが見つかりません")
                         except Exception as e:
                             import traceback
                             st.error(f"再評価に失敗しました: {e}")
