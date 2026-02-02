@@ -324,21 +324,35 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
         status_text = st.empty()
         
         # 既に画像が生成されているページと、その最新バージョンを特定
+        generated_versions = product_data.get('generated_versions', {})
         generated_lp_images = product_data.get('generated_lp_images', {})
         pages_to_process = []
         
         for i, p in enumerate(pages):
             p_id = p.get('id', 'unknown')
-            if p_id in generated_lp_images and generated_lp_images[p_id]:
-                # 最新（最後）のバージョンを対象とする
-                v_ids = sorted(generated_lp_images[p_id].keys())
-                latest_v_id = v_ids[-1]
-                v_data = generated_lp_images[p_id][latest_v_id]
+            v_data = generated_versions.get(p_id, {})
+            versions = v_data.get('versions', [])
+            
+            if versions:
+                # 採用中(selected)のバージョンがあればそれを使用、なければ最新(最後)を使用
+                selected_v_id = v_data.get('selected')
+                target_version = next((v for v in versions if v.get('id') == selected_v_id), None)
+                if not target_version:
+                    target_version = versions[-1]
+                
                 pages_to_process.append({
                     'index': i,
                     'page': p,
-                    'v_id': latest_v_id,
-                    'v_data': v_data
+                    'v_id': target_version.get('id'),
+                    'v_data': target_version
+                })
+            elif p_id in generated_lp_images and generated_lp_images[p_id]:
+                # 旧形式（文字列のみ）の場合のフォールバック
+                pages_to_process.append({
+                    'index': i,
+                    'page': p,
+                    'v_id': 'default',
+                    'v_data': {'path': generated_lp_images[p_id]}
                 })
         
         if not pages_to_process:
