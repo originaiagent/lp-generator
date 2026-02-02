@@ -547,16 +547,16 @@ JSONのみを出力し、他のテキストは含めないでください。
                     if avatar_url:
                         new_emp_data["avatar_url"] = avatar_url
                     
-                    # 編集時はIDをキーにするが、新規時はIDを含めない（DB側で生成）
-                    if is_editing:
+                    # 編集時はIDが存在する場合にのみupdate、そうでなければ新規追加（AIプロフィールの場合はIDがないため新規）
+                    if is_editing and emp_to_edit.get('id'):
                         result = ds.update_employee_persona(emp_to_edit['id'], new_emp_data)
                     else:
                         result = ds.add_employee_persona(new_emp_data)
 
                     if result:
                         st.success("メンバー情報を保存しました！")
-                        if is_editing:
-                            del st.session_state.editing_employee
+                        if 'editing_employee' in st.session_state:
+                            del st.session_state['editing_employee']
                         st.rerun()
                     else:
                         st.error("保存に失敗しました: DataStoreがNoneを返しました")
