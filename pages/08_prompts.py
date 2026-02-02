@@ -1,6 +1,8 @@
 import streamlit as st
 from modules.styles import apply_styles, page_header
 from modules.ai_sidebar import render_ai_sidebar
+import os
+from modules.prompt_manager import PromptManager
 
 # ページ設定
 st.set_page_config(page_title="Prompt Management", layout="wide")
@@ -11,9 +13,27 @@ apply_styles()
 # AIサイドバー表示
 render_ai_sidebar()
 
+# カスタムCSS: 右側のカラムを固定し、各カラムで独立したスクロール感を持たせる
+st.markdown("""
+<style>
+    /* デスクトップ表示時のみ右カラムを固定 */
+    @media (min-width: 768px) {
+        [data-testid="column"]:nth-child(2) [data-testid="stVerticalBlock"] {
+            position: sticky;
+            top: 2rem;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+    }
+    
+    /* テキストエリアのサイズ調整 */
+    .stTextArea textarea {
+        min-height: 400px;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-import os
-from modules.prompt_manager import PromptManager
 page_header("Prompt Management", "各タスクで使用されるAIプロンプトを確認・編集できます")
 
 prompt_manager = PromptManager()
@@ -39,8 +59,9 @@ with col_list:
         
         if st.button(p_name, key=f"btn_{p_id}", use_container_width=True, type=btn_type):
             st.session_state.selected_prompt_id = p_id
+            # 選択時にページトップへ戻るよう再実行
             st.rerun()
-        st.markdown("---")
+        st.markdown('<div style="margin: -10px 0 10px 0; border-bottom: 1px solid #eee;"></div>', unsafe_allow_html=True)
 
 with col_edit:
     if st.session_state.selected_prompt_id:
@@ -56,7 +77,7 @@ with col_edit:
         if p_id != p_name:
             st.caption(f"ID: {p_id}")
         
-        new_template = st.text_area("テンプレート", value=template, height=300, key=f"tmpl_{p_id}")
+        new_template = st.text_area("テンプレート", value=template, height=500, key=f"tmpl_{p_id}")
         
         col1, col2 = st.columns(2)
         with col1:
@@ -66,7 +87,9 @@ with col_edit:
                 st.rerun()
         with col2:
             if st.button("デフォルトに戻す", use_container_width=True):
-                prompt_manager.reset_to_default(p_id)
-                st.success("リセットしました！")
-                st.rerun()
+                if prompt_manager.reset_to_default(p_id):
+                    st.success("リセットしました！")
+                    st.rerun()
+                else:
+                    st.error("リセットに失敗しました。")
 
