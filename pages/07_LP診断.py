@@ -651,12 +651,12 @@ def display_employee_results(results, product_id, employees_list, exposure_type,
             user_fb = st.text_input("「実際はこう思う」「この視点が足りない」等を入力", key=f"fb_input_{emp['id']}_{i}")
             if st.button("フィードバックを送信", key=f"btn_fb_{emp['id']}_{i}"):
                 if user_fb:
-                    ds.save_employee_feedback(
-                        employee_id=emp['id'],
-                        product_id=product_id,
-                        ai_evaluation=evaluation_text[:500] if evaluation_text else "Markdown評価", # 文字数制限に配慮
-                        user_feedback=user_fb
-                    )
+                    ds.add_employee_feedback({
+                        "employee_id": emp['id'],
+                        "product_id": product_id,
+                        "ai_evaluation": evaluation_text[:500] if evaluation_text else "Markdown評価",
+                        "user_feedback": user_fb
+                    })
                     st.success("フィードバックを保存しました。次回の評価に反映されます。")
                     # ユーザーのリクエストに基づき、再評価用に情報を保存
                     st.session_state[f'show_reevaluate_{emp["id"]}'] = True
@@ -698,14 +698,15 @@ def display_employee_results(results, product_id, employees_list, exposure_type,
                                     lp_content=lp_content_text
                                 )
                                 
-                                # Debug: 送信プロンプトの表示
-                                with st.expander("DEBUG: 送信プロンプト", expanded=False):
-                                    st.text(prompt)
-                                
                                 # AIに問い合せ
                                 result = ai.ask(prompt, "employee_evaluation_revision")
                                 if result:
-                                    st.session_state[f'employee_revised_eval_{employee_id}'] = result
+                                    # Handle both string and dict responses
+                                    if isinstance(result, dict):
+                                        revised_text = result.get('evaluation_text', result.get('raw_response', str(result)))
+                                    else:
+                                        revised_text = str(result)
+                                    st.session_state[f'employee_revised_eval_{employee_id}'] = revised_text
                                     st.rerun()
                                 else:
                                     st.error("再評価の生成に失敗しました")
