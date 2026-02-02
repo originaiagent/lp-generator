@@ -3,7 +3,7 @@ from modules.styles import apply_styles, page_header
 from modules.ai_sidebar import render_ai_sidebar
 
 # ページ設定
-st.set_page_config(page_title="Settings", layout="wide")
+st.set_page_config(page_title="設定", layout="wide")
 
 # スタイル適用
 apply_styles()

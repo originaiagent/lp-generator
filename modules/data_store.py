@@ -549,16 +549,29 @@ class DataStore:
             print(f"Error fetching employee personas: {e}")
             return []
 
-    def upsert_employee_persona(self, data):
-        """従業員AIペルソナを保存・更新"""
+    def add_employee_persona(self, data):
+        """従業員AIペルソナを新規登録"""
+        if not self.supabase:
+            return None
+        try:
+            data['created_at'] = datetime.now().isoformat()
+            data['updated_at'] = datetime.now().isoformat()
+            result = self.supabase.table("employee_personas").insert(data).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error adding employee persona: {e}")
+            return None
+
+    def update_employee_persona(self, employee_id, data):
+        """従業員AIペルソナを更新"""
         if not self.supabase:
             return None
         try:
             data['updated_at'] = datetime.now().isoformat()
-            result = self.supabase.table("employee_personas").upsert(data).execute()
+            result = self.supabase.table("employee_personas").update(data).eq("id", employee_id).execute()
             return result.data[0] if result.data else None
         except Exception as e:
-            print(f"Error upserting employee persona: {e}")
+            print(f"Error updating employee persona: {e}")
             return None
 
     def delete_employee_persona(self, employee_id):
@@ -566,29 +579,12 @@ class DataStore:
         if not self.supabase:
             return False
         try:
-            # 物理削除ではなくis_active=Falseにする例（ユーザーの指示に合わせて物理削除にする場合はdeleteを使用）
-            self.supabase.table("employee_personas").delete().eq("id", employee_id).execute()
+            # ソフトデリート (is_active = false)
+            self.supabase.table("employee_personas").update({"is_active": False}).eq("id", employee_id).execute()
             return True
         except Exception as e:
             print(f"Error deleting employee persona: {e}")
             return False
-
-    def save_employee_feedback(self, employee_id, product_id, ai_evaluation, user_feedback):
-        """従業員AIへのフィードバックを保存"""
-        if not self.supabase:
-            return None
-        try:
-            data = {
-                "employee_id": employee_id,
-                "product_id": product_id,
-                "ai_evaluation": ai_evaluation,
-                "user_feedback": user_feedback
-            }
-            result = self.supabase.table("employee_feedback").insert(data).execute()
-            return result.data[0] if result.data else None
-        except Exception as e:
-            print(f"Error saving employee feedback: {e}")
-            return None
 
     def get_employee_feedback(self, employee_id, limit=20):
         """特定の従業員の過去のフィードバックを取得（学習用）"""
@@ -605,4 +601,32 @@ class DataStore:
         except Exception as e:
             print(f"Error fetching employee feedback: {e}")
             return []
+
+    def add_employee_feedback(self, data):
+        """従業員AIへのフィードバックを保存"""
+        if not self.supabase:
+            return None
+        try:
+            if 'created_at' not in data:
+                data['created_at'] = datetime.now().isoformat()
+            result = self.supabase.table("employee_feedback").insert(data).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error adding employee feedback: {e}")
+            return None
+
+    # 後放互換性のためのエイリアス
+    def upsert_employee_persona(self, data):
+        if 'id' in data and data['id']:
+            return self.update_employee_persona(data['id'], data)
+        return self.add_employee_persona(data)
+
+    def save_employee_feedback(self, employee_id, product_id, ai_evaluation, user_feedback):
+        data = {
+            "employee_id": employee_id,
+            "product_id": product_id,
+            "ai_evaluation": ai_evaluation,
+            "user_feedback": user_feedback
+        }
+        return self.add_employee_feedback(data)
 

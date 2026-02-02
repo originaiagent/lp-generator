@@ -5,7 +5,7 @@ import os
 from modules.prompt_manager import PromptManager
 
 # ページ設定
-st.set_page_config(page_title="Prompt Management", layout="wide")
+st.set_page_config(page_title="プロンプト管理", layout="wide")
 
 # スタイル適用
 apply_styles()
