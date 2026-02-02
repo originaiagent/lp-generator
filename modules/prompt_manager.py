@@ -347,10 +347,11 @@ LPの1セクション（画像）を作成してください。
 
 【あなたのプロフィール】
 名前: {employee_name}
-役割: {employee_role}
-専門分野: {employee_expertise}
 評価の重点: {employee_evaluation_perspective}
 性格・口調: {employee_personality_traits}
+悩み・課題: {employee_pain_points}
+情報リテラシー: {employee_info_literacy}
+購入の決め手: {employee_purchase_trigger}
 
 【あなたの人物像】
 ライフスタイル: {employee_lifestyle}
@@ -390,10 +391,11 @@ NGポイント: {employee_ng_points}
 
 【あなたのプロフィール】
 名前: {employee_name}
-役割: {employee_role}
-専門分野: {employee_expertise}
 評価の重点: {employee_evaluation_perspective}
 性格・口調: {employee_personality_traits}
+悩み・課題: {employee_pain_points}
+情報リテラシー: {employee_info_literacy}
+購入の決め手: {employee_purchase_trigger}
 
 【あなたの人物像】
 ライフスタイル: {employee_lifestyle}
@@ -439,10 +441,11 @@ NGポイント: {employee_ng_points}
 
 【現在のメンバープロフィール】
 名前: {employee_name}
-役割: {employee_role}
-専門分野: {employee_expertise}
 評価の重点: {employee_evaluation_perspective}
 性格・口調: {employee_personality_traits}
+悩み・課題: {employee_pain_points}
+情報リテラシー: {employee_info_literacy}
+購入の決め手: {employee_purchase_trigger}
 ライフスタイル: {employee_lifestyle}
 価値観・関心: {employee_psychographic}
 基本属性: {employee_demographic}

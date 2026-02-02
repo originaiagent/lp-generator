@@ -249,7 +249,7 @@ def render_employee_settings():
         st.info("登録されているメンバーはいません。")
     else:
         for emp in employees:
-            with st.expander(f"{emp['name']} - {emp['role']}", expanded=False):
+            with st.expander(f"{emp['name']}", expanded=False):
                 col1, col2 = st.columns([1, 3])
                 with col1:
                     if emp.get('avatar_url'):
@@ -258,7 +258,12 @@ def render_employee_settings():
                         st.info("No Avatar")
                 
                 with col2:
-                    st.write(f"**専門分野:** {emp['expertise']}")
+                    if emp.get('pain_points'):
+                        st.write(f"**悩み・課題:** {emp.get('pain_points')}")
+                    if emp.get('info_literacy'):
+                        st.write(f"**情報リテラシー:** {emp.get('info_literacy')}")
+                    if emp.get('purchase_trigger'):
+                        st.write(f"**購入の決め手:** {emp.get('purchase_trigger')}")
                     st.write(f"**評価の重点:** {emp['evaluation_perspective']}")
                     st.write(f"**性格・口調:** {emp['personality_traits']}")
                     
@@ -288,6 +293,133 @@ def render_employee_settings():
 
     st.markdown("---")
     
+    # AIかんたん作成
+    st.subheader("🤖 AIかんたん作成")
+    st.caption("メンバー本人が以下の質問に1〜6で回答すると、AIがプロフィールを自動生成します")
+    
+    survey_questions = [
+        {"key": "q_impulse", "category": "購買スタイル", "text": "買い物は即決するタイプだ"},
+        {"key": "q_reviews", "category": "購買スタイル", "text": "口コミやレビューを必ずチェックする"},
+        {"key": "q_brand", "category": "購買スタイル", "text": "有名ブランドなら安心する"},
+        {"key": "q_quality", "category": "購買スタイル", "text": "安さより品質を重視する"},
+        {"key": "q_limited", "category": "購買スタイル", "text": "限定・セールに弱い"},
+        {"key": "q_guarantee", "category": "購買スタイル", "text": "返金保証があると安心して買える"},
+        {"key": "q_skeptic", "category": "情報リテラシー", "text": "ネット広告は基本疑ってかかる"},
+        {"key": "q_compare", "category": "情報リテラシー", "text": "比較サイトをよく見る"},
+        {"key": "q_sns", "category": "情報リテラシー", "text": "SNSの評判を参考にする"},
+        {"key": "q_official", "category": "情報リテラシー", "text": "公式サイトの情報を一番信頼する"},
+        {"key": "q_new", "category": "性格・価値観", "text": "新しいものが好き"},
+        {"key": "q_cautious", "category": "性格・価値観", "text": "失敗したくない気持ちが強い"},
+        {"key": "q_design", "category": "性格・価値観", "text": "見た目やデザインを重視する"},
+        {"key": "q_data", "category": "性格・価値観", "text": "データや数字で納得したい"},
+        {"key": "q_empathy", "category": "性格・価値観", "text": "人の体験談に共感しやすい"},
+        {"key": "q_trend", "category": "性格・価値観", "text": "流行やトレンドが気になる"},
+        {"key": "q_time", "category": "購買スタイル", "text": "忙しいので買い物に時間をかけたくない"},
+        {"key": "q_recommend", "category": "購買スタイル", "text": "信頼する人のおすすめなら買う"},
+        {"key": "q_regret", "category": "性格・価値観", "text": "買った後に「本当にこれでよかったか」と考える"},
+        {"key": "q_appearance", "category": "性格・価値観", "text": "周りからどう見られるか気になる"},
+    ]
+    
+    with st.form("survey_form"):
+        survey_name = st.text_input("お名前（ニックネームOK）", key="survey_name_input")
+        
+        st.markdown("**1: まったく当てはまらない ← → 6: とても当てはまる**")
+        st.markdown("")
+        
+        answers = {}
+        current_category = ""
+        for q in survey_questions:
+            if q["category"] != current_category:
+                current_category = q["category"]
+                st.markdown(f"**【{current_category}】**")
+            
+            answers[q["key"]] = st.slider(
+                q["text"],
+                min_value=1, max_value=6, value=3,
+                key=f"survey_{q['key']}"
+            )
+        
+        # Optional free text
+        st.markdown("---")
+        st.markdown("💬 **その他、自分の買い物スタイルについて伝えたいことがあれば（任意）**")
+        free_text = st.text_area("自由記述", key="survey_free_text", height=80,
+            placeholder="例: 健康系の商品には特にうるさい。エビデンスがないと信用しない。")
+        
+        survey_submitted = st.form_submit_button("🤖 AIでプロフィールを生成", type="primary")
+    
+    if survey_submitted and survey_name:
+        with st.spinner("AIがプロフィールを生成中..."):
+            try:
+                from modules.ai_provider import AIProvider
+                from modules.settings_manager import SettingsManager
+                
+                settings = SettingsManager().get_settings()
+                ai = AIProvider(settings)
+                
+                # Build survey summary
+                survey_summary = f"回答者: {survey_name}\n\n"
+                for q in survey_questions:
+                    score = answers[q["key"]]
+                    survey_summary += f"「{q['text']}」: {score}/6\n"
+                if free_text:
+                    survey_summary += f"\n自由記述: {free_text}\n"
+                
+                prompt = f"""以下はある人物の購買行動アンケートの回答結果です（1:まったく当てはまらない〜6:とても当てはまる）。
+この回答を分析して、この人物のプロフィールを生成してください。
+
+{survey_summary}
+
+以下のJSON形式で回答してください。各フィールドは自然な日本語の文章で、この人物の特徴を具体的に記述してください。
+JSONのみを出力し、他のテキストは含めないでください。
+````json
+{{
+    "name": "{survey_name}",
+    "evaluation_perspective": "この人がLP（ランディングページ）を見る時に重視するポイント",
+    "personality_traits": "この人の性格や物事への反応の仕方、話し方の特徴",
+    "lifestyle": "この人の生活スタイルや日常の過ごし方",
+    "psychographic": "この人の価値観や興味・関心",
+    "demographic": "この人の基本属性（年代の推測、推測される生活環境など）",
+    "buying_behavior": "この人の購買行動パターン（どう探し、どう比較し、どう決めるか）",
+    "ng_points": "この人がLPで見たら離脱する・嫌悪感を持つ要素",
+    "pain_points": "この人が買い物全般で感じている悩みや課題",
+    "info_literacy": "この人のネット上の情報に対するリテラシーや態度",
+    "purchase_trigger": "この人が最終的に購入を決める決め手"
+}}
+```"""
+                
+                result = ai.ask(prompt, "member_survey_profile")
+                
+                if result:
+                    import json
+                    if isinstance(result, str):
+                        clean = result.strip()
+                        if clean.startswith("```"):
+                            clean = clean.split("\n", 1)[1] if "\n" in clean else clean[3:]
+                        if clean.endswith("```"):
+                            clean = clean[:-3]
+                        clean = clean.strip()
+                        if clean.startswith("json"):
+                            clean = clean[4:].strip()
+                        profile = json.loads(clean)
+                    else:
+                        profile = result
+                    
+                    st.session_state['editing_employee'] = profile
+                    st.success(f"✅ {survey_name}さんのプロフィールを生成しました！下のフォームで内容を確認・編集して保存してください。")
+                    st.rerun()
+                else:
+                    st.error("プロフィール生成に失敗しました")
+            except json.JSONDecodeError as e:
+                st.error(f"AIの応答を解析できませんでした: {e}")
+                if isinstance(result, str):
+                    st.code(result[:500])
+            except Exception as e:
+                import traceback
+                st.error(f"エラー: {e}")
+                st.code(traceback.format_exc())
+    elif survey_submitted and not survey_name:
+        st.error("お名前を入力してください")
+
     # 新規追加 / 編集フォーム
     is_editing = 'editing_employee' in st.session_state
     st.subheader("メンバーの" + ("構成を編集" if is_editing else "新規登録"))
@@ -298,15 +430,6 @@ def render_employee_settings():
         
         st.markdown("💬 **このメンバーの名前（ニックネーム可）**")
         name = st.text_input("名前", value=emp_to_edit.get('name', ''))
-        
-        st.markdown("💬 **チーム内での役割・役職は？**")
-        role = st.text_input("役割・役職", value=emp_to_edit.get('role', ''), placeholder="例: ベテラン営業部長")
-        
-        st.markdown("💬 **あなたが一番詳しい分野・得意な仕事は何ですか？**")
-        expertise = st.text_area("専門分野", 
-                                value=emp_to_edit.get('expertise', ''), 
-                                placeholder="例: 女性向けスキンケア商品、BtoB SaaS、飲食店の集客",
-                                help="必須ではありません")
         
         st.markdown("💬 **商品やサービスを見る時、最初に何をチェックしますか？**")
         perspective = st.text_area("評価の重点", 
@@ -319,6 +442,22 @@ def render_employee_settings():
                                   value=emp_to_edit.get('personality_traits', ''), 
                                   placeholder="例: 慎重派で石橋を叩いて渡る、語尾に「〜ですね」が多い、ストレートに言うタイプ",
                                   help="必須ではありません")
+
+        st.markdown("💬 **悩み・課題**")
+        st.caption("※ AIかんたん作成で自動入力されます")
+        pain_points = st.text_area("悩み・課題", value=emp_to_edit.get('pain_points', ''),
+            placeholder="例: 買い物で失敗したくない。良い物は欲しいがコスパも重視する",
+            height=80)
+
+        st.markdown("💬 **情報リテラシー**")
+        st.caption("※ AIかんたん作成で自動入力されます")
+        info_literacy = st.text_input("情報リテラシー", value=emp_to_edit.get('info_literacy', ''),
+            placeholder="例: SNSの広告は疑ってかかる。比較サイトとAmazonレビューを必ず見る")
+
+        st.markdown("💬 **購入の決め手**")
+        st.caption("※ AIかんたん作成で自動入力されます")
+        purchase_trigger = st.text_input("購入の決め手", value=emp_to_edit.get('purchase_trigger', ''),
+            placeholder="例: 信頼できる実績データと、万が一の返金保証があれば安心して買える")
         
         st.divider()
         st.caption("▼ 以下の項目は必須ではありませんが、入力すると評価の精度が向上します")
@@ -393,10 +532,11 @@ def render_employee_settings():
                     
                     new_emp_data = {
                         "name": name,
-                        "role": role,
-                        "expertise": expertise,
                         "evaluation_perspective": perspective,
                         "personality_traits": personality,
+                        "pain_points": pain_points,
+                        "info_literacy": info_literacy,
+                        "purchase_trigger": purchase_trigger,
                         "lifestyle": lifestyle if lifestyle else None,
                         "psychographic": psychographic if psychographic else None,
                         "demographic": demographic if demographic else None,

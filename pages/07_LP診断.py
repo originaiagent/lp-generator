@@ -180,10 +180,11 @@ def evaluate_by_employee(ai_provider, prompt_manager, data_store, product, expos
 
     variables = {
         "employee_name": employee['name'],
-        "employee_role": employee['role'],
-        "employee_expertise": employee['expertise'],
         "employee_evaluation_perspective": employee['evaluation_perspective'],
         "employee_personality_traits": employee['personality_traits'],
+        "employee_pain_points": employee.get('pain_points', '未設定'),
+        "employee_info_literacy": employee.get('info_literacy', '未設定'),
+        "employee_purchase_trigger": employee.get('purchase_trigger', '未設定'),
         "employee_lifestyle": employee.get('lifestyle', '未設定'),
         "employee_psychographic": employee.get('psychographic', '未設定'),
         "employee_demographic": employee.get('demographic', '未設定'),
@@ -546,7 +547,6 @@ def render_employee_diagnosis_tab(product, exposure_type, diagnosis_target):
                 is_selected = st.checkbox(f"{emp['name']}", key=f"sel_emp_{emp['id']}")
                 if is_selected:
                     selected_employee_ids.append(emp['id'])
-                st.caption(f"_{emp['role']}_")
 
     if st.button("選択したメンバーで診断を開始", type="primary", use_container_width=True):
         if not selected_employee_ids:
@@ -600,7 +600,7 @@ def run_employee_diagnosis(product, exposure_type, diagnosis_target, employee_id
     results = []
     progress_bar = st.progress(0)
     for i, emp in enumerate(selected_employees):
-        with st.spinner(f"{emp['name']}（{emp['role']}）が評価中..."):
+        with st.spinner(f"{emp['name']} が評価中..."):
             eval_result = evaluate_by_employee(ai_provider, prompt_manager, ds, product, exposure_type, emp, lp_content)
             if eval_result:
                 results.append({
@@ -633,7 +633,7 @@ def display_employee_results(results, product_id, employees_list, exposure_type,
         else:
             evaluation_text = str(eval_res)
 
-        with st.expander(f"**{emp['name']}** ({emp['role']})", expanded=True):
+        with st.expander(f"**{emp['name']}**", expanded=True):
             col1, col2 = st.columns([1, 4])
             with col1:
                 if emp.get('avatar_url'):
@@ -686,10 +686,11 @@ def display_employee_results(results, product_id, employees_list, exposure_type,
                                 if prompt_template:
                                     prompt = prompt_template.format(
                                         employee_name=employee.get('name', ''),
-                                        employee_role=employee.get('role', ''),
-                                        employee_expertise=employee.get('expertise', ''),
                                         employee_evaluation_perspective=employee.get('evaluation_perspective', ''),
                                         employee_personality_traits=employee.get('personality_traits', ''),
+                                        employee_pain_points=employee.get('pain_points', '未設定'),
+                                        employee_info_literacy=employee.get('info_literacy', '未設定'),
+                                        employee_purchase_trigger=employee.get('purchase_trigger', '未設定'),
                                         employee_lifestyle=employee.get('lifestyle', '未設定'),
                                         employee_psychographic=employee.get('psychographic', '未設定'),
                                         employee_demographic=employee.get('demographic', '未設定'),
@@ -720,7 +721,9 @@ def display_employee_results(results, product_id, employees_list, exposure_type,
                                         
                                         st.session_state[update_key] = suggestion
                                         st.session_state[f'employee_current_profile_{employee_id}'] = {
-                                            "expertise": employee.get('expertise', ''),
+                                            "pain_points": employee.get('pain_points', ''),
+                                            "info_literacy": employee.get('info_literacy', ''),
+                                            "purchase_trigger": employee.get('purchase_trigger', ''),
                                             "evaluation_perspective": employee.get('evaluation_perspective', ''),
                                             "personality_traits": employee.get('personality_traits', ''),
                                             "lifestyle": employee.get('lifestyle', ''),
@@ -754,7 +757,9 @@ def display_employee_results(results, product_id, employees_list, exposure_type,
                     
                     # Field name mapping for display
                     field_labels = {
-                        "expertise": "専門分野",
+                        "pain_points": "悩み・課題",
+                        "info_literacy": "情報リテラシー",
+                        "purchase_trigger": "購入の決め手",
                         "evaluation_perspective": "評価の重点",
                         "personality_traits": "性格・口調",
                         "lifestyle": "ライフスタイル",
