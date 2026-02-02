@@ -286,53 +286,71 @@ def render_employee_settings():
     with st.form("employee_persona_form", clear_on_submit=False):
         emp_to_edit = st.session_state.get('editing_employee', {})
         
+        st.caption("💬 この従業員の名前（ニックネーム可）")
         name = st.text_input("名前", value=emp_to_edit.get('name', ''))
+        
+        st.caption("💬 社内での役割・役職は？")
         role = st.text_input("役割・役職", value=emp_to_edit.get('role', ''), placeholder="例: ベテラン営業部長")
+        
+        st.caption("💬 あなたが一番詳しい分野・得意な仕事は何ですか？")
         expertise = st.text_area("専門分野", 
                                 value=emp_to_edit.get('expertise', ''), 
                                 placeholder="例: 女性向けスキンケア商品、BtoB SaaS、飲食店の集客",
-                                help="必須ではありません｜質問：あなたが一番詳しい分野・得意な仕事は何ですか？")
+                                help="必須ではありません")
+        
+        st.caption("💬 商品やサービスを見る時、最初に何をチェックしますか？")
         perspective = st.text_area("評価の重点", 
                                   value=emp_to_edit.get('evaluation_perspective', ''), 
                                   placeholder="例: 感情的に買いたくなるかどうか、技術的な正確さ、コストパフォーマンス",
-                                  help="必須ではありません｜質問：商品やサービスを見る時、最初に何をチェックしますか？")
+                                  help="必須ではありません")
+        
+        st.caption("💬 周りの人からどんな性格だと言われますか？話し方に癖はありますか？")
         personality = st.text_area("性格・口調", 
                                   value=emp_to_edit.get('personality_traits', ''), 
                                   placeholder="例: 慎重派で石橋を叩いて渡る、語尾に「〜ですね」が多い、ストレートに言うタイプ",
-                                  help="必須ではありません｜質問：周りの人からどんな性格だと言われますか？話し方に癖はありますか？")
+                                  help="必須ではありません")
         
         st.divider()
         st.caption("▼ 以下の項目は必須ではありませんが、入力すると評価の精度が向上します")
         
+        st.caption("💬 普段の1日はどんな感じですか？休日は何をしていますか？")
         lifestyle = st.text_area(
             "ライフスタイル",
             value=emp_to_edit.get('lifestyle', ''),
             placeholder="例: 共働きで時間がない、週末は子供とアウトドア、平日夜にネットサーフィン",
-            help="必須ではありません｜質問：普段の1日はどんな感じですか？休日は何をしていますか？"
+            help="必須ではありません"
         )
+        
+        st.caption("💬 お金を使う時、何を一番大事にしますか？最近ハマっていることは？")
         psychographic = st.text_area(
             "サイコグラフィック（価値観・関心）",
             value=emp_to_edit.get('psychographic', ''),
             placeholder="例: コスパ重視、口コミを必ず確認、環境に配慮した商品を選びたい、健康志向",
-            help="必須ではありません｜質問：お金を使う時、何を一番大事にしますか？最近ハマっていることは？"
+            help="必須ではありません"
         )
+        
+        st.caption("💬 差し支えなければ、年代・性別・住んでいるエリアを教えてください")
         demographic = st.text_area(
             "デモグラフィック（基本属性）",
             value=emp_to_edit.get('demographic', ''),
             placeholder="例: 30代女性、都内在住、既婚、子供あり",
-            help="必須ではありません｜質問：差し支えなければ、年代・性別・住んでいるエリアを教えてください"
+            help="必須ではありません"
         )
+        
+        st.caption("💬 何かを買う時、どうやって決めますか？最近の買い物を思い出してください")
         buying_behavior = st.text_area(
             "購買行動パターン",
             value=emp_to_edit.get('buying_behavior', ''),
             placeholder="例: まずSNSで評判を見る、比較サイトで3つは比べる、店頭で実物を確認してからネットで買う",
-            help="必須ではありません｜質問：何かを買う時、どうやって決めますか？最近の買い物を思い出してください"
+            help="必須ではありません"
         )
+        
+        st.caption("💬 こういう広告や売り方は嫌だな、と思うのはどんなものですか？")
         ng_points = st.text_area(
             "NGポイント（嫌がること・離脱ポイント）",
             value=emp_to_edit.get('ng_points', ''),
             placeholder="例: 大げさな表現で胡散臭い、価格が最後まで分からない、期間限定で煽ってくる、ポップアップが多い",
-            help="必須ではありません｜質問：こういう広告や売り方は嫌だな、と思うのはどんなものですか？"
+            help="必須ではありません"
         )
         
         # アバターアップロード
