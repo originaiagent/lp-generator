@@ -300,6 +300,10 @@ def render_employee_settings():
                     if uploaded_url:
                         avatar_url = uploaded_url
                 
+                # アバターが空文字ならNoneにする
+                if not avatar_url:
+                    avatar_url = None
+                
                 new_emp_data = {
                     "id": emp_id,
                     "name": name,
@@ -311,13 +315,21 @@ def render_employee_settings():
                     "is_active": True
                 }
                 
-                if ds.upsert_employee_persona(new_emp_data):
-                    st.success("従業員情報を保存しました！")
-                    if is_editing:
-                        del st.session_state.editing_employee
-                    st.rerun()
-                else:
-                    st.error("保存に失敗しました。")
+                try:
+                    result = ds.upsert_employee_persona(new_emp_data)
+                    if result:
+                        st.success("従業員情報を保存しました！")
+                        if is_editing:
+                            del st.session_state.editing_employee
+                        st.rerun()
+                    else:
+                        st.error("保存に失敗しました。")
+                        print("[ERROR] Employee save failed: ds.upsert_employee_persona returned None")
+                except Exception as e:
+                    st.error(f"保存中にエラーが発生しました: {e}")
+                    print(f"[ERROR] Employee save failed: {e}")
+                    import traceback
+                    print(traceback.format_exc())
 
     if is_editing:
         if st.button("キャンセル"):

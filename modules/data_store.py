@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 import requests
+import traceback
 from urllib.parse import unquote
 from supabase import create_client, Client
 
@@ -552,26 +553,32 @@ class DataStore:
     def add_employee_persona(self, data):
         """従業員AIペルソナを新規登録"""
         if not self.supabase:
+            print("[ERROR] add_employee_persona: Supabase client is not initialized")
             return None
         try:
+            print(f"[DEBUG] Saving employee data (INSERT): {data}")
             data['created_at'] = datetime.now().isoformat()
             data['updated_at'] = datetime.now().isoformat()
             result = self.supabase.table("employee_personas").insert(data).execute()
             return result.data[0] if result.data else None
         except Exception as e:
-            print(f"Error adding employee persona: {e}")
+            print(f"[ERROR] add_employee_persona: {e}")
+            print(traceback.format_exc())
             return None
 
     def update_employee_persona(self, employee_id, data):
         """従業員AIペルソナを更新"""
         if not self.supabase:
+            print("[ERROR] update_employee_persona: Supabase client is not initialized")
             return None
         try:
+            print(f"[DEBUG] Saving employee data (UPDATE, id={employee_id}): {data}")
             data['updated_at'] = datetime.now().isoformat()
             result = self.supabase.table("employee_personas").update(data).eq("id", employee_id).execute()
             return result.data[0] if result.data else None
         except Exception as e:
-            print(f"Error updating employee persona: {e}")
+            print(f"[ERROR] update_employee_persona: {e}")
+            print(traceback.format_exc())
             return None
 
     def delete_employee_persona(self, employee_id):
