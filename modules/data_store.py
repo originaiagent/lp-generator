@@ -536,3 +536,73 @@ class DataStore:
             print(f"Error fetching latest diagnosis: {e}")
             return None
 
+    # --- Employee AI 関連 ---
+
+    def get_employee_personas(self):
+        """全従業員AIペルソナを取得"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table("employee_personas").select("*").eq("is_active", True).order("created_at").execute()
+            return result.data or []
+        except Exception as e:
+            print(f"Error fetching employee personas: {e}")
+            return []
+
+    def upsert_employee_persona(self, data):
+        """従業員AIペルソナを保存・更新"""
+        if not self.supabase:
+            return None
+        try:
+            data['updated_at'] = datetime.now().isoformat()
+            result = self.supabase.table("employee_personas").upsert(data).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error upserting employee persona: {e}")
+            return None
+
+    def delete_employee_persona(self, employee_id):
+        """従業員AIペルソナを削除（非活性化）"""
+        if not self.supabase:
+            return False
+        try:
+            # 物理削除ではなくis_active=Falseにする例（ユーザーの指示に合わせて物理削除にする場合はdeleteを使用）
+            self.supabase.table("employee_personas").delete().eq("id", employee_id).execute()
+            return True
+        except Exception as e:
+            print(f"Error deleting employee persona: {e}")
+            return False
+
+    def save_employee_feedback(self, employee_id, product_id, ai_evaluation, user_feedback):
+        """従業員AIへのフィードバックを保存"""
+        if not self.supabase:
+            return None
+        try:
+            data = {
+                "employee_id": employee_id,
+                "product_id": product_id,
+                "ai_evaluation": ai_evaluation,
+                "user_feedback": user_feedback
+            }
+            result = self.supabase.table("employee_feedback").insert(data).execute()
+            return result.data[0] if result.data else None
+        except Exception as e:
+            print(f"Error saving employee feedback: {e}")
+            return None
+
+    def get_employee_feedback(self, employee_id, limit=20):
+        """特定の従業員の過去のフィードバックを取得（学習用）"""
+        if not self.supabase:
+            return []
+        try:
+            result = self.supabase.table("employee_feedback")\
+                .select("*")\
+                .eq("employee_id", employee_id)\
+                .order("created_at", desc=True)\
+                .limit(limit)\
+                .execute()
+            return result.data or []
+        except Exception as e:
+            print(f"Error fetching employee feedback: {e}")
+            return []
+

@@ -339,6 +339,44 @@ LPの1セクション（画像）を作成してください。
     "after_text": "修正後のテキスト",
     "reason": "この修正により〇〇が改善されます"
 }}"""
+        },
+        "employee_evaluation": {
+            "name": "従業員AI評価",
+            "description": "特定の役割を持つ従業員の視点でLPを評価（過去のフィードバックを学習可能）",
+            "template": """あなたは、以下のプロフィールを持つ当社の従業員として、このLPを専門的な視点で評価してください。
+
+【あなたのプロフィール】
+名前: {employee_name}
+役割: {employee_role}
+専門分野: {employee_expertise}
+評価の重点: {employee_evaluation_perspective}
+性格・口調: {employee_personality_traits}
+
+【過去のあなたへのフィードバック（学習データ）】
+以下の内容は、過去にあなたが行った評価に対して、上司や担当者から寄せられた修正や補足です。
+今回の評価では、これらの傾向を反映させ、より「あなたらしい」リアルな回答を心がけてください。
+{past_feedback}
+
+【露出先】
+{exposure_type}
+
+【LP内容】
+{lp_content}
+
+【指示】
+このLPをあなたの専門的な視点で分析し、率直な感想を述べてください。
+
+【出力形式】JSONのみ
+{{
+  "overall_rating": 5段階評価（1-5）,
+  "purchase_decision": "活用する / 検討の余地あり / 差し戻し",
+  "first_impression": "第一印象（専門家の視点で感じたこと）",
+  "voice": "あなたの生の声（あなたの性格や口調を反映させた2-3文で）",
+  "resonated_points": ["評価できるポイント1", "評価できるポイント2"],
+  "concerns": ["懸念点・修正が必要な点1", "懸念点・修正が必要な点2"],
+  "vs_competitors": "競合と比較した自社の優位性・課題（1文）",
+  "improvement_suggestion": "具体的な改善アドバイス（1文）"
+}}"""
         }
     }
 

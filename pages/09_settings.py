@@ -190,7 +190,7 @@ def render_usage_stats(settings_manager, settings):
         st.link_button("Google AI", urls.get("google", "#"))
 
 def render_settings_page():
-    page_header("Settings", "システム設定とAPI使用状況の管理")
+    page_header("Settings", "システム設定と従業員AIの管理")
     
     settings_manager = SettingsManager()
     settings = settings_manager.get_settings()
@@ -202,7 +202,7 @@ def render_settings_page():
         if st.button('🔄 モデル一覧を更新', key='refresh_models'):
             refresh_models()
     
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["LLM設定", "画像生成", "APIキー", "使用状況", "要素タイプ"])
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["LLM設定", "画像生成", "APIキー", "使用状況", "要素タイプ", "従業員AI"])
     
     with tab1:
         render_llm_settings(settings_manager, settings, models_config)
@@ -218,6 +218,111 @@ def render_settings_page():
     
     with tab5:
         render_element_types()
+
+    with tab6:
+        render_employee_settings()
+
+def render_employee_settings():
+    """従業員AIの管理UI"""
+    from modules.data_store import DataStore
+    import uuid
+    
+    st.markdown('<div class="step-header">従業員AI管理</div>', unsafe_allow_html=True)
+    st.caption("社内の各役割（営業、エンジニア、サポート等）をシミュレートするAI従業員を管理します")
+    
+    ds = DataStore()
+    employees = ds.get_employee_personas()
+    
+    # 既存の従業員リスト
+    st.subheader("登録済み従業員")
+    if not employees:
+        st.info("登録されている従業員はいません。")
+    else:
+        for emp in employees:
+            with st.expander(f"{emp['name']} - {emp['role']}", expanded=False):
+                col1, col2 = st.columns([1, 3])
+                with col1:
+                    if emp.get('avatar_url'):
+                        st.image(emp['avatar_url'], width=100)
+                    else:
+                        st.info("No Avatar")
+                
+                with col2:
+                    st.write(f"**専門分野:** {emp['expertise']}")
+                    st.write(f"**評価の重点:** {emp['evaluation_perspective']}")
+                    st.write(f"**性格・口調:** {emp['personality_traits']}")
+                    
+                    # フィードバック件数を取得（後で実装予定のメソッドを使用）
+                    feedback = ds.get_employee_feedback(emp['id'], limit=100)
+                    st.caption(f"フィードバック受領数: {len(feedback)}件")
+                    
+                    if st.button("編集", key=f"edit_emp_{emp['id']}"):
+                        st.session_state.editing_employee = emp
+                        st.rerun()
+                    
+                    if st.button("削除", key=f"del_emp_{emp['id']}", type="secondary"):
+                        if ds.delete_employee_persona(emp['id']):
+                            st.success(f"{emp['name']}を削除しました")
+                            st.rerun()
+
+    st.markdown("---")
+    
+    # 新規追加 / 編集フォーム
+    is_editing = 'editing_employee' in st.session_state
+    st.subheader("従業員の" + ("構成を編集" if is_editing else "新規登録"))
+    
+    with st.form("employee_form", clear_on_submit=not is_editing):
+        emp_to_edit = st.session_state.get('editing_employee', {})
+        
+        name = st.text_input("名前", value=emp_to_edit.get('name', ''))
+        role = st.text_input("役割・役職", value=emp_to_edit.get('role', ''), placeholder="例: ベテラン営業部長")
+        expertise = st.text_area("専門分野", value=emp_to_edit.get('expertise', ''), placeholder="例: 法人営業、クロージング戦略")
+        perspective = st.text_area("評価の重点", value=emp_to_edit.get('evaluation_perspective', ''), placeholder="例: 費用対効果、現実的な導入スケジュール、競合比較")
+        personality = st.text_area("性格・口調", value=emp_to_edit.get('personality_traits', ''), placeholder="例: 歯に衣着せぬ物言い、論理的、語尾に「〜ですね」をつける")
+        
+        # アバターアップロード
+        avatar_file = st.file_uploader("プロフィール画像", type=['jpg', 'jpeg', 'png'])
+        
+        submitted = st.form_submit_button("保存する")
+        if submitted:
+            if not name:
+                st.error("名前は必須です")
+            else:
+                emp_id = emp_to_edit.get('id', str(uuid.uuid4()))
+                avatar_url = emp_to_edit.get('avatar_url')
+                
+                # 画像アップロード処理
+                if avatar_file:
+                    file_bytes = avatar_file.read()
+                    file_ext = avatar_file.name.split('.')[-1]
+                    path = f"employees/{emp_id}/avatar.{file_ext}"
+                    uploaded_url = ds.upload_image(file_bytes, path)
+                    if uploaded_url:
+                        avatar_url = uploaded_url
+                
+                new_emp_data = {
+                    "id": emp_id,
+                    "name": name,
+                    "role": role,
+                    "expertise": expertise,
+                    "evaluation_perspective": perspective,
+                    "personality_traits": personality,
+                    "avatar_url": avatar_url,
+                    "is_active": True
+                }
+                
+                if ds.upsert_employee_persona(new_emp_data):
+                    st.success("従業員情報を保存しました！")
+                    if is_editing:
+                        del st.session_state.editing_employee
+                    st.rerun()
+                else:
+                    st.error("保存に失敗しました。")
+
+    if is_editing:
+        if st.button("キャンセル"):
+            del st.session_state.editing_employee
+            st.rerun()
 
 def render_element_types():
     """要素タイプの管理UI"""

@@ -163,6 +163,50 @@ def evaluate_by_persona(ai_provider, prompt_manager, product, exposure_type, per
         st.code(response)
         return None
 
+def evaluate_by_employee(ai_provider, prompt_manager, data_store, product, exposure_type, employee, lp_content):
+    """特定の従業員AIとしてLPを評価"""
+    
+    # 過去のフィードバックを取得
+    past_feedback_list = data_store.get_employee_feedback(employee['id'], limit=20)
+    
+    # フィードバックを文字列に整形
+    if past_feedback_list:
+        feedback_msgs = []
+        for f in reversed(past_feedback_list): # 古い順
+            feedback_msgs.append(f"AI評価: {f['ai_evaluation']}\n修正指示: {f['user_feedback']}")
+        past_feedback_str = "\n\n".join(feedback_msgs)
+    else:
+        past_feedback_str = "過去のフィードバックはありません。あなたの役割と性格に基づいて自由に評価してください。"
+
+    variables = {
+        "employee_name": employee['name'],
+        "employee_role": employee['role'],
+        "employee_expertise": employee['expertise'],
+        "employee_evaluation_perspective": employee['evaluation_perspective'],
+        "employee_personality_traits": employee['personality_traits'],
+        "past_feedback": past_feedback_str,
+        "exposure_type": exposure_type,
+        "lp_content": lp_content
+    }
+    
+    prompt = prompt_manager.get_prompt("employee_evaluation", variables)
+    
+    response = ai_provider.ask(prompt, "employee_evaluation")
+    
+    try:
+        if "```json" in response:
+            json_str = response.split("```json")[1].split("```")[0]
+        elif "```" in response:
+            json_str = response.split("```")[1].split("```")[0]
+        else:
+            json_str = response
+            
+        return json.loads(json_str.strip())
+    except Exception as e:
+        st.error(f"従業員AIの評価解析に失敗しました: {e}")
+        st.code(response)
+        return None
+
 def generate_summary(ai_provider, prompt_manager, evaluations, exposure_type):
     """全ペルソナの評価を総合分析"""
     
@@ -458,96 +502,239 @@ def render_diagnosis_page():
         ["全ページ"] + [f"P{p.get('order', i+1)} - {p.get('title', '無題')}" for i, p in enumerate(pages)]
     )
 
-    # 診断実行ボタン
-    if st.button("診断を実行", type="primary", use_container_width=True):
-        run_diagnosis(product, exposure_type, diagnosis_target)
+    # タブ分け
+    tab_persona, tab_employee = st.tabs(["👥 消費者ペルソナ診断", "🏢 従業員AI診断"])
 
-    # 改善案の生成と表示フロー
+    with tab_persona:
+        # 診断実行ボタン
+        if st.button("消費者ペルソナ診断を実行", type="primary", use_container_width=True):
+            run_diagnosis(product, exposure_type, diagnosis_target)
+
+    with tab_employee:
+        render_employee_diagnosis_tab(product, exposure_type, diagnosis_target)
+
+    # 改善案の生成と表示フロー (これは消費者ペルソナ診断の結果から呼ばれることが多い)
     if st.session_state.get('improvement_step') == 'generating':
         improvement = st.session_state.get('selected_improvement')
         if improvement:
-            with st.spinner("AIが改善案を生成中..."):
-                settings = SettingsManager().get_settings()
-                ai_provider = AIProvider(settings)
-                prompt_manager = PromptManager()
-                
-                # 全ページの内容を取得してコンテキストにする
-                pages_data = []
-                page_contents = product.get('page_contents', {})
-                raw_structure = product.get('structure', {})
-                structure = raw_structure.get("result", raw_structure) if isinstance(raw_structure, dict) else {}
-                pages = structure.get('pages', [])
-                
-                for p in pages:
-                    p_id = p.get('id')
-                    content = page_contents.get(p_id, {}).get("result", {}).get("parsed", {})
-                    pages_data.append({
-                        "id": p_id,
-                        "title": p.get('title'),
-                        "content": content
-                    })
-                
-                proposal = generate_improvement_proposal(ai_provider, prompt_manager, product, improvement['text'], pages_data)
-                if proposal:
-                    st.session_state['improvement_proposal'] = proposal
-                    st.session_state['improvement_step'] = 'review'
-                    st.rerun()
-                else:
-                    st.error("改善案の生成に失敗しました")
-                    st.session_state['improvement_step'] = None
+            render_improvement_generation(product)
 
     if st.session_state.get('improvement_step') == 'review':
-        proposal = st.session_state.get('improvement_proposal')
-        if proposal:
+        render_improvement_review(product_id, data_store)
+
+def render_employee_diagnosis_tab(product, exposure_type, diagnosis_target):
+    """従業員AI診断タブのレンダリング"""
+    ds = DataStore()
+    employees = ds.get_employee_personas()
+    
+    if not employees:
+        st.warning("従業員が登録されていません。設定ページで従業員を登録してください。")
+        return
+
+    st.subheader("評価メンバーを選択")
+    selected_employee_ids = []
+    
+    # 従業員をグリッド表示
+    cols_per_row = 4
+    for i in range(0, len(employees), cols_per_row):
+        row_emps = employees[i:i + cols_per_row]
+        cols = st.columns(cols_per_row)
+        for j, emp in enumerate(row_emps):
+            with cols[j]:
+                if emp.get('avatar_url'):
+                    st.image(emp['avatar_url'], width=80)
+                else:
+                    st.info("No Avatar")
+                
+                is_selected = st.checkbox(f"{emp['name']}", key=f"sel_emp_{emp['id']}")
+                if is_selected:
+                    selected_employee_ids.append(emp['id'])
+                st.caption(f"_{emp['role']}_")
+
+    if st.button("選択したメンバーで診断を開始", type="primary", use_container_width=True):
+        if not selected_employee_ids:
+            st.error("評価を行うメンバーを少なくとも1人選択してください")
+        else:
+            run_employee_diagnosis(product, exposure_type, diagnosis_target, selected_employee_ids)
+
+    # 保存された結果があれば表示
+    if 'employee_diagnosis_results' in st.session_state:
+        results = st.session_state.employee_diagnosis_results
+        display_employee_results(results, product['id'])
+
+def run_employee_diagnosis(product, exposure_type, diagnosis_target, employee_ids):
+    """従業員AI診断を実行"""
+    ds = DataStore()
+    settings = SettingsManager().get_settings()
+    ai_provider = AIProvider(settings)
+    prompt_manager = PromptManager()
+    
+    # 全従業員から選択された人を抽出
+    all_employees = ds.get_employee_personas()
+    selected_employees = [e for e in all_employees if e['id'] in employee_ids]
+    
+    target_index = None
+    if diagnosis_target != "全ページ":
+        try:
+            target_index = int(diagnosis_target.split(' ')[0][1:]) - 1
+        except:
+            pass
+    lp_content = get_lp_content(product, target_index)
+    
+    results = []
+    progress_bar = st.progress(0)
+    for i, emp in enumerate(selected_employees):
+        with st.spinner(f"{emp['name']}（{emp['role']}）が評価中..."):
+            eval_result = evaluate_by_employee(ai_provider, prompt_manager, ds, product, exposure_type, emp, lp_content)
+            if eval_result:
+                results.append({
+                    "employee": emp,
+                    "evaluation": eval_result
+                })
+        progress_bar.progress((i + 1) / len(selected_employees))
+    
+    st.session_state.employee_diagnosis_results = results
+    st.rerun()
+
+def display_employee_results(results, product_id):
+    """従業員AIの診断結果を表示"""
+    ds = DataStore()
+    
+    st.markdown("---")
+    st.subheader("🏢 従業員AIによる評価結果")
+    
+    for i, item in enumerate(results):
+        emp = item['employee']
+        eval_res = item['evaluation']
+        
+        with st.expander(f"**{emp['name']}** ({emp['role']}) - {'⭐' * eval_res.get('overall_rating', 0)}", expanded=True):
+            col1, col2 = st.columns([1, 4])
+            with col1:
+                if emp.get('avatar_url'):
+                    st.image(emp['avatar_url'], use_container_width=True)
+            
+            with col2:
+                st.markdown(f"👀 **第一印象:** {eval_res.get('first_impression', '')}")
+                st.info(eval_res.get('voice', ''))
+            
             st.markdown("---")
-            st.markdown("### 📝 改善案")
-            st.markdown(f"""
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("✅ **評価ポイント**")
+                for p in eval_res.get('resonated_points', []):
+                    st.write(f"・{p}")
+            with c2:
+                st.markdown("⚠️ **懸念・改善点**")
+                for c in eval_res.get('concerns', []):
+                    st.write(f"・{c}")
+            
+            st.caption(f"方針: {eval_res.get('purchase_decision', '')} | 競合比: {eval_res.get('vs_competitors', '')}")
+            st.markdown(f"**アドバイス:** {eval_res.get('improvement_suggestion', '')}")
+            
+            # フィードバック入力
+            st.markdown("---")
+            st.markdown("💬 **AIへのフィードバック（学習）**")
+            st.caption("AIの回答に違和感がある場合や、実際のアドバイスを入力してください。")
+            
+            user_fb = st.text_input("「実際はこう思う」「この視点が足りない」等を入力", key=f"fb_input_{emp['id']}_{i}")
+            if st.button("フィードバックを送信", key=f"btn_fb_{emp['id']}_{i}"):
+                if user_fb:
+                    ds.save_employee_feedback(
+                        employee_id=emp['id'],
+                        product_id=product_id,
+                        ai_evaluation=eval_res.get('voice', ''),
+                        user_feedback=user_fb
+                    )
+                    st.success("フィードバックを保存しました。次回の評価に反映されます。")
+                else:
+                    st.error("フィードバック内容を入力してください")
+
+def render_improvement_generation(product):
+    """改善案の生成フロー"""
+    improvement = st.session_state.get('selected_improvement')
+    with st.spinner("AIが改善案を生成中..."):
+        settings = SettingsManager().get_settings()
+        ai_provider = AIProvider(settings)
+        prompt_manager = PromptManager()
+        
+        # 全ページの内容を取得してコンテキストにする
+        pages_data = []
+        page_contents = product.get('page_contents', {})
+        raw_structure = product.get('structure', {})
+        structure = raw_structure.get("result", raw_structure) if isinstance(raw_structure, dict) else {}
+        pages = structure.get('pages', [])
+        
+        for p in pages:
+            p_id = p.get('id')
+            content = page_contents.get(p_id, {}).get("result", {}).get("parsed", {})
+            pages_data.append({
+                "id": p_id,
+                "title": p.get('title'),
+                "content": content
+            })
+        
+        proposal = generate_improvement_proposal(ai_provider, prompt_manager, product, improvement['text'], pages_data)
+        if proposal:
+            st.session_state['improvement_proposal'] = proposal
+            st.session_state['improvement_step'] = 'review'
+            st.rerun()
+        else:
+            st.error("改善案の生成に失敗しました")
+            st.session_state['improvement_step'] = None
+
+def render_improvement_review(product_id, data_store):
+    """改善案のレビューフロー"""
+    proposal = st.session_state.get('improvement_proposal')
+    if proposal:
+        st.markdown("---")
+        st.markdown("### 📝 改善案")
+        st.markdown(f"""
 📍 **対象箇所**
 - **ページ**: {proposal.get('target_page_index', 0) + 1}. {proposal.get('target_page_name', '不明')}
 - **要素**: {proposal.get('target_element_type', '不明')}（{proposal.get('target_element_index', 0) + 1}番目）
 """)
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown("**修正前**")
-                st.error(proposal.get('before_text', 'なし'))
-            with col2:
-                st.markdown("**修正後**")
-                st.success(proposal.get('after_text', 'なし'))
-            
-            st.info(f"💡 {proposal.get('reason', '')}")
-            
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                if st.button("この内容で反映", type="primary"):
-                    success = apply_improvement(
-                        product_id,
-                        data_store,
-                        proposal.get('target_page_index', 0),
-                        proposal.get('target_element_index', 0),
-                        proposal.get('after_text', '')
-                    )
-                    if success:
-                        st.success("反映しました！")
-                        # ステートをクリア
-                        for k in ['selected_improvement', 'improvement_proposal', 'improvement_step']:
-                            if k in st.session_state:
-                                del st.session_state[k]
-                        st.rerun()
-                    else:
-                        st.error("反映に失敗しました。対象ページや構成が見つからない可能性があります。")
-            
-            with col2:
-                if st.button("やり直し"):
-                    st.session_state['improvement_step'] = 'generating'
-                    st.rerun()
-            
-            with col3:
-                if st.button("キャンセル"):
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("**修正前**")
+            st.error(proposal.get('before_text', 'なし'))
+        with col2:
+            st.markdown("**修正後**")
+            st.success(proposal.get('after_text', 'なし'))
+        
+        st.info(f"💡 {proposal.get('reason', '')}")
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("この内容で反映", type="primary"):
+                success = apply_improvement(
+                    product_id,
+                    data_store,
+                    proposal.get('target_page_index', 0),
+                    proposal.get('target_element_index', 0),
+                    proposal.get('after_text', '')
+                )
+                if success:
+                    st.success("反映しました！")
+                    # ステートをクリア
                     for k in ['selected_improvement', 'improvement_proposal', 'improvement_step']:
                         if k in st.session_state:
                             del st.session_state[k]
                     st.rerun()
+                else:
+                    st.error("反映に失敗しました。対象ページや構成が見つからない可能性があります。")
+        
+        with col2:
+            if st.button("やり直し"):
+                st.session_state['improvement_step'] = 'generating'
+                st.rerun()
+        
+        with col3:
+            if st.button("キャンセル"):
+                for k in ['selected_improvement', 'improvement_proposal', 'improvement_step']:
+                    if k in st.session_state:
+                        del st.session_state[k]
+                st.rerun()
 
 if __name__ == "__main__":
     render_diagnosis_page()
