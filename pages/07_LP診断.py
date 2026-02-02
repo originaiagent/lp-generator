@@ -17,6 +17,7 @@ from modules.page_guard import require_product
 from modules.data_store import DataStore
 from modules.ai_provider import AIProvider
 from modules.settings_manager import SettingsManager
+from modules.prompt_manager import PromptManager
 
 # 製品選択チェック
 require_product()
@@ -70,43 +71,17 @@ def get_lp_content(product, target_index=None):
             
     return lp_text
 
-def generate_personas(ai_provider, product, exposure_type):
+def generate_personas(ai_provider, prompt_manager, product, exposure_type):
     """商品と露出先に応じたペルソナを生成"""
     
-    prompt = f"""
-あなたはマーケティングリサーチの専門家です。
-
-【商品情報】
-製品名: {product.get('name', '')}
-説明: {product.get('description', '')}
-カテゴリ: {product.get('category', '')}
-
-【露出先】
-{exposure_type}
-
-【指示】
-この商品を{exposure_type}で見る可能性のある、異なるタイプの購買検討者を3〜4人設定してください。
-
-以下の多様性を考慮：
-- 購買意欲: 高/中/低
-- 重視点: 価格/品質/時短/デザイン/新しさ
-- 商品への態度: 積極的/慎重/懐疑的
-
-【出力形式】JSONのみ
-{{
-  "personas": [
-    {{
-      "name": "ペルソナの短い説明（例：30代主婦・時短重視）",
-      "age": "年代",
-      "occupation": "職業・状況",
-      "motivation": "この商品を見ている理由",
-      "concerns": "購入にあたっての不安・懸念",
-      "decision_style": "購買決定スタイル（即決/比較検討/慎重）",
-      "budget_sensitivity": "価格感度（高/中/低）"
-    }}
-  ]
-}}
-"""
+    variables = {
+        "product_name": product.get('name', ''),
+        "product_description": product.get('description', ''),
+        "product_category": product.get('category', ''),
+        "exposure_type": exposure_type
+    }
+    
+    prompt = prompt_manager.get_prompt("persona_generation", variables)
     
     response = ai_provider.ask(prompt, "persona_generation")
     
@@ -126,7 +101,7 @@ def generate_personas(ai_provider, product, exposure_type):
         st.code(response)
         return []
 
-def evaluate_by_persona(ai_provider, product, exposure_type, persona, lp_content):
+def evaluate_by_persona(ai_provider, prompt_manager, product, exposure_type, persona, lp_content):
     """各ペルソナ視点でLPを評価"""
     
     # 競合情報を取得
@@ -136,7 +111,7 @@ def evaluate_by_persona(ai_provider, product, exposure_type, persona, lp_content
         competitors = product.get('competitors', [])
     
     # 露出先別の評価重点
-    exposure_focus = {
+    exposure_focus_map = {
         "ECモール": """
 - 競合商品と並んだ時に「これがいい」と思える差別化ポイントがあるか
 - 比較検討中の人が「他より良さそう」と感じる根拠が明確か
@@ -156,45 +131,21 @@ def evaluate_by_persona(ai_provider, product, exposure_type, persona, lp_content
 """
     }
     
-    prompt = f"""
-あなたは以下のペルソナになりきって、このLPを見た感想を述べてください。
-
-【あなたのプロフィール】
-{persona['name']}
-年代: {persona['age']}
-職業: {persona['occupation']}
-この商品を見ている理由: {persona['motivation']}
-購入にあたっての不安: {persona['concerns']}
-購買スタイル: {persona['decision_style']}
-価格感度: {persona['budget_sensitivity']}
-
-【露出先】
-{exposure_type}
-
-【この露出先で特に重要な評価ポイント】
-{exposure_focus.get(exposure_type, "")}
-
-【LP内容】
-{lp_content}
-
-【競合情報】
-{str(competitors)[:1000]}
-
-【指示】
-このLPを見た率直な感想を、このペルソナの口調で述べてください。
-
-【出力形式】JSONのみ
-{{
-  "overall_rating": 5段階評価（1-5）,
-  "purchase_decision": "買う / 迷う / 買わない",
-  "first_impression": "第一印象（3秒で感じたこと）",
-  "voice": "このペルソナの生の声（2-3文で自然な口語体で）",
-  "resonated_points": ["響いたポイント1", "響いたポイント2"],
-  "concerns": ["不安・懸念1", "不安・懸念2"],
-  "vs_competitors": "競合と比べた印象（1文）",
-  "improvement_suggestion": "こうなってたら買うのに（1文）"
-}}
-"""
+    variables = {
+        "persona_name": persona['name'],
+        "persona_age": persona['age'],
+        "persona_occupation": persona['occupation'],
+        "persona_motivation": persona['motivation'],
+        "persona_concerns": persona['concerns'],
+        "persona_decision_style": persona['decision_style'],
+        "persona_budget_sensitivity": persona['budget_sensitivity'],
+        "exposure_type": exposure_type,
+        "exposure_focus": exposure_focus_map.get(exposure_type, ""),
+        "lp_content": lp_content,
+        "competitors": str(competitors)[:1000]
+    }
+    
+    prompt = prompt_manager.get_prompt("persona_evaluation", variables)
     
     response = ai_provider.ask(prompt, "persona_evaluation")
     
@@ -212,35 +163,15 @@ def evaluate_by_persona(ai_provider, product, exposure_type, persona, lp_content
         st.code(response)
         return None
 
-def generate_summary(ai_provider, evaluations, exposure_type):
+def generate_summary(ai_provider, prompt_manager, evaluations, exposure_type):
     """全ペルソナの評価を総合分析"""
     
-    prompt = f"""
-以下は複数のペルソナによるLP評価結果です。
-
-【露出先】
-{exposure_type}
-
-【各ペルソナの評価】
-{json.dumps(evaluations, ensure_ascii=False, indent=2)}
-
-【指示】
-これらの評価を総合して、LPの改善点を分析してください。
-
-【出力形式】JSONのみ
-{{
-  "purchase_rate": "購入検討率（〇人中〇人）",
-  "strengths": ["強み1", "強み2"],
-  "weaknesses": ["弱み1", "弱み2"],
-  "competitor_comparison": "競合との比較での印象",
-  "improvements": [
-    {{"priority": "高", "content": "改善点1"}},
-    {{"priority": "中", "content": "改善点2"}},
-    {{"priority": "低", "content": "改善点3"}}
-  ],
-  "overall_advice": "総合アドバイス（2-3文）"
-}}
-"""
+    variables = {
+        "exposure_type": exposure_type,
+        "evaluations_json": json.dumps(evaluations, ensure_ascii=False, indent=2)
+    }
+    
+    prompt = prompt_manager.get_prompt("diagnosis_summary", variables)
     
     response = ai_provider.ask(prompt, "diagnosis_summary")
     
@@ -258,32 +189,15 @@ def generate_summary(ai_provider, evaluations, exposure_type):
         st.code(response)
         return None
 
-def generate_improvement_proposal(ai_provider, product, improvement_text, pages_data):
+def generate_improvement_proposal(ai_provider, prompt_manager, product, improvement_text, pages_data):
     """改善提案から具体的な修正案を生成"""
     
-    prompt = f"""
-あなたはLPの改善エキスパートです。
-
-以下の改善提案を、具体的なテキスト修正に落とし込んでください。
-現在のページ構成とコンテンツを参考に、最も効果の高い箇所の修正案を1つ作成してください。
-
-【改善提案】
-{improvement_text}
-
-【現在のページ構成とコンテンツ】
-{json.dumps(pages_data, ensure_ascii=False, indent=2)}
-
-【出力形式】JSONで出力してください。Markdownのコードブロックなどは含めず、純粋なJSONのみを返してください。
-{{
-    "target_page_index": 0,
-    "target_page_name": "ファーストビュー",
-    "target_element_index": 0,
-    "target_element_type": "サブヘッド",
-    "before_text": "修正前のテキスト",
-    "after_text": "修正後のテキスト",
-    "reason": "この修正により〇〇が改善されます"
-}}
-"""
+    variables = {
+        "improvement_text": improvement_text,
+        "pages_data_json": json.dumps(pages_data, ensure_ascii=False, indent=2)
+    }
+    
+    prompt = prompt_manager.get_prompt("improvement_proposal", variables)
     
     response = ai_provider.ask(prompt, "improvement_proposal")
     
@@ -442,6 +356,7 @@ def run_diagnosis(product, exposure_type, diagnosis_target):
     product_id = product.get('id')
     settings = SettingsManager().get_settings()
     ai_provider = AIProvider(settings)
+    prompt_manager = PromptManager()
     
     # 診断対象のインデックスを特定
     target_index = None
@@ -455,7 +370,7 @@ def run_diagnosis(product, exposure_type, diagnosis_target):
     lp_content = get_lp_content(product, target_index)
     
     with st.spinner("ペルソナを生成中..."):
-        personas = generate_personas(ai_provider, product, exposure_type)
+        personas = generate_personas(ai_provider, prompt_manager, product, exposure_type)
     
     if not personas:
         st.error("ペルソナの生成に失敗しました")
@@ -465,12 +380,12 @@ def run_diagnosis(product, exposure_type, diagnosis_target):
     progress_bar = st.progress(0)
     for i, persona in enumerate(personas):
         with st.spinner(f"ペルソナ「{persona['name']}」視点で評価中..."):
-            eval_result = evaluate_by_persona(ai_provider, product, exposure_type, persona, lp_content)
+            eval_result = evaluate_by_persona(ai_provider, prompt_manager, product, exposure_type, persona, lp_content)
             evaluations.append(eval_result)
         progress_bar.progress((i + 1) / len(personas))
     
     with st.spinner("総合分析中..."):
-        summary = generate_summary(ai_provider, evaluations, exposure_type)
+        summary = generate_summary(ai_provider, prompt_manager, evaluations, exposure_type)
     
     # 結果を表示
     display_results(personas, evaluations, summary, exposure_type, key_suffix="new")
@@ -554,6 +469,7 @@ def render_diagnosis_page():
             with st.spinner("AIが改善案を生成中..."):
                 settings = SettingsManager().get_settings()
                 ai_provider = AIProvider(settings)
+                prompt_manager = PromptManager()
                 
                 # 全ページの内容を取得してコンテキストにする
                 pages_data = []
@@ -571,7 +487,7 @@ def render_diagnosis_page():
                         "content": content
                     })
                 
-                proposal = generate_improvement_proposal(ai_provider, product, improvement['text'], pages_data)
+                proposal = generate_improvement_proposal(ai_provider, prompt_manager, product, improvement['text'], pages_data)
                 if proposal:
                     st.session_state['improvement_proposal'] = proposal
                     st.session_state['improvement_step'] = 'review'

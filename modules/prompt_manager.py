@@ -209,6 +209,136 @@ LPの1セクション（画像）を作成してください。
 
 画像のアスペクト比は1:1に近い正方形、またはコンテンツに応じた縦長で出力してください。
 文字はダミーではなく、意味のある日本語のテキストとして読めるように配置してください。"""
+        },
+        "persona_generation": {
+            "name": "ペルソナ生成",
+            "description": "商品と露出先に応じた購買者ペルソナを生成",
+            "template": """あなたはマーケティングリサーチの専門家です。
+
+【商品情報】
+製品名: {product_name}
+説明: {product_description}
+カテゴリ: {product_category}
+
+【露出先】
+{exposure_type}
+
+【指示】
+この商品を{exposure_type}で見る可能性のある、異なるタイプの購買検討者を3〜4人設定してください。
+
+以下の多様性を考慮：
+- 購買意欲: 高/中/低
+- 重視点: 価格/品質/時短/デザイン/新しさ
+- 商品への態度: 積極的/慎重/懐疑的
+
+【出力形式】JSONのみ
+{{
+  "personas": [
+    {{
+      "name": "ペルソナの短い説明（例：30代主婦・時短重視）",
+      "age": "年代",
+      "occupation": "職業・状況",
+      "motivation": "この商品を見ている理由",
+      "concerns": "購入にあたっての不安・懸念",
+      "decision_style": "購買決定スタイル（即決/比較検討/慎重）",
+      "budget_sensitivity": "価格感度（高/中/低）"
+    }}
+  ]
+}}"""
+        },
+        "persona_evaluation": {
+            "name": "ペルソナ評価",
+            "description": "特定ペルソナの視点でLPを評価",
+            "template": """あなたは以下のペルソナになりきって、このLPを見た感想を述べてください。
+
+【あなたのプロフィール】
+{persona_name}
+年代: {persona_age}
+職業: {persona_occupation}
+この商品を見ている理由: {persona_motivation}
+購入にあたっての不安: {persona_concerns}
+購買スタイル: {persona_decision_style}
+価格感度: {persona_budget_sensitivity}
+
+【露出先】
+{exposure_type}
+
+【この露出先で特に重要な評価ポイント】
+{exposure_focus}
+
+【LP内容】
+{lp_content}
+
+【競合情報】
+{competitors}
+
+【指示】
+このLPを見た率直な感想を、このペルソナの口調で述べてください。
+
+【出力形式】JSONのみ
+{{
+  "overall_rating": 5段階評価（1-5）,
+  "purchase_decision": "買う / 迷う / 買わない",
+  "first_impression": "第一印象（3秒で感じたこと）",
+  "voice": "このペルソナの生の声（2-3文で自然な口語体で）",
+  "resonated_points": ["響いたポイント1", "響いたポイント2"],
+  "concerns": ["不安・懸念1", "不安・懸念2"],
+  "vs_competitors": "競合と比べた印象（1文）",
+  "improvement_suggestion": "こうなってたら買うのに（1文）"
+}}"""
+        },
+        "diagnosis_summary": {
+            "name": "診断総合分析",
+            "description": "複数ペルソナの評価を総合的に分析",
+            "template": """以下は複数のペルソナによるLP評価結果です。
+
+【露出先】
+{exposure_type}
+
+【各ペルソナの評価】
+{evaluations_json}
+
+【指示】
+これらの評価を総合して、LPの改善点を分析してください。
+
+【出力形式】JSONのみ
+{{
+  "purchase_rate": "購入検討率（〇人中〇人）",
+  "strengths": ["強み1", "強み2"],
+  "weaknesses": ["弱み1", "弱み2"],
+  "competitor_comparison": "競合との比較での印象",
+  "improvements": [
+    {{"priority": "高", "content": "改善点1"}},
+    {{"priority": "中", "content": "改善点2"}},
+    {{"priority": "低", "content": "改善点3"}}
+  ],
+  "overall_advice": "総合アドバイス（2-3文）"
+}}"""
+        },
+        "improvement_proposal": {
+            "name": "改善案生成",
+            "description": "診断結果から具体的なテキスト修正案を生成",
+            "template": """あなたはLPの改善エキスパートです。
+
+以下の改善提案を、具体的なテキスト修正に落とし込んでください。
+現在のページ構成とコンテンツを参考に、最も効果の高い箇所の修正案を1つ作成してください。
+
+【改善提案】
+{improvement_text}
+
+【現在のページ構成とコンテンツ】
+{pages_data_json}
+
+【出力形式】JSONで出力してください。Markdownのコードブロックなどは含めず、純粋なJSONのみを返してください。
+{{
+    "target_page_index": 0,
+    "target_page_name": "ファーストビュー",
+    "target_element_index": 0,
+    "target_element_type": "サブヘッド",
+    "before_text": "修正前のテキスト",
+    "after_text": "修正後のテキスト",
+    "reason": "この修正により〇〇が改善されます"
+}}"""
         }
     }
 
