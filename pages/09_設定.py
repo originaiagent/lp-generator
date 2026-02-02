@@ -320,6 +320,8 @@ def render_employee_settings():
                         "is_active": True
                     }
                     
+                    st.write("DEBUG - sending data:", new_emp_data)
+                    
                     result = ds.upsert_employee_persona(new_emp_data)
                     if result:
                         st.success("従業員情報を保存しました！")
