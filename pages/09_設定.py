@@ -286,40 +286,40 @@ def render_employee_settings():
         
         submitted = st.form_submit_button("保存する")
         if submitted:
-            if not name:
-                st.error("名前は必須です")
-            else:
-                emp_id = emp_to_edit.get('id', str(uuid.uuid4()))
-                avatar_url = emp_to_edit.get('avatar_url')
-                
-                # 画像アップロード処理
-                if avatar_file:
-                    try:
-                        file_bytes = avatar_file.read()
-                        file_ext = avatar_file.name.split('.')[-1]
-                        path = f"employees/{emp_id}/avatar.{file_ext}"
-                        uploaded_url = ds.upload_image(file_bytes, path)
-                        if uploaded_url:
-                            avatar_url = uploaded_url
-                    except Exception as e:
-                        print(f"[ERROR] Avatar upload failed: {e}")
-                
-                # アバターが空文字ならNoneにする
-                if not avatar_url:
-                    avatar_url = None
-                
-                new_emp_data = {
-                    "id": emp_id,
-                    "name": name,
-                    "role": role,
-                    "expertise": expertise,
-                    "evaluation_perspective": perspective,
-                    "personality_traits": personality,
-                    "avatar_url": avatar_url,
-                    "is_active": True
-                }
-                
-                try:
+            try:
+                if not name:
+                    st.error("名前は必須です")
+                else:
+                    emp_id = emp_to_edit.get('id', str(uuid.uuid4()))
+                    avatar_url = emp_to_edit.get('avatar_url')
+                    
+                    # 画像アップロード処理
+                    if avatar_file:
+                        try:
+                            file_bytes = avatar_file.read()
+                            file_ext = avatar_file.name.split('.')[-1]
+                            path = f"employees/{emp_id}/avatar.{file_ext}"
+                            uploaded_url = ds.upload_image(file_bytes, path)
+                            if uploaded_url:
+                                avatar_url = uploaded_url
+                        except Exception as e:
+                            print(f"[ERROR] Avatar upload failed: {e}")
+                    
+                    # アバターが空文字ならNoneにする
+                    if not avatar_url:
+                        avatar_url = None
+                    
+                    new_emp_data = {
+                        "id": emp_id,
+                        "name": name,
+                        "role": role,
+                        "expertise": expertise,
+                        "evaluation_perspective": perspective,
+                        "personality_traits": personality,
+                        "avatar_url": avatar_url,
+                        "is_active": True
+                    }
+                    
                     result = ds.upsert_employee_persona(new_emp_data)
                     if result:
                         st.success("従業員情報を保存しました！")
@@ -327,13 +327,13 @@ def render_employee_settings():
                             del st.session_state.editing_employee
                         st.rerun()
                     else:
-                        st.error("保存に失敗しました。詳細なエラーはログを確認してください。")
-                        print("[ERROR] Employee save failed: ds.upsert_employee_persona returned None")
-                except Exception as e:
-                    st.error(f"保存中にエラーが発生しました: {e}")
-                    print(f"[ERROR] Employee save failed: {e}")
-                    import traceback
-                    print(traceback.format_exc())
+                        st.error("保存に失敗しました: DataStoreがNoneを返しました")
+            except Exception as e:
+                import traceback
+                st.error(f"保存に失敗しました: {e}")
+                st.code(traceback.format_exc())
+                print(f"[ERROR] Employee save failed: {e}")
+                print(traceback.format_exc())
 
     if is_editing:
         if st.button("キャンセル"):

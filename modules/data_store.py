@@ -555,10 +555,10 @@ class DataStore:
             result = self.supabase.table("employee_personas").insert(data).execute()
             return result.data[0] if result.data else None
         except Exception as e:
-            print(f"[ERROR] add_employee_persona: {e}")
             import traceback
+            print(f"[ERROR] add_employee_persona: {e}")
             print(traceback.format_exc())
-            return None
+            raise  # Re-raise so the caller can display the error
 
     def update_employee_persona(self, persona_id, data):
         """Update an employee persona"""
@@ -567,7 +567,7 @@ class DataStore:
             return result.data[0] if result.data else None
         except Exception as e:
             print(f"[ERROR] update_employee_persona: {e}")
-            return None
+            raise  # Re-raise so the caller can display the error
 
     def delete_employee_persona(self, persona_id):
         """Soft delete an employee persona"""
