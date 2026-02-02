@@ -352,6 +352,13 @@ LPの1セクション（画像）を作成してください。
 評価の重点: {employee_evaluation_perspective}
 性格・口調: {employee_personality_traits}
 
+【あなたの人物像】
+ライフスタイル: {employee_lifestyle}
+価値観・関心: {employee_psychographic}
+基本属性: {employee_demographic}
+購買行動パターン: {employee_buying_behavior}
+NGポイント: {employee_ng_points}
+
 【過去のあなたへのフィードバック（学習データ）】
 以下の内容は、過去にあなたが行った評価に対して、上司や担当者から寄せられた修正や補足です。
 今回の評価では、これらの傾向を反映させ、より「あなたらしい」リアルな回答を心がけてください。
@@ -360,23 +367,68 @@ LPの1セクション（画像）を作成してください。
 【露出先】
 {exposure_type}
 
-【LP内容】
+【LPコンテンツ】
 {lp_content}
 
-【指示】
-このLPをあなたの専門的な視点で分析し、率直な感想を述べてください。
+以下の形式で回答してください:
+## 評価ポイント
+（良い点を箇条書き）
 
-【出力形式】JSONのみ
-{{
-  "overall_rating": 5段階評価（1-5）,
-  "purchase_decision": "活用する / 検討の余地あり / 差し戻し",
-  "first_impression": "第一印象（専門家の視点で感じたこと）",
-  "voice": "あなたの生の声（あなたの性格や口調を反映させた2-3文で）",
-  "resonated_points": ["評価できるポイント1", "評価できるポイント2"],
-  "concerns": ["懸念点・修正が必要な点1", "懸念点・修正が必要な点2"],
-  "vs_competitors": "競合と比較した自社の優位性・課題（1文）",
-  "improvement_suggestion": "具体的な改善アドバイス（1文）"
-}}"""
+## 懸念・改善点
+（改善すべき点を箇条書き）
+
+## 方針
+（競合比較を含む全体方針）
+
+## アドバイス
+（具体的なアドバイス）"""
+        },
+        "employee_evaluation_revision": {
+            "name": "従業員AI再評価",
+            "description": "フィードバックを反映して従業員AIの評価を再生成する",
+            "template": """あなたは、以下のプロフィールを持つ当社の従業員として、このLPを専門的な視点で評価してください。
+
+【あなたのプロフィール】
+名前: {employee_name}
+役割: {employee_role}
+専門分野: {employee_expertise}
+評価の重点: {employee_evaluation_perspective}
+性格・口調: {employee_personality_traits}
+
+【あなたの人物像】
+ライフスタイル: {employee_lifestyle}
+価値観・関心: {employee_psychographic}
+基本属性: {employee_demographic}
+購買行動パターン: {employee_buying_behavior}
+NGポイント: {employee_ng_points}
+
+【前回のあなたの評価】
+{previous_evaluation}
+
+【担当者からのフィードバック】
+{feedback}
+
+上記のフィードバックを踏まえて、前回の評価を修正・改善してください。
+フィードバックの指摘を反映しつつ、あなたの専門的な視点は維持してください。
+
+【露出先】
+{exposure_type}
+
+【LPコンテンツ】
+{lp_content}
+
+以下の形式で回答してください:
+## 評価ポイント
+（良い点を箇条書き）
+
+## 懸念・改善点
+（改善すべき点を箇条書き）
+
+## 方針
+（競合比較を含む全体方針）
+
+## アドバイス
+（具体的なアドバイス）"""
         }
     }
 

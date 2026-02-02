@@ -184,6 +184,11 @@ def evaluate_by_employee(ai_provider, prompt_manager, data_store, product, expos
         "employee_expertise": employee['expertise'],
         "employee_evaluation_perspective": employee['evaluation_perspective'],
         "employee_personality_traits": employee['personality_traits'],
+        "employee_lifestyle": employee.get('lifestyle', '未設定'),
+        "employee_psychographic": employee.get('psychographic', '未設定'),
+        "employee_demographic": employee.get('demographic', '未設定'),
+        "employee_buying_behavior": employee.get('buying_behavior', '未設定'),
+        "employee_ng_points": employee.get('ng_points', '未設定'),
         "past_feedback": past_feedback_str,
         "exposure_type": exposure_type,
         "lp_content": lp_content
@@ -646,8 +651,60 @@ def display_employee_results(results, product_id):
                         user_feedback=user_fb
                     )
                     st.success("フィードバックを保存しました。次回の評価に反映されます。")
+                    # ユーザーのリクエストに基づき、再評価用に情報を保存
+                    st.session_state[f"employee_feedback_{emp['id']}"] = user_fb
+                    st.session_state[f"employee_prev_eval_{emp['id']}"] = eval_res.get('voice', '') if isinstance(eval_res, dict) else str(eval_res)
+                    st.rerun()
                 else:
                     st.error("フィードバック内容を入力してください")
+
+            # 再評価ボタンの表示
+            employee_id = emp['id']
+            if st.session_state.get(f'employee_feedback_{employee_id}'):
+                st.divider()
+                if st.button("🔄 再評価（フィードバックを反映）", key=f"reevaluate_{employee_id}"):
+                    with st.spinner("フィードバックを反映して再評価中..."):
+                        settings = SettingsManager().get_settings()
+                        ai = AIProvider(settings)
+                        pm = PromptManager()
+                        prompt_template = pm.get_prompt("employee_evaluation_revision")
+                        
+                        # 診断対象のテキストを再取得
+                        raw_structure = ds.get_product(product_id).get('structure', {})
+                        lp_content_text = get_lp_content(ds.get_product(product_id)) # 全ページまたは現在選択中を取得
+
+                        prompt = prompt_template.format(
+                            employee_name=emp.get('name', ''),
+                            employee_role=emp.get('role', ''),
+                            employee_expertise=emp.get('expertise', ''),
+                            employee_evaluation_perspective=emp.get('evaluation_perspective', ''),
+                            employee_personality_traits=emp.get('personality_traits', ''),
+                            employee_lifestyle=emp.get('lifestyle', '未設定'),
+                            employee_psychographic=emp.get('psychographic', '未設定'),
+                            employee_demographic=emp.get('demographic', '未設定'),
+                            employee_buying_behavior=emp.get('buying_behavior', '未設定'),
+                            employee_ng_points=emp.get('ng_points', '未設定'),
+                            previous_evaluation=st.session_state.get(f'employee_prev_eval_{employee_id}', ''),
+                            feedback=st.session_state.get(f'employee_feedback_{employee_id}', ''),
+                            exposure_type=exposure_type,
+                            lp_content=lp_content
+                        )
+                        
+                        # AIに問い合せ
+                        result = ai.ask(prompt, "employee_evaluation_revision")
+                        if result:
+                            st.session_state[f'employee_revised_eval_{employee_id}'] = result
+                            st.rerun()
+
+            if st.session_state.get(f'employee_revised_eval_{employee_id}'):
+                st.divider()
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.subheader("📝 フィードバック前")
+                    st.markdown(st.session_state.get(f'employee_prev_eval_{employee_id}', ''))
+                with col2:
+                    st.subheader("✅ フィードバック後")
+                    st.markdown(st.session_state.get(f'employee_revised_eval_{employee_id}', ''))
 
 def render_improvement_generation(product):
     """改善案の生成フロー"""

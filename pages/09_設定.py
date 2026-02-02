@@ -252,6 +252,17 @@ def render_employee_settings():
                     st.write(f"**評価の重点:** {emp['evaluation_perspective']}")
                     st.write(f"**性格・口調:** {emp['personality_traits']}")
                     
+                    if emp.get('lifestyle'):
+                        st.markdown(f"**ライフスタイル:** {emp['lifestyle']}")
+                    if emp.get('psychographic'):
+                        st.markdown(f"**価値観・関心:** {emp['psychographic']}")
+                    if emp.get('demographic'):
+                        st.markdown(f"**基本属性:** {emp['demographic']}")
+                    if emp.get('buying_behavior'):
+                        st.markdown(f"**購買行動:** {emp['buying_behavior']}")
+                    if emp.get('ng_points'):
+                        st.markdown(f"**NGポイント:** {emp['ng_points']}")
+                    
                     # フィードバック件数を取得（後で実装予定のメソッドを使用）
                     feedback = ds.get_employee_feedback(emp['id'], limit=100)
                     st.caption(f"フィードバック受領数: {len(feedback)}件")
@@ -280,6 +291,40 @@ def render_employee_settings():
         expertise = st.text_area("専門分野", value=emp_to_edit.get('expertise', ''), placeholder="例: 法人営業、クロージング戦略")
         perspective = st.text_area("評価の重点", value=emp_to_edit.get('evaluation_perspective', ''), placeholder="例: 費用対効果、現実的な導入スケジュール、競合比較")
         personality = st.text_area("性格・口調", value=emp_to_edit.get('personality_traits', ''), placeholder="例: 歯に衣着せぬ物言い、論理的、語尾に「〜ですね」をつける")
+        
+        st.divider()
+        st.caption("▼ 以下の項目は必須ではありませんが、入力すると評価の精度が向上します")
+        
+        lifestyle = st.text_area(
+            "ライフスタイル",
+            value=emp_to_edit.get('lifestyle', ''),
+            placeholder="例: 共働き、子供2人、週末はアウトドア、時短重視",
+            help="必須ではありません"
+        )
+        psychographic = st.text_area(
+            "サイコグラフィック（価値観・関心）",
+            value=emp_to_edit.get('psychographic', ''),
+            placeholder="例: コスパ重視、口コミで判断、新しいもの好き、環境意識が高い",
+            help="必須ではありません"
+        )
+        demographic = st.text_area(
+            "デモグラフィック（基本属性）",
+            value=emp_to_edit.get('demographic', ''),
+            placeholder="例: 30代女性、都内在住、世帯年収800万、マンション暮らし",
+            help="必須ではありません"
+        )
+        buying_behavior = st.text_area(
+            "購買行動パターン",
+            value=emp_to_edit.get('buying_behavior', ''),
+            placeholder="例: 口コミを必ず見る、比較サイトで3つは比較、週末にまとめ買い",
+            help="必須ではありません"
+        )
+        ng_points = st.text_area(
+            "NGポイント（嫌がること・離脱ポイント）",
+            value=emp_to_edit.get('ng_points', ''),
+            placeholder="例: 誇大広告っぽいと即離脱、価格が最初に見えないと不信感、しつこいポップアップ",
+            help="必須ではありません"
+        )
         
         # アバターアップロード
         avatar_file = st.file_uploader("プロフィール画像", type=['jpg', 'jpeg', 'png'])
@@ -315,6 +360,11 @@ def render_employee_settings():
                         "expertise": expertise,
                         "evaluation_perspective": perspective,
                         "personality_traits": personality,
+                        "lifestyle": lifestyle if lifestyle else None,
+                        "psychographic": psychographic if psychographic else None,
+                        "demographic": demographic if demographic else None,
+                        "buying_behavior": buying_behavior if buying_behavior else None,
+                        "ng_points": ng_points if ng_points else None,
                     }
                     
                     if avatar_url:
