@@ -230,6 +230,16 @@ def render_employee_settings():
     st.markdown('<div class="step-header">従業員AI管理</div>', unsafe_allow_html=True)
     st.caption("社内の各役割（営業、エンジニア、サポート等）をシミュレートするAI従業員を管理します")
     
+    st.markdown("""
+    <style>
+    .stTextArea textarea::placeholder,
+    .stTextInput input::placeholder {
+        color: rgba(255, 255, 255, 0.3) !important;
+        font-style: italic;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
     ds = DataStore()
     employees = ds.get_employee_personas()
     
@@ -286,25 +296,25 @@ def render_employee_settings():
     with st.form("employee_persona_form", clear_on_submit=False):
         emp_to_edit = st.session_state.get('editing_employee', {})
         
-        st.caption("💬 この従業員の名前（ニックネーム可）")
+        st.markdown("💬 **この従業員の名前（ニックネーム可）**")
         name = st.text_input("名前", value=emp_to_edit.get('name', ''))
         
-        st.caption("💬 社内での役割・役職は？")
+        st.markdown("💬 **社内での役割・役職は？**")
         role = st.text_input("役割・役職", value=emp_to_edit.get('role', ''), placeholder="例: ベテラン営業部長")
         
-        st.caption("💬 あなたが一番詳しい分野・得意な仕事は何ですか？")
+        st.markdown("💬 **あなたが一番詳しい分野・得意な仕事は何ですか？**")
         expertise = st.text_area("専門分野", 
                                 value=emp_to_edit.get('expertise', ''), 
                                 placeholder="例: 女性向けスキンケア商品、BtoB SaaS、飲食店の集客",
                                 help="必須ではありません")
         
-        st.caption("💬 商品やサービスを見る時、最初に何をチェックしますか？")
+        st.markdown("💬 **商品やサービスを見る時、最初に何をチェックしますか？**")
         perspective = st.text_area("評価の重点", 
                                   value=emp_to_edit.get('evaluation_perspective', ''), 
                                   placeholder="例: 感情的に買いたくなるかどうか、技術的な正確さ、コストパフォーマンス",
                                   help="必須ではありません")
         
-        st.caption("💬 周りの人からどんな性格だと言われますか？話し方に癖はありますか？")
+        st.markdown("💬 **周りの人からどんな性格だと言われますか？話し方に癖はありますか？**")
         personality = st.text_area("性格・口調", 
                                   value=emp_to_edit.get('personality_traits', ''), 
                                   placeholder="例: 慎重派で石橋を叩いて渡る、語尾に「〜ですね」が多い、ストレートに言うタイプ",
@@ -313,7 +323,7 @@ def render_employee_settings():
         st.divider()
         st.caption("▼ 以下の項目は必須ではありませんが、入力すると評価の精度が向上します")
         
-        st.caption("💬 普段の1日はどんな感じですか？休日は何をしていますか？")
+        st.markdown("💬 **普段の1日はどんな感じですか？休日は何をしていますか？**")
         lifestyle = st.text_area(
             "ライフスタイル",
             value=emp_to_edit.get('lifestyle', ''),
@@ -321,7 +331,7 @@ def render_employee_settings():
             help="必須ではありません"
         )
         
-        st.caption("💬 お金を使う時、何を一番大事にしますか？最近ハマっていることは？")
+        st.markdown("💬 **お金を使う時、何を一番大事にしますか？最近ハマっていることは？**")
         psychographic = st.text_area(
             "サイコグラフィック（価値観・関心）",
             value=emp_to_edit.get('psychographic', ''),
@@ -329,7 +339,7 @@ def render_employee_settings():
             help="必須ではありません"
         )
         
-        st.caption("💬 差し支えなければ、年代・性別・住んでいるエリアを教えてください")
+        st.markdown("💬 **差し支えなければ、年代・性別・住んでいるエリアを教えてください**")
         demographic = st.text_area(
             "デモグラフィック（基本属性）",
             value=emp_to_edit.get('demographic', ''),
@@ -337,7 +347,7 @@ def render_employee_settings():
             help="必須ではありません"
         )
         
-        st.caption("💬 何かを買う時、どうやって決めますか？最近の買い物を思い出してください")
+        st.markdown("💬 **何かを買う時、どうやって決めますか？最近の買い物を思い出してください**")
         buying_behavior = st.text_area(
             "購買行動パターン",
             value=emp_to_edit.get('buying_behavior', ''),
@@ -345,7 +355,7 @@ def render_employee_settings():
             help="必須ではありません"
         )
         
-        st.caption("💬 こういう広告や売り方は嫌だな、と思うのはどんなものですか？")
+        st.markdown("💬 **こういう広告や売り方は嫌だな、と思うのはどんなものですか？**")
         ng_points = st.text_area(
             "NGポイント（嫌がること・離脱ポイント）",
             value=emp_to_edit.get('ng_points', ''),
