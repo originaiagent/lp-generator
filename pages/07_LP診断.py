@@ -164,7 +164,7 @@ def evaluate_by_persona(ai_provider, prompt_manager, product, exposure_type, per
         return None
 
 def evaluate_by_employee(ai_provider, prompt_manager, data_store, product, exposure_type, employee, lp_content):
-    """特定の従業員AIとしてLPを評価"""
+    """特定のメンバーAIとしてLPを評価"""
     
     # 過去のフィードバックを取得
     past_feedback_list = data_store.get_employee_feedback(employee['id'], limit=20)
@@ -500,7 +500,7 @@ def render_diagnosis_page():
     )
 
     # タブ分け
-    tab_persona, tab_employee = st.tabs(["👥 消費者ペルソナ診断", "🏢 従業員AI診断"])
+    tab_persona, tab_employee = st.tabs(["👥 消費者ペルソナ診断", "🏢 メンバーAI診断"])
 
     with tab_persona:
         # 診断実行ボタン
@@ -520,18 +520,18 @@ def render_diagnosis_page():
         render_improvement_review(product_id, data_store)
 
 def render_employee_diagnosis_tab(product, exposure_type, diagnosis_target):
-    """従業員AI診断タブのレンダリング"""
+    """メンバーAI診断タブのレンダリング"""
     ds = DataStore()
     employees = ds.get_employee_personas()
     
     if not employees:
-        st.warning("従業員が登録されていません。設定ページで従業員を登録してください。")
+        st.warning("メンバーが登録されていません。設定ページでメンバーを登録してください。")
         return
 
     st.subheader("評価メンバーを選択")
     selected_employee_ids = []
     
-    # 従業員をグリッド表示
+    # メンバーをグリッド表示
     cols_per_row = 4
     for i in range(0, len(employees), cols_per_row):
         row_emps = employees[i:i + cols_per_row]
@@ -579,13 +579,13 @@ def render_employee_diagnosis_tab(product, exposure_type, diagnosis_target):
         display_employee_results(results, product['id'], employees, exposure_type, lp_content_text)
 
 def run_employee_diagnosis(product, exposure_type, diagnosis_target, employee_ids):
-    """従業員AI診断を実行"""
+    """メンバーAI診断を実行"""
     ds = DataStore()
     settings = SettingsManager().get_settings()
     ai_provider = AIProvider(settings)
     prompt_manager = PromptManager()
     
-    # 全従業員から選択された人を抽出
+    # 全メンバーから選択された人を抽出
     all_employees = ds.get_employee_personas()
     selected_employees = [e for e in all_employees if e['id'] in employee_ids]
     
@@ -613,11 +613,11 @@ def run_employee_diagnosis(product, exposure_type, diagnosis_target, employee_id
     st.rerun()
 
 def display_employee_results(results, product_id, employees_list, exposure_type, lp_content_text):
-    """従業員AIの診断結果を表示"""
+    """メンバーAIの診断結果を表示"""
     ds = DataStore()
     
     st.markdown("---")
-    st.subheader("🏢 従業員AIによる評価結果")
+    st.subheader("🏢 メンバーAIによる評価結果")
     
     for i, item in enumerate(results):
         emp = item['employee']
@@ -667,7 +667,7 @@ def display_employee_results(results, product_id, employees_list, exposure_type,
             # Profile update section
             if st.session_state.get(f'show_reevaluate_{employee_id}'):
                 st.divider()
-                st.markdown("🎓 **従業員AIの成長（プロフィール更新）**")
+                st.markdown("🎓 **メンバーAIの成長（プロフィール更新）**")
                 st.caption(f"フィードバック内容: {st.session_state.get(f'employee_feedback_text_{employee_id}', '')}")
                 
                 # Check if we already have update suggestions

@@ -190,7 +190,7 @@ def render_usage_stats(settings_manager, settings):
         st.link_button("Google AI", urls.get("google", "#"))
 
 def render_settings_page():
-    page_header("Settings", "システム設定と従業員AIの管理")
+    page_header("Settings", "システム設定とメンバーAIの管理")
     
     settings_manager = SettingsManager()
     settings = settings_manager.get_settings()
@@ -202,7 +202,7 @@ def render_settings_page():
         if st.button('🔄 モデル一覧を更新', key='refresh_models'):
             refresh_models()
     
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["LLM設定", "画像生成", "APIキー", "使用状況", "要素タイプ", "従業員AI"])
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["LLM設定", "画像生成", "APIキー", "使用状況", "要素タイプ", "メンバーAI"])
     
     with tab1:
         render_llm_settings(settings_manager, settings, models_config)
@@ -223,12 +223,12 @@ def render_settings_page():
         render_employee_settings()
 
 def render_employee_settings():
-    """従業員AIの管理UI"""
+    """メンバーAIの管理UI"""
     from modules.data_store import DataStore
     import uuid
     
-    st.markdown('<div class="step-header">従業員AI管理</div>', unsafe_allow_html=True)
-    st.caption("社内の各役割（営業、エンジニア、サポート等）をシミュレートするAI従業員を管理します")
+    st.markdown('<div class="step-header">メンバーAI管理</div>', unsafe_allow_html=True)
+    st.caption("社内の各役割（営業、エンジニア、サポート等）をシミュレートするAIメンバーを管理します")
     
     st.markdown("""
     <style>
@@ -243,10 +243,10 @@ def render_employee_settings():
     ds = DataStore()
     employees = ds.get_employee_personas()
     
-    # 既存の従業員リスト
-    st.subheader("登録済み従業員")
+    # 既存のメンバーリスト
+    st.subheader("登録済みメンバー")
     if not employees:
-        st.info("登録されている従業員はいません。")
+        st.info("登録されているメンバーはいません。")
     else:
         for emp in employees:
             with st.expander(f"{emp['name']} - {emp['role']}", expanded=False):
@@ -290,16 +290,16 @@ def render_employee_settings():
     
     # 新規追加 / 編集フォーム
     is_editing = 'editing_employee' in st.session_state
-    st.subheader("従業員の" + ("構成を編集" if is_editing else "新規登録"))
+    st.subheader("メンバーの" + ("構成を編集" if is_editing else "新規登録"))
     
     # st.formを使用して入力内容がリセットされないようにする
     with st.form("employee_persona_form", clear_on_submit=False):
         emp_to_edit = st.session_state.get('editing_employee', {})
         
-        st.markdown("💬 **この従業員の名前（ニックネーム可）**")
+        st.markdown("💬 **このメンバーの名前（ニックネーム可）**")
         name = st.text_input("名前", value=emp_to_edit.get('name', ''))
         
-        st.markdown("💬 **社内での役割・役職は？**")
+        st.markdown("💬 **チーム内での役割・役職は？**")
         role = st.text_input("役割・役職", value=emp_to_edit.get('role', ''), placeholder="例: ベテラン営業部長")
         
         st.markdown("💬 **あなたが一番詳しい分野・得意な仕事は何ですか？**")
@@ -414,7 +414,7 @@ def render_employee_settings():
                         result = ds.add_employee_persona(new_emp_data)
 
                     if result:
-                        st.success("従業員情報を保存しました！")
+                        st.success("メンバー情報を保存しました！")
                         if is_editing:
                             del st.session_state.editing_employee
                         st.rerun()

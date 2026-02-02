@@ -318,6 +318,69 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
         st.success("全ページの画像生成が完了しました！")
         st.rerun()
 
+    # ワイヤーフレーム一括生成ボタン
+    if st.button("📐 ワイヤーフレーム一括生成", key="batch_wireframe", use_container_width=True):
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        # 既に画像が生成されているページと、その最新バージョンを特定
+        generated_lp_images = product_data.get('generated_lp_images', {})
+        pages_to_process = []
+        
+        for i, p in enumerate(pages):
+            p_id = p.get('id', 'unknown')
+            if p_id in generated_lp_images and generated_lp_images[p_id]:
+                # 最新（最後）のバージョンを対象とする
+                v_ids = sorted(generated_lp_images[p_id].keys())
+                latest_v_id = v_ids[-1]
+                v_data = generated_lp_images[p_id][latest_v_id]
+                pages_to_process.append({
+                    'index': i,
+                    'page': p,
+                    'v_id': latest_v_id,
+                    'v_data': v_data
+                })
+        
+        if not pages_to_process:
+            st.warning("画像が生成されているページがありません。先に画像を生成してください。")
+        else:
+            wf_prompt = prompt_manager.get_prompt("wireframe_generation")
+            for i, item in enumerate(pages_to_process):
+                p = item['page']
+                p_id = p.get('id', 'unknown')
+                p_title = p.get('title', '無題')
+                v_id = item['v_id']
+                v_data = item['v_data']
+                
+                status_text.text(f"P{item['index']+1}: {p_title} のワイヤーフレームを生成中...")
+                
+                # 画像ソースを取得（URL優先、なければローカルパス）
+                source = v_data.get('url') or v_data.get('path')
+                
+                if source:
+                    try:
+                        result = ai_provider.generate_wireframe(source, wf_prompt)
+                        if result:
+                            # Supabaseにアップロード
+                            with open(result['local_path'], "rb") as f:
+                                wf_bytes = f.read()
+                            
+                            storage_path = f"{product_id}/wireframes/{result['filename']}"
+                            wf_url = data_store.upload_image(wf_bytes, storage_path)
+                            
+                            if wf_url:
+                                # セッションステートに保存して永続化（再読み込み時に表示されるように）
+                                # ※現状、ワイヤーフレームのURLはproduct_dataに保存する仕組みがないため、セッションのみ
+                                st.session_state[f'wireframe_{p_id}_{v_id}'] = wf_url
+                    except Exception as e:
+                        st.warning(f"P{item['index']+1} のワイヤーフレーム生成でエラー: {e}")
+                
+                progress_bar.progress((i + 1) / len(pages_to_process))
+            
+            status_text.text("")
+            st.success("全ページのワイヤーフレーム生成が完了しました！")
+            st.rerun()
+
     st.divider()
 
     # ページ選択UI
