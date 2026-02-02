@@ -564,8 +564,27 @@ def render_employee_diagnosis_tab(product, exposure_type, diagnosis_target):
 
     # 保存された結果があれば表示
     if 'employee_diagnosis_results' in st.session_state:
+        # Build LP content text from product data
+        lp_content_text = ""
+        page_contents = product.get('page_contents') or {}
+        if isinstance(page_contents, dict):
+            for page_key, content in page_contents.items():
+                if isinstance(content, str):
+                    lp_content_text += content + "\n"
+                elif isinstance(content, dict):
+                    # 各ページのパース済みテキストや元のレスポンスから抽出
+                    page_results = content.get('result', {})
+                    if isinstance(page_results, dict) and 'parsed' in page_results:
+                        lp_content_text += str(page_results['parsed']) + "\n"
+                    else:
+                        lp_content_text += str(content) + "\n"
+        
+        if not lp_content_text:
+            structure = product.get('structure') or {}
+            lp_content_text = str(structure)
+
         results = st.session_state.employee_diagnosis_results
-        display_employee_results(results, product['id'])
+        display_employee_results(results, product['id'], employees, exposure_type, lp_content_text)
 
 def run_employee_diagnosis(product, exposure_type, diagnosis_target, employee_ids):
     """従業員AI診断を実行"""
@@ -601,7 +620,7 @@ def run_employee_diagnosis(product, exposure_type, diagnosis_target, employee_id
     st.session_state.employee_diagnosis_results = results
     st.rerun()
 
-def display_employee_results(results, product_id):
+def display_employee_results(results, product_id, employees_list, exposure_type, lp_content_text):
     """従業員AIの診断結果を表示"""
     ds = DataStore()
     
@@ -664,30 +683,29 @@ def display_employee_results(results, product_id):
                 st.divider()
                 if st.button("🔄 再評価（フィードバックを反映）", key=f"reevaluate_{employee_id}"):
                     with st.spinner("フィードバックを反映して再評価中..."):
+                        # 指定された方法で従業員データを再取得
+                        employee = next((e for e in employees_list if e.get('id') == employee_id), {})
+                        
                         settings = SettingsManager().get_settings()
                         ai = AIProvider(settings)
                         pm = PromptManager()
                         prompt_template = pm.get_prompt("employee_evaluation_revision")
                         
-                        # 診断対象のテキストを再取得
-                        raw_structure = ds.get_product(product_id).get('structure', {})
-                        lp_content_text = get_lp_content(ds.get_product(product_id)) # 全ページまたは現在選択中を取得
-
                         prompt = prompt_template.format(
-                            employee_name=emp.get('name', ''),
-                            employee_role=emp.get('role', ''),
-                            employee_expertise=emp.get('expertise', ''),
-                            employee_evaluation_perspective=emp.get('evaluation_perspective', ''),
-                            employee_personality_traits=emp.get('personality_traits', ''),
-                            employee_lifestyle=emp.get('lifestyle', '未設定'),
-                            employee_psychographic=emp.get('psychographic', '未設定'),
-                            employee_demographic=emp.get('demographic', '未設定'),
-                            employee_buying_behavior=emp.get('buying_behavior', '未設定'),
-                            employee_ng_points=emp.get('ng_points', '未設定'),
+                            employee_name=employee.get('name', ''),
+                            employee_role=employee.get('role', ''),
+                            employee_expertise=employee.get('expertise', ''),
+                            employee_evaluation_perspective=employee.get('evaluation_perspective', ''),
+                            employee_personality_traits=employee.get('personality_traits', ''),
+                            employee_lifestyle=employee.get('lifestyle', '未設定'),
+                            employee_psychographic=employee.get('psychographic', '未設定'),
+                            employee_demographic=employee.get('demographic', '未設定'),
+                            employee_buying_behavior=employee.get('buying_behavior', '未設定'),
+                            employee_ng_points=employee.get('ng_points', '未設定'),
                             previous_evaluation=st.session_state.get(f'employee_prev_eval_{employee_id}', ''),
                             feedback=st.session_state.get(f'employee_feedback_{employee_id}', ''),
                             exposure_type=exposure_type,
-                            lp_content=lp_content
+                            lp_content=lp_content_text
                         )
                         
                         # AIに問い合せ
