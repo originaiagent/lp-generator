@@ -657,18 +657,17 @@ def display_employee_results(results, product_id, employees_list, exposure_type,
                         "ai_evaluation": evaluation_text[:500] if evaluation_text else "Markdown評価",
                         "user_feedback": user_fb
                     })
-                    st.success("フィードバックを保存しました。次回の評価に反映されます。")
-                    # ユーザーのリクエストに基づき、再評価用に情報を保存
                     st.session_state[f'show_reevaluate_{emp["id"]}'] = True
                     st.session_state[f'employee_feedback_text_{emp["id"]}'] = user_fb
                     st.session_state[f'employee_prev_eval_{emp["id"]}'] = evaluation_text
-                    st.rerun()
+                    st.success("フィードバックを保存しました。下の「再評価」ボタンでフィードバックを反映した評価を確認できます。")
                 else:
                     st.error("フィードバック内容を入力してください")
 
             # 再評価セクション
             if st.session_state.get(f'show_reevaluate_{employee_id}'):
                 st.divider()
+                st.info(f"💡 フィードバック内容: {st.session_state.get(f'employee_feedback_text_{employee_id}', '')}")
                 if st.button("🔄 再評価（フィードバックを反映）", key=f"reevaluate_{employee_id}"):
                     with st.spinner("フィードバックを反映して再評価中..."):
                         try:
