@@ -540,89 +540,63 @@ class DataStore:
     # --- Employee AI 関連 ---
 
     def get_employee_personas(self):
-        """全従業員AIペルソナを取得"""
-        if not self.supabase:
-            return []
+        """Get all active employee personas"""
         try:
             result = self.supabase.table("employee_personas").select("*").eq("is_active", True).order("created_at").execute()
-            return result.data or []
+            return result.data if result.data else []
         except Exception as e:
-            print(f"Error fetching employee personas: {e}")
+            print(f"[ERROR] get_employee_personas: {e}")
             return []
 
     def add_employee_persona(self, data):
-        """従業員AIペルソナを新規登録"""
-        if not self.supabase:
-            print("[ERROR] add_employee_persona: Supabase client is not initialized")
-            return None
+        """Add a new employee persona"""
         try:
-            print(f"[DEBUG] Saving employee data (INSERT): {data}")
-            data['created_at'] = datetime.now().isoformat()
-            data['updated_at'] = datetime.now().isoformat()
+            print(f"[DEBUG] Adding employee persona: {data}")
             result = self.supabase.table("employee_personas").insert(data).execute()
             return result.data[0] if result.data else None
         except Exception as e:
             print(f"[ERROR] add_employee_persona: {e}")
+            import traceback
             print(traceback.format_exc())
             return None
 
-    def update_employee_persona(self, employee_id, data):
-        """従業員AIペルソナを更新"""
-        if not self.supabase:
-            print("[ERROR] update_employee_persona: Supabase client is not initialized")
-            return None
+    def update_employee_persona(self, persona_id, data):
+        """Update an employee persona"""
         try:
-            print(f"[DEBUG] Saving employee data (UPDATE, id={employee_id}): {data}")
-            data['updated_at'] = datetime.now().isoformat()
-            result = self.supabase.table("employee_personas").update(data).eq("id", employee_id).execute()
+            result = self.supabase.table("employee_personas").update(data).eq("id", persona_id).execute()
             return result.data[0] if result.data else None
         except Exception as e:
             print(f"[ERROR] update_employee_persona: {e}")
-            print(traceback.format_exc())
             return None
 
-    def delete_employee_persona(self, employee_id):
-        """従業員AIペルソナを削除（非活性化）"""
-        if not self.supabase:
-            return False
+    def delete_employee_persona(self, persona_id):
+        """Soft delete an employee persona"""
         try:
-            # ソフトデリート (is_active = false)
-            self.supabase.table("employee_personas").update({"is_active": False}).eq("id", employee_id).execute()
+            result = self.supabase.table("employee_personas").update({"is_active": False}).eq("id", persona_id).execute()
             return True
         except Exception as e:
-            print(f"Error deleting employee persona: {e}")
+            print(f"[ERROR] delete_employee_persona: {e}")
             return False
 
     def get_employee_feedback(self, employee_id, limit=20):
-        """特定の従業員の過去のフィードバックを取得（学習用）"""
-        if not self.supabase:
-            return []
+        """Get recent feedback for an employee"""
         try:
-            result = self.supabase.table("employee_feedback")\
-                .select("*")\
-                .eq("employee_id", employee_id)\
-                .order("created_at", desc=True)\
-                .limit(limit)\
-                .execute()
-            return result.data or []
+            result = self.supabase.table("employee_feedback").select("*").eq("employee_id", employee_id).order("created_at", desc=True).limit(limit).execute()
+            return result.data if result.data else []
         except Exception as e:
-            print(f"Error fetching employee feedback: {e}")
+            print(f"[ERROR] get_employee_feedback: {e}")
             return []
 
     def add_employee_feedback(self, data):
-        """従業員AIへのフィードバックを保存"""
-        if not self.supabase:
-            return None
+        """Add employee feedback"""
         try:
-            if 'created_at' not in data:
-                data['created_at'] = datetime.now().isoformat()
             result = self.supabase.table("employee_feedback").insert(data).execute()
             return result.data[0] if result.data else None
         except Exception as e:
-            print(f"Error adding employee feedback: {e}")
+            print(f"[ERROR] add_employee_feedback: {e}")
             return None
 
-    # 後放互換性のためのエイリアス
+    # 後方互換性のためのエイリアス
     def upsert_employee_persona(self, data):
         if 'id' in data and data['id']:
             return self.update_employee_persona(data['id'], data)
