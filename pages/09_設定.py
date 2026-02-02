@@ -320,8 +320,6 @@ def render_employee_settings():
                     if avatar_url:
                         new_emp_data["avatar_url"] = avatar_url
                     
-                    st.write("DEBUG - sending data:", new_emp_data)
-                    
                     # 編集時はIDをキーにするが、新規時はIDを含めない（DB側で生成）
                     if is_editing:
                         result = ds.update_employee_persona(emp_to_edit['id'], new_emp_data)
