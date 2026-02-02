@@ -310,19 +310,24 @@ def render_employee_settings():
                         avatar_url = None
                     
                     new_emp_data = {
-                        "id": emp_id,
                         "name": name,
                         "role": role,
                         "expertise": expertise,
                         "evaluation_perspective": perspective,
                         "personality_traits": personality,
-                        "avatar_url": avatar_url,
-                        "is_active": True
                     }
+                    
+                    if avatar_url:
+                        new_emp_data["avatar_url"] = avatar_url
                     
                     st.write("DEBUG - sending data:", new_emp_data)
                     
-                    result = ds.upsert_employee_persona(new_emp_data)
+                    # 編集時はIDをキーにするが、新規時はIDを含めない（DB側で生成）
+                    if is_editing:
+                        result = ds.update_employee_persona(emp_to_edit['id'], new_emp_data)
+                    else:
+                        result = ds.add_employee_persona(new_emp_data)
+
                     if result:
                         st.success("従業員情報を保存しました！")
                         if is_editing:

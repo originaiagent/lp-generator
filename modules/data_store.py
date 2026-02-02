@@ -550,26 +550,10 @@ class DataStore:
 
     def add_employee_persona(self, data):
         """Add a new employee persona"""
-        try:
-            result = self.supabase.table("employee_personas").insert(data).execute()
-            # Debug: write full result to understand what's happening
-            print(f"[DEBUG] Insert result: {result}")
-            print(f"[DEBUG] result.data: {result.data}")
-            if result.data:
-                return result.data[0]
-            else:
-                # Try without expecting return data - just check if insert succeeded
-                # Re-query to verify
-                check = self.supabase.table("employee_personas").select("*").order("created_at", desc=True).limit(1).execute()
-                print(f"[DEBUG] Re-query result: {check.data}")
-                if check.data:
-                    return check.data[0]
-                return None
-        except Exception as e:
-            import traceback
-            print(f"[ERROR] add_employee_persona: {e}")
-            print(traceback.format_exc())
-            raise
+        result = self.supabase.table("employee_personas").insert(data).execute()
+        if result.data:
+            return result.data[0]
+        return None
 
     def update_employee_persona(self, persona_id, data):
         """Update an employee persona"""
