@@ -271,7 +271,8 @@ def render_employee_settings():
     is_editing = 'editing_employee' in st.session_state
     st.subheader("従業員の" + ("構成を編集" if is_editing else "新規登録"))
     
-    with st.form("employee_form", clear_on_submit=not is_editing):
+    # st.formを使用して入力内容がリセットされないようにする
+    with st.form("employee_persona_form", clear_on_submit=False):
         emp_to_edit = st.session_state.get('editing_employee', {})
         
         name = st.text_input("名前", value=emp_to_edit.get('name', ''))
@@ -293,12 +294,15 @@ def render_employee_settings():
                 
                 # 画像アップロード処理
                 if avatar_file:
-                    file_bytes = avatar_file.read()
-                    file_ext = avatar_file.name.split('.')[-1]
-                    path = f"employees/{emp_id}/avatar.{file_ext}"
-                    uploaded_url = ds.upload_image(file_bytes, path)
-                    if uploaded_url:
-                        avatar_url = uploaded_url
+                    try:
+                        file_bytes = avatar_file.read()
+                        file_ext = avatar_file.name.split('.')[-1]
+                        path = f"employees/{emp_id}/avatar.{file_ext}"
+                        uploaded_url = ds.upload_image(file_bytes, path)
+                        if uploaded_url:
+                            avatar_url = uploaded_url
+                    except Exception as e:
+                        print(f"[ERROR] Avatar upload failed: {e}")
                 
                 # アバターが空文字ならNoneにする
                 if not avatar_url:
@@ -323,7 +327,7 @@ def render_employee_settings():
                             del st.session_state.editing_employee
                         st.rerun()
                     else:
-                        st.error("保存に失敗しました。")
+                        st.error("保存に失敗しました。詳細なエラーはログを確認してください。")
                         print("[ERROR] Employee save failed: ds.upsert_employee_persona returned None")
                 except Exception as e:
                     st.error(f"保存中にエラーが発生しました: {e}")
