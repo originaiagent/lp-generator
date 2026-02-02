@@ -827,7 +827,7 @@ def render_design_instruction_section(output_generator, product_data, data_store
     
     # 保存されたデータを読み込み
     saved_instruction = product_data.get('designer_instruction', '')
-    if 'generated_instruction' not in st.session_state and saved_instruction:
+    if not st.session_state.get('generated_instruction') and saved_instruction:
         st.session_state['generated_instruction'] = saved_instruction
 
     if st.session_state.get('generated_instruction'):

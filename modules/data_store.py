@@ -147,7 +147,8 @@ class DataStore:
                     "lp_analyses", "lp_analyses_dict", "review_sheet_data", "tone_manner",
                     "reference_lp_images", "tone_manner_images", # ローカルパスも補完
                     "product_images", "model_images", "model_prompts",
-                    "reference_lp_image_urls", "tone_manner_image_urls", "product_image_urls"
+                    "reference_lp_image_urls", "tone_manner_image_urls", "product_image_urls",
+                    "designer_instruction"
                 ]
                 for key in merge_keys:
                     if (key not in product_data or not product_data[key]) and (key in local_data and local_data[key]):
