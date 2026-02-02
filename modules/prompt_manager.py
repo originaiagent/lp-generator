@@ -429,6 +429,49 @@ NGポイント: {employee_ng_points}
 
 ## アドバイス
 （具体的なアドバイス）"""
+        },
+        "employee_profile_update": {
+            "name": "従業員プロフィール更新",
+            "description": "フィードバックを基に従業員AIのプロフィールを更新する提案を生成",
+            "template": """あなたは従業員AIプロフィールの管理者です。
+以下の従業員が行ったLP評価に対して、担当者からフィードバックがありました。
+このフィードバックを分析し、従業員プロフィールのどのフィールドをどう更新すべきか提案してください。
+
+【現在の従業員プロフィール】
+名前: {employee_name}
+役割: {employee_role}
+専門分野: {employee_expertise}
+評価の重点: {employee_evaluation_perspective}
+性格・口調: {employee_personality_traits}
+ライフスタイル: {employee_lifestyle}
+価値観・関心: {employee_psychographic}
+基本属性: {employee_demographic}
+購買行動パターン: {employee_buying_behavior}
+NGポイント: {employee_ng_points}
+
+【従業員が行った評価（抜粋）】
+{previous_evaluation}
+
+【担当者からのフィードバック】
+{feedback}
+
+【指示】
+- フィードバックの内容を汎用的に解釈してください（今回の商品固有ではなく、この従業員が今後あらゆるLPを評価する際に活かせる改善にしてください）
+- 更新が必要なフィールドのみを提案してください
+- 現在の内容を活かしつつ、フィードバックの視点を追加・統合してください
+- 更新不要のフィールドは含めないでください
+
+以下のJSON形式で回答してください（更新が必要なフィールドのみ含める）:
+```json
+{{
+  "updates": {{
+    "evaluation_perspective": "更新後の評価の重点テキスト",
+    "ng_points": "更新後のNGポイントテキスト"
+  }},
+  "reasoning": "なぜこの更新を提案するかの簡潔な説明"
+}}
+```
+JSONのみを出力し、他のテキストは含めないでください。"""
         }
     }
 

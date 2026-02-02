@@ -664,67 +664,144 @@ def display_employee_results(results, product_id, employees_list, exposure_type,
                 else:
                     st.error("フィードバック内容を入力してください")
 
-            # 再評価セクション
+            # Profile update section
             if st.session_state.get(f'show_reevaluate_{employee_id}'):
                 st.divider()
-                st.info(f"💡 フィードバック内容: {st.session_state.get(f'employee_feedback_text_{employee_id}', '')}")
-                if st.button("🔄 再評価（フィードバックを反映）", key=f"reevaluate_{employee_id}"):
-                    with st.spinner("フィードバックを反映して再評価中..."):
-                        try:
-                            # 指定された方法で従業員データを再取得
-                            employee = next((e for e in employees_list if e.get('id') == employee_id), {})
-                            
-                            settings = SettingsManager().get_settings()
-                            ai = AIProvider(settings)
-                            pm = PromptManager()
-                            prompt_template = pm.get_prompt("employee_evaluation_revision")
-                            
-                            if prompt_template:
-                                prompt = prompt_template.format(
-                                    employee_name=employee.get('name', ''),
-                                    employee_role=employee.get('role', ''),
-                                    employee_expertise=employee.get('expertise', ''),
-                                    employee_evaluation_perspective=employee.get('evaluation_perspective', ''),
-                                    employee_personality_traits=employee.get('personality_traits', ''),
-                                    employee_lifestyle=employee.get('lifestyle', '未設定'),
-                                    employee_psychographic=employee.get('psychographic', '未設定'),
-                                    employee_demographic=employee.get('demographic', '未設定'),
-                                    employee_buying_behavior=employee.get('buying_behavior', '未設定'),
-                                    employee_ng_points=employee.get('ng_points', '未設定'),
-                                    previous_evaluation=st.session_state.get(f'employee_prev_eval_{employee_id}', ''),
-                                    feedback=st.session_state.get(f'employee_feedback_text_{employee_id}', ''),
-                                    exposure_type=exposure_type,
-                                    lp_content=lp_content_text
-                                )
+                st.markdown("🎓 **従業員AIの成長（プロフィール更新）**")
+                st.caption(f"フィードバック内容: {st.session_state.get(f'employee_feedback_text_{employee_id}', '')}")
+                
+                # Check if we already have update suggestions
+                update_key = f'employee_update_suggestion_{employee_id}'
+                
+                if not st.session_state.get(update_key):
+                    if st.button("🔄 プロフィール更新を提案", key=f"suggest_update_{employee_id}"):
+                        with st.spinner("フィードバックを分析中..."):
+                            try:
+                                employee = next((e for e in employees_list if e.get('id') == employee_id), {})
+                                settings = SettingsManager().get_settings()
+                                ai = AIProvider(settings)
+                                pm = PromptManager()
+                                prompt_template = pm.get_prompt("employee_profile_update")
                                 
-                                # AIに問い合せ
-                                result = ai.ask(prompt, "employee_evaluation_revision")
-                                if result:
-                                    # Handle both string and dict responses
-                                    if isinstance(result, dict):
-                                        revised_text = result.get('evaluation_text', result.get('raw_response', str(result)))
+                                if prompt_template:
+                                    prompt = prompt_template.format(
+                                        employee_name=employee.get('name', ''),
+                                        employee_role=employee.get('role', ''),
+                                        employee_expertise=employee.get('expertise', ''),
+                                        employee_evaluation_perspective=employee.get('evaluation_perspective', ''),
+                                        employee_personality_traits=employee.get('personality_traits', ''),
+                                        employee_lifestyle=employee.get('lifestyle', '未設定'),
+                                        employee_psychographic=employee.get('psychographic', '未設定'),
+                                        employee_demographic=employee.get('demographic', '未設定'),
+                                        employee_buying_behavior=employee.get('buying_behavior', '未設定'),
+                                        employee_ng_points=employee.get('ng_points', '未設定'),
+                                        previous_evaluation=st.session_state.get(f'employee_prev_eval_{employee_id}', ''),
+                                        feedback=st.session_state.get(f'employee_feedback_text_{employee_id}', '')
+                                    )
+                                    
+                                    result = ai.ask(prompt, "employee_profile_update")
+                                    
+                                    if result:
+                                        # Parse JSON response
+                                        import json
+                                        if isinstance(result, str):
+                                            # Clean markdown code blocks if present
+                                            clean = result.strip()
+                                            if clean.startswith("```"):
+                                                clean = clean.split("\n", 1)[1] if "\n" in clean else clean[3:]
+                                            if clean.endswith("```"):
+                                                clean = clean[:-3]
+                                            clean = clean.strip()
+                                            if clean.startswith("json"):
+                                                clean = clean[4:].strip()
+                                            suggestion = json.loads(clean)
+                                        else:
+                                            suggestion = result
+                                        
+                                        st.session_state[update_key] = suggestion
+                                        st.session_state[f'employee_current_profile_{employee_id}'] = {
+                                            "expertise": employee.get('expertise', ''),
+                                            "evaluation_perspective": employee.get('evaluation_perspective', ''),
+                                            "personality_traits": employee.get('personality_traits', ''),
+                                            "lifestyle": employee.get('lifestyle', ''),
+                                            "psychographic": employee.get('psychographic', ''),
+                                            "demographic": employee.get('demographic', ''),
+                                            "buying_behavior": employee.get('buying_behavior', ''),
+                                            "ng_points": employee.get('ng_points', ''),
+                                        }
+                                        st.rerun()
                                     else:
-                                        revised_text = str(result)
-                                    st.session_state[f'employee_revised_eval_{employee_id}'] = revised_text
-                                    st.rerun()
+                                        st.error("更新提案の生成に失敗しました")
                                 else:
-                                    st.error("再評価の生成に失敗しました")
-                            else:
-                                st.error("employee_evaluation_revision プロンプトが見つかりません")
-                        except Exception as e:
-                            import traceback
-                            st.error(f"再評価に失敗しました: {e}")
-                            st.code(traceback.format_exc())
-
-            if st.session_state.get(f'employee_revised_eval_{employee_id}'):
-                st.divider()
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.subheader("📝 フィードバック前")
-                    st.markdown(st.session_state.get(f'employee_prev_eval_{employee_id}', ''))
-                with col2:
-                    st.subheader("✅ フィードバック後")
-                    st.markdown(st.session_state.get(f'employee_revised_eval_{employee_id}', ''))
+                                    st.error("employee_profile_update プロンプトが見つかりません。プロンプト管理ページで追加してください。")
+                            except json.JSONDecodeError as e:
+                                st.error(f"AIの応答をJSONとして解析できませんでした: {e}")
+                                st.code(result if isinstance(result, str) else str(result))
+                            except Exception as e:
+                                import traceback
+                                st.error(f"プロフィール更新提案に失敗しました: {e}")
+                                st.code(traceback.format_exc())
+                
+                # Display update suggestions if available
+                if st.session_state.get(update_key):
+                    suggestion = st.session_state[update_key]
+                    current_profile = st.session_state.get(f'employee_current_profile_{employee_id}', {})
+                    updates = suggestion.get('updates', {})
+                    reasoning = suggestion.get('reasoning', '')
+                    
+                    if reasoning:
+                        st.info(f"💡 **更新理由:** {reasoning}")
+                    
+                    # Field name mapping for display
+                    field_labels = {
+                        "expertise": "専門分野",
+                        "evaluation_perspective": "評価の重点",
+                        "personality_traits": "性格・口調",
+                        "lifestyle": "ライフスタイル",
+                        "psychographic": "価値観・関心",
+                        "demographic": "基本属性",
+                        "buying_behavior": "購買行動パターン",
+                        "ng_points": "NGポイント",
+                    }
+                    
+                    if updates:
+                        for field_key, new_value in updates.items():
+                            label = field_labels.get(field_key, field_key)
+                            old_value = current_profile.get(field_key, '未設定')
+                            
+                            st.markdown(f"**{label}**")
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.markdown("📝 **変更前**")
+                                st.warning(old_value if old_value else "（未設定）")
+                            with col2:
+                                st.markdown("✅ **変更後**")
+                                st.success(new_value)
+                            st.markdown("")
+                        
+                        # Apply button
+                        col_apply, col_cancel = st.columns(2)
+                        with col_apply:
+                            if st.button("✅ この更新を適用", key=f"apply_update_{employee_id}", type="primary"):
+                                try:
+                                    ds.update_employee_persona(employee_id, updates)
+                                    st.success("プロフィールを更新しました！次回の評価に反映されます。")
+                                    # Clean up session state
+                                    del st.session_state[update_key]
+                                    if f'employee_current_profile_{employee_id}' in st.session_state:
+                                        del st.session_state[f'employee_current_profile_{employee_id}']
+                                    if f'show_reevaluate_{employee_id}' in st.session_state:
+                                        del st.session_state[f'show_reevaluate_{employee_id}']
+                                except Exception as e:
+                                    st.error(f"更新に失敗しました: {e}")
+                        with col_cancel:
+                            if st.button("❌ キャンセル", key=f"cancel_update_{employee_id}"):
+                                del st.session_state[update_key]
+                                if f'show_reevaluate_{employee_id}' in st.session_state:
+                                    del st.session_state[f'show_reevaluate_{employee_id}']
+                                st.rerun()
+                    else:
+                        st.info("このフィードバックではプロフィールの更新は不要と判断されました。")
 
 def render_improvement_generation(product):
     """改善案の生成フロー"""
