@@ -462,6 +462,13 @@ class AIProvider:
                             "filename": filename,
                             "image_data": base64.b64encode(image_data).decode('utf-8') if not isinstance(image_data, str) else image_data
                         }
+
+            print(f"[DEBUG] Wireframe - no image found in response")
+            if response and response.candidates:
+                for part in response.candidates[0].content.parts:
+                    print(f"[DEBUG] Part type: {type(part)}, has inline_data: {hasattr(part, 'inline_data')}")
+                    if hasattr(part, 'text'):
+                        print(f"[DEBUG] Text response: {part.text[:200]}")
             
             return None
         except Exception as e:

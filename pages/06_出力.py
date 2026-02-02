@@ -539,6 +539,7 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                             try:
                                 # 元の画像パス（URLまたはローカル）
                                 image_url = v_path
+                                st.write(f"DEBUG - image source: {image_url}")
                                 
                                 wf_prompt = prompt_manager.get_prompt("wireframe_generation")
                                 result = ai_provider.generate_wireframe(image_url, wf_prompt)
@@ -556,9 +557,11 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                                     else:
                                         st.error("画像のアップロードに失敗しました")
                                 else:
-                                    st.error("ワイヤーフレーム生成に失敗しました")
+                                    st.error("ワイヤーフレーム生成に失敗しました（AIからの応答に画像が含まれていない可能性があります）")
                             except Exception as e:
-                                st.error(f"エラー: {e}")
+                                import traceback
+                                st.error(f"ワイヤーフレーム生成に失敗しました: {e}")
+                                st.code(traceback.format_exc())
                 
                 # ワイヤーフレーム表示（もし生成済みなら）
                 if st.session_state.get(f'wireframe_{page_id}_{v_id}'):
