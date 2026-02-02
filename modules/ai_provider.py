@@ -393,3 +393,79 @@ class AIProvider:
         output_tokens = response.usage.output_tokens
         self._record_usage("claude", input_tokens, output_tokens)
         return response.content[0].text
+    def generate_wireframe(self, image_path_or_url, prompt=None):
+        """Generate a wireframe version of an existing image"""
+        try:
+            import google.generativeai as genai
+            from PIL import Image
+            import io
+            import base64
+            import requests
+            import time
+            import os
+            
+            # APIキーの取得（既存の仕組みを利用）
+            api_key = self.google_api_key
+            
+            if not api_key:
+                print("[ERROR] No Gemini API key for wireframe generation")
+                return None
+            
+            genai.configure(api_key=api_key)
+            
+            # 画像の読み込み
+            if image_path_or_url.startswith('http'):
+                headers = {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+                }
+                response = requests.get(image_path_or_url, headers=headers)
+                img = Image.open(io.BytesIO(response.content))
+            else:
+                img = Image.open(image_path_or_url)
+            
+            # ワイヤーフレーム用プロンプト
+            if not prompt:
+                prompt = "この画像をワイヤーフレーム（構成案）に変換してください。完全なモノクロ・グレースケールで、写真はプレースホルダーボックスに、テキストは横線で表現してください。"
+            
+            # 画像生成をサポートするGeminiモデルを使用
+            # 設定から取得するか、デフォルト値を使用
+            image_settings = self.settings.get("image_generation", {})
+            image_model = self.settings.get("image_model") or image_settings.get("model", "gemini-2.0-flash-preview-image-generation")
+            
+            model = genai.GenerativeModel(image_model)
+            
+            response = model.generate_content(
+                [prompt, img],
+                generation_config=genai.GenerationConfig(
+                    response_modalities=["image", "text"]
+                )
+            )
+            
+            # 生成された画像を抽出
+            if response and response.candidates:
+                for part in response.candidates[0].content.parts:
+                    if hasattr(part, 'inline_data') and part.inline_data:
+                        image_data = part.inline_data.data
+                        
+                        # 保存先ディレクトリ
+                        os.makedirs("data/generated_images", exist_ok=True)
+                        timestamp = int(time.time())
+                        filename = f"wireframe_{timestamp}.png"
+                        filepath = os.path.join("data/generated_images", filename)
+                        
+                        # binaryかbase64か判定して保存
+                        with open(filepath, "wb") as f:
+                            f.write(base64.b64decode(image_data) if isinstance(image_data, str) else image_data)
+                        
+                        return {
+                            "local_path": filepath,
+                            "filename": filename,
+                            "image_data": base64.b64encode(image_data).decode('utf-8') if not isinstance(image_data, str) else image_data
+                        }
+            
+            return None
+        except Exception as e:
+            import traceback
+            print(f"[ERROR] generate_wireframe: {e}")
+            print(traceback.format_exc())
+            return None

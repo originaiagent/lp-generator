@@ -531,6 +531,45 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                             product_data.get('generated_lp_images', {}).pop(page_id, None)
                         data_store.update_product(product_id, product_data)
                         st.rerun()
+
+                    # ワイヤーフレーム生成ボタン
+                    st.divider()
+                    if st.button("📐 ワイヤーフレーム生成", key=f"btn_wf_{page_id}_{v_id}", use_container_width=True):
+                        with st.spinner("ワイヤーフレーム生成中..."):
+                            try:
+                                # 元の画像パス（URLまたはローカル）
+                                image_url = v_path
+                                
+                                wf_prompt = prompt_manager.get_prompt("wireframe_generation")
+                                result = ai_provider.generate_wireframe(image_url, wf_prompt)
+                                
+                                if result:
+                                    # Supabase Storageにアップロード
+                                    storage_path = f"{product_id}/wireframes/{result['filename']}"
+                                    with open(result['local_path'], 'rb') as f:
+                                        wireframe_url = data_store.upload_image(f.read(), storage_path)
+                                    
+                                    if wireframe_url:
+                                        st.session_state[f'wireframe_{page_id}_{v_id}'] = wireframe_url
+                                        st.success("ワイヤーフレームを生成しました")
+                                        st.rerun()
+                                    else:
+                                        st.error("画像のアップロードに失敗しました")
+                                else:
+                                    st.error("ワイヤーフレーム生成に失敗しました")
+                            except Exception as e:
+                                st.error(f"エラー: {e}")
+                
+                # ワイヤーフレーム表示（もし生成済みなら）
+                if st.session_state.get(f'wireframe_{page_id}_{v_id}'):
+                    st.markdown("**📐 ワイヤーフレーム**")
+                    col_orig, col_wf = st.columns(2)
+                    with col_orig:
+                        st.caption("デザイン案")
+                        st.image(v_path, use_container_width=True)
+                    with col_wf:
+                        st.caption("ワイヤーフレーム")
+                        st.image(st.session_state[f'wireframe_{page_id}_{v_id}'], use_container_width=True)
                 
                 # プロンプト表示（トグル）
                 if st.session_state.get(f'show_prompt_{page_id}_{v_id}'):
