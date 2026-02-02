@@ -708,11 +708,20 @@ def display_employee_results(results, product_id, employees_list, exposure_type,
                             lp_content=lp_content_text
                         )
                         
-                        # AIに問い合せ
-                        result = ai.ask(prompt, "employee_evaluation_revision")
-                        if result:
-                            st.session_state[f'employee_revised_eval_{employee_id}'] = result
-                            st.rerun()
+                        # Debug: 送信プロンプトの表示
+                        with st.expander("DEBUG: 送信プロンプト", expanded=False):
+                            st.text(prompt)
+                        
+                        try:
+                            # AIに問い合せ
+                            result = ai.ask(prompt, "employee_evaluation_revision")
+                            if result:
+                                st.session_state[f'employee_revised_eval_{employee_id}'] = result
+                                st.rerun()
+                        except Exception as e:
+                            import traceback
+                            st.error(f"再評価に失敗しました: {e}")
+                            st.code(traceback.format_exc())
 
             if st.session_state.get(f'employee_revised_eval_{employee_id}'):
                 st.divider()
