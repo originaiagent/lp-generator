@@ -397,70 +397,71 @@ class AIProvider:
         """Generate a wireframe version of an existing image"""
         try:
             import google.generativeai as genai
-            from PIL import Image
-            import io
+            import uuid
+            from pathlib import Path
             import base64
-            import requests
-            import time
-            import os
             
-            # APIキーの取得（既存の仕組みを利用）
             api_key = self.google_api_key
-            
             if not api_key:
                 print("[ERROR] No Gemini API key for wireframe generation")
                 return None
             
             genai.configure(api_key=api_key)
             
-            # 画像の読み込み
-            if image_path_or_url.startswith('http'):
-                headers = {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-                }
-                response = requests.get(image_path_or_url, headers=headers)
-                img = Image.open(io.BytesIO(response.content))
-            else:
-                img = Image.open(image_path_or_url)
+            # 既存の画像生成と同じモデルを使用
+            image_settings = self.settings.get("image_generation", {})
+            model_name = self.settings.get("image_model") or image_settings.get("model", "gemini-3-pro-image-preview")
             
-            # ワイヤーフレーム用プロンプト
+            gen_model = genai.GenerativeModel(model_name)
+            
+            # デフォルトのワイヤーフレーム用プロンプト
             if not prompt:
                 prompt = "この画像をワイヤーフレーム（構成案）に変換してください。完全なモノクロ・グレースケールで、写真はプレースホルダーボックスに、テキストは横線で表現してください。"
             
-            # 画像生成をサポートするGeminiモデルを使用
-            # 設定から取得するか、デフォルト値を使用
-            image_settings = self.settings.get("image_generation", {})
-            image_model = self.settings.get("image_model") or image_settings.get("model", "gemini-2.0-flash-preview-image-generation")
+            # 参照画像情報を取得（_generate_image_geminiと同じパターン）
+            contents = []
+            img_info = self._get_image_info(image_path_or_url)
+            if img_info:
+                contents.append(img_info)
+            else:
+                print(f"[ERROR] Could not load source image for wireframe: {image_path_or_url}")
+                return None
             
-            model = genai.GenerativeModel(image_model)
+            contents.append(prompt)
             
-            response = model.generate_content(
-                [prompt, img],
-                generation_config=genai.GenerationConfig(
-                    response_modalities=["image", "text"]
-                )
-            )
+            # API呼び出し（_generate_image_geminiと同じパターン）
+            # 注意: モダリティ指定が必要なモデルの場合は以下を追加検討
+            # generation_config=genai.GenerationConfig(response_modalities=["image", "text"])
+            # ただし、_generate_image_geminiが使用していないため、まずはなしで試す
+            response = gen_model.generate_content(contents)
             
-            # 生成された画像を抽出
-            if response and response.candidates:
+            # 画像データを取得して保存（_generate_image_geminiと同じパターン）
+            if response.candidates and response.candidates[0].content.parts:
                 for part in response.candidates[0].content.parts:
                     if hasattr(part, 'inline_data') and part.inline_data:
                         image_data = part.inline_data.data
                         
-                        # 保存先ディレクトリ
-                        os.makedirs("data/generated_images", exist_ok=True)
-                        timestamp = int(time.time())
-                        filename = f"wireframe_{timestamp}.png"
-                        filepath = os.path.join("data/generated_images", filename)
+                        save_dir = Path("data/generated_images")
+                        save_dir.mkdir(parents=True, exist_ok=True)
                         
-                        # binaryかbase64か判定して保存
-                        with open(filepath, "wb") as f:
-                            f.write(base64.b64decode(image_data) if isinstance(image_data, str) else image_data)
+                        filename = f"wf_{uuid.uuid4().hex[:8]}.png"
+                        save_path = save_dir / filename
+                        
+                        raw_data = base64.b64decode(image_data) if isinstance(image_data, str) else image_data
+                        
+                        with open(save_path, "wb") as f:
+                            f.write(raw_data)
+                        
+                        # トークン使用量を記録
+                        if hasattr(response, 'usage_metadata'):
+                            input_tokens = getattr(response.usage_metadata, 'prompt_token_count', 0)
+                            output_tokens = getattr(response.usage_metadata, 'candidates_token_count', 0)
+                            self._record_usage("gemini", input_tokens, output_tokens, model_name)
                         
                         return {
-                            "local_path": filepath,
+                            "local_path": str(save_path),
                             "filename": filename,
-                            "image_data": base64.b64encode(image_data).decode('utf-8') if not isinstance(image_data, str) else image_data
+                            "image_data": base64.b64encode(raw_data).decode('utf-8')
                         }
 
             print(f"[DEBUG] Wireframe - no image found in response")
@@ -468,7 +469,7 @@ class AIProvider:
                 for part in response.candidates[0].content.parts:
                     print(f"[DEBUG] Part type: {type(part)}, has inline_data: {hasattr(part, 'inline_data')}")
                     if hasattr(part, 'text'):
-                        print(f"[DEBUG] Text response: {part.text[:200]}")
+                        print(f"[DEBUG] Text response: {part.text[:300]}")
             
             return None
         except Exception as e:

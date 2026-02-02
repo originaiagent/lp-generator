@@ -539,7 +539,6 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                             try:
                                 # 元の画像パス（URLまたはローカル）
                                 image_url = v_path
-                                st.write(f"DEBUG - image source: {image_url}")
                                 
                                 wf_prompt = prompt_manager.get_prompt("wireframe_generation")
                                 result = ai_provider.generate_wireframe(image_url, wf_prompt)
