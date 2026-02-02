@@ -621,6 +621,7 @@ def display_employee_results(results, product_id, employees_list, exposure_type,
     
     for i, item in enumerate(results):
         emp = item['employee']
+        employee_id = emp['id']
         eval_res = item['evaluation']
         
         # evaluation_text または raw_response を取得
