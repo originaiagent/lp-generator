@@ -1,6 +1,7 @@
 import json
 import os
 from typing import Dict, List, Any
+from supabase import create_client, Client
 
 class PromptManager:
     DEFAULT_PROMPTS = {
@@ -146,6 +147,11 @@ JSONの値は必ず日本語で出力してください。"""
             "template": """各ページの構成案とコンテンツ内容を元に、デザイナー向けの制作指示書を生成してください。
 デザイナーが迷わずに画像制作に取り掛かれるレベルの具体性を持たせてください。
 
+【重要な指示】
+- 入力されたJSONデータをそのまま出力しないでください
+- 必ず以下の形式に変換して出力してください
+- 各ページごとに、目的・キャッチコピー・イメージ画像指示を含めてください
+
 【入力データ】
 ■製品情報: {product_name}
 ■トンマナ・デザイン方針:
@@ -165,81 +171,145 @@ JSONの値は必ず日本語で出力してください。"""
 4. **AIの裁量**: 上記の項目に加え、デザイナーにとって有益と思われる情報は適宜追加・調整して最適な形式で出力してください。
 
 【出力形式の例】
---------------------------------------------------
 【P1】ファーストビュー
---------------------------------------------------
-■目的
-ユーザーの興味を一瞬で惹きつけ、読み進めてもらうこと
-
-■キャッチコピー
-メイン：[コピー]
-サブ：[コピー]
-
-■構成・テキスト要素
-- ヘッダー：ロゴを中央に配置
-- メインビジュアル：...
-
-■デザイン・画像指示
-- 全体：[トンマナ]に基づき、〇〇な雰囲気で
-- 背景：...
-- 商品画像：...
+- 目的： このページの役割を1文で
+- キャッチコピー：
+  - メイン： 〇〇〇
+  - サブ： 〇〇〇
+- テキスト要素： キーワードをスペース区切りで
+- イメージ画像指示：
+  - 背景：〇〇
+  - メインビジュアル：〇〇
+  - 強調ポイント：〇〇
 
 (以下、ページごとに続く)
---------------------------------------------------
 
 【出力言語】
 必ず日本語で出力してください。"""
+        },
+        "lp_image_generation": {
+             "name": "LP画像生成",
+             "description": "LPの1セクションの画像を生成",
+             "template": """あなたはWEBデザインのプロフェッショナルです。
+LPの1セクション（画像）を作成してください。
+
+【製品・トンマナ情報】
+- メインカラー: {main_color}
+- アクセントカラー: {accent_color}
+- 背景色: {background_color}
+- テキスト色: {text_color}
+- フォント: {font_type}（{font_weight}）
+- 印象: {impression}
+
+【セクションの内容】
+{content_text}
+
+【レイアウト指示】
+{layout_instructions}
+
+画像のアスペクト比は1:1に近い正方形、またはコンテンツに応じた縦長で出力してください。
+文字はダミーではなく、意味のある日本語のテキストとして読めるように配置してください。"""
         }
     }
 
     def __init__(self, prompts_file: str = "data/prompts.json"):
         self.prompts_file = prompts_file
-        self._ensure_directory()
-        self._load_or_create_prompts()
-
+        self.prompts = {}
+        self.use_supabase = False
+        self.supabase = None
+        
+        # Supabase接続試行
+        url = os.environ.get("SUPABASE_URL")
+        key = os.environ.get("SUPABASE_KEY")
+        service_key = os.environ.get("SUPABASE_SERVICE_KEY")
+        
+        if url and (key or service_key):
+            try:
+                self.supabase = create_client(url, service_key if service_key else key)
+                self.use_supabase = True
+            except Exception as e:
+                print(f"Supabase init error in PromptManager: {e}")
+        
+        # 初期読み込み
+        self._load_prompts()
+    
     def _ensure_directory(self):
         dir_path = os.path.dirname(self.prompts_file)
         if dir_path:
             os.makedirs(dir_path, exist_ok=True)
 
-    def _load_or_create_prompts(self):
-        try:
+    def _load_prompts(self):
+        """Supabase または ローカルファイルからプロンプトを読み込む"""
+        loaded = False
+        
+        if self.use_supabase:
+            try:
+                # DBから全プロンプト取得
+                response = self.supabase.table("prompts").select("*").execute()
+                db_prompts = response.data
+                
+                if db_prompts:
+                    for item in db_prompts:
+                        pid = item.get('id')
+                        self.prompts[pid] = {
+                            "name": item.get('name', ''),
+                            "description": item.get('description', ''),
+                            "template": item.get('template', '')
+                        }
+                    loaded = True
+            except Exception as e:
+                print(f"Failed to load prompts from Supabase: {e}")
+        
+        # Supabaseから読み込めなかった場合、またはDBが空の場合はローカル/デフォルトを確認
+        if not loaded or not self.prompts:
             if os.path.exists(self.prompts_file):
-                with open(self.prompts_file, 'r', encoding='utf-8') as f:
-                    self.prompts = json.load(f)
-                
-                # デフォルトプロンプトの不足分をマージ
-                updated = False
-                for key, value in self.DEFAULT_PROMPTS.items():
-                    if key not in self.prompts:
-                        self.prompts[key] = value.copy()
-                        updated = True
-                
-                if updated:
-                    self._save_prompts()
-            else:
-                self.prompts = {k: v.copy() for k, v in self.DEFAULT_PROMPTS.items()}
-                self._save_prompts()
-        except:
-            self.prompts = {k: v.copy() for k, v in self.DEFAULT_PROMPTS.items()}
-            self._save_prompts()
+                try:
+                    with open(self.prompts_file, 'r', encoding='utf-8') as f:
+                        self.prompts = json.load(f)
+                except:
+                    self.prompts = {}
+            
+            # デフォルトで補完
+            updated = False
+            for key, value in self.DEFAULT_PROMPTS.items():
+                if key not in self.prompts:
+                    self.prompts[key] = value.copy()
+                    updated = True
+            
+            # Supabaseが有効なら、デフォルト値をDBに保存（初期化）
+            if self.use_supabase and updated:
+                self._sync_defaults_to_db()
 
-    def _save_prompts(self):
-        with open(self.prompts_file, 'w', encoding='utf-8') as f:
-            json.dump(self.prompts, f, ensure_ascii=False, indent=2)
+    def _sync_defaults_to_db(self):
+        """デフォルト値をDBに保存"""
+        if not self.use_supabase:
+            return
+            
+        try:
+            for pid, data in self.prompts.items():
+                # 存在確認
+                check = self.supabase.table("prompts").select("id").eq("id", pid).execute()
+                if not check.data:
+                    # 新規挿入
+                    insert_data = {
+                        "id": pid,
+                        "name": data.get("name", ""),
+                        "description": data.get("description", ""),
+                        "template": data.get("template", "")
+                    }
+                    self.supabase.table("prompts").insert(insert_data).execute()
+        except Exception as e:
+            print(f"Error syncing defaults to DB: {e}")
 
     def get_prompt(self, prompt_id: str, variables: Dict[str, str] = None) -> str:
-        # 外部ファイルを優先的に読み込む
-        external_path = f"data/prompts/{prompt_id}.txt"
-        import os
-        if os.path.exists(external_path):
-            with open(external_path, "r", encoding="utf-8") as f:
-                template = f.read()
-        elif prompt_id in self.prompts:
-            data = self.prompts[prompt_id]
-            template = data.get("template", "") if isinstance(data, dict) else data
-        else:
+        data = self.prompts.get(prompt_id, {})
+        if not data and prompt_id in self.DEFAULT_PROMPTS:
+            data = self.DEFAULT_PROMPTS[prompt_id]
+        
+        if not data:
             return ""
+            
+        template = data.get("template", "")
         
         if variables:
             try:
@@ -257,25 +327,61 @@ JSONの値は必ず日本語で出力してください。"""
     def list_prompts_with_names(self):
         result = []
         for pid, data in self.prompts.items():
-            if isinstance(data, dict):
-                result.append({"id": pid, "name": data.get("name", pid), "description": data.get("description", "")})
-            else:
-                result.append({"id": pid, "name": pid, "description": ""})
+            result.append({"id": pid, "name": data.get("name", pid), "description": data.get("description", "")})
         return result
 
     def update_prompt(self, prompt_id: str, template: str) -> bool:
+        # メモリ更新
         if prompt_id in self.prompts:
-            if isinstance(self.prompts[prompt_id], dict):
-                self.prompts[prompt_id]["template"] = template
-            else:
-                self.prompts[prompt_id] = template
-            self._save_prompts()
+            self.prompts[prompt_id]["template"] = template
+        else:
+            self.prompts[prompt_id] = {
+                "name": prompt_id,
+                "description": "Custom prompt",
+                "template": template
+            }
+        
+        # DB更新
+        if self.use_supabase:
+            try:
+                # 存在チェック
+                check = self.supabase.table("prompts").select("*").eq("id", prompt_id).execute()
+                if check.data:
+                    self.supabase.table("prompts").update({"template": template}).eq("id", prompt_id).execute()
+                else:
+                    self.supabase.table("prompts").insert({
+                        "id": prompt_id,
+                        "name": self.prompts[prompt_id]["name"],
+                        "description": self.prompts[prompt_id]["description"],
+                        "template": template
+                    }).execute()
+                return True
+            except Exception as e:
+                print(f"Error updating prompt in DB: {e}")
+                return False
+        else:
+            # ローカル保存
+            self._ensure_directory()
+            with open(self.prompts_file, 'w', encoding='utf-8') as f:
+                json.dump(self.prompts, f, ensure_ascii=False, indent=2)
             return True
-        return False
 
     def reset_to_default(self, prompt_id: str) -> bool:
         if prompt_id in self.DEFAULT_PROMPTS:
             self.prompts[prompt_id] = self.DEFAULT_PROMPTS[prompt_id].copy()
-            self._save_prompts()
-            return True
+            template = self.prompts[prompt_id]["template"]
+            
+            # DB更新
+            if self.use_supabase:
+                try:
+                    self.supabase.table("prompts").update({"template": template}).eq("id", prompt_id).execute()
+                    return True
+                except Exception as e:
+                    print(f"Error resetting prompt in DB: {e}")
+                    return False
+            else:
+                 self._ensure_directory()
+                 with open(self.prompts_file, 'w', encoding='utf-8') as f:
+                    json.dump(self.prompts, f, ensure_ascii=False, indent=2)
+                 return True
         return False

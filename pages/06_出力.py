@@ -196,6 +196,27 @@ def generate_page_image_logic(ai_provider, prompt_manager, page, parsed_content,
     if result and 'path' in result:
         page_id = page.get('id', f"page_{page.get('order', 1)}")
         
+        # ローカルパスを取得
+        local_path = result['path']
+        saved_path = local_path
+        
+        # Supabase Storageにアップロード
+        if local_path and os.path.exists(local_path):
+            try:
+                # ファイル名生成
+                file_name = os.path.basename(local_path)
+                storage_path = f"{product_id}/generated/{file_name}"
+                
+                with open(local_path, "rb") as f:
+                    file_data = f.read()
+                    
+                # アップロード (DataStoreのメソッドを使用)
+                public_url = data_store.upload_image(file_data, storage_path)
+                if public_url:
+                    saved_path = public_url
+            except Exception as e:
+                print(f"Failed to upload generated image: {e}")
+        
         # 複数バージョン対応のデータ構造
         if 'generated_versions' not in product_data:
             product_data['generated_versions'] = {}
@@ -206,7 +227,7 @@ def generate_page_image_logic(ai_provider, prompt_manager, page, parsed_content,
         version_id = f"v_{uuid.uuid4().hex[:8]}"
         new_version = {
             "id": version_id,
-            "path": result['path'],
+            "path": saved_path,
             "prompt": prompt,
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "is_selected": False,
@@ -222,7 +243,7 @@ def generate_page_image_logic(ai_provider, prompt_manager, page, parsed_content,
         # 旧形式との互換性
         if 'generated_lp_images' not in product_data:
             product_data['generated_lp_images'] = {}
-        product_data['generated_lp_images'][page_id] = result['path']
+        product_data['generated_lp_images'][page_id] = saved_path
         
         data_store.update_product(product_id, product_data)
         return True
@@ -649,13 +670,34 @@ def regenerate_pattern(ai_provider, product_data, data_store, product_id, page_i
             result = ai_provider.generate_image(prompt, reference_image_path=ref_image_path)
             
             if result and 'path' in result:
+                # ローカルパスを取得
+                local_path = result['path']
+                saved_path = local_path
+                
+                # Supabase Storageにアップロード
+                if local_path and os.path.exists(local_path):
+                    try:
+                        # ファイル名生成
+                        file_name = os.path.basename(local_path)
+                        storage_path = f"{product_id}/generated/{file_name}"
+                        
+                        with open(local_path, "rb") as f:
+                            file_data = f.read()
+                            
+                        # アップロード
+                        public_url = data_store.upload_image(file_data, storage_path)
+                        if public_url:
+                            saved_path = public_url
+                    except Exception as e:
+                        print(f"Failed to upload regenerated image: {e}")
+
                 # 既存バージョンを更新
                 versions_data = product_data.get('generated_versions', {}).get(page_id, {})
                 versions = versions_data.get('versions', [])
                 
                 for v in versions:
                     if v['id'] == version_id:
-                        v['path'] = result['path']
+                        v['path'] = saved_path
                         v['prompt'] = prompt
                         v['created_at'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         
@@ -663,7 +705,7 @@ def regenerate_pattern(ai_provider, product_data, data_store, product_id, page_i
                         if v.get('is_selected'):
                             if 'generated_lp_images' not in product_data:
                                 product_data['generated_lp_images'] = {}
-                            product_data['generated_lp_images'][page_id] = result['path']
+                            product_data['generated_lp_images'][page_id] = saved_path
                         break
                 
                 data_store.update_product(product_id, product_data)
@@ -764,15 +806,16 @@ def render_design_instruction_section(output_generator, product_data):
             else:
                 st.toast("まだ生成していません")
     if instr_clicked:
-        st.info("ボタンがクリックされました")  # デバッグ1
         with st.spinner("AIが指示書を生成中..."):
             try:
-                st.info("generate_design_instruction を呼び出します")  # デバッグ2
                 instruction = output_generator.generate_design_instruction(product_data)
-                st.info(f"結果: {len(instruction) if instruction else 0} 文字")  # デバッグ3
+                
                 if instruction:
+                    # DBに保存
                     st.session_state['generated_instruction'] = instruction
-                    st.success("指示書の生成が完了しました！")
+                    product_data['designer_instruction'] = instruction
+                    data_store.update_product(product_id, product_data)
+                    st.success("指示書の生成が完了しました！DBに保存しました。")
                 else:
                     st.warning("生成結果が空でした")
             except Exception as e:
@@ -780,8 +823,14 @@ def render_design_instruction_section(output_generator, product_data):
                 st.error(f"生成エラー: {e}")
                 st.code(traceback.format_exc())
     
-    if 'generated_instruction' in st.session_state:
+    # 保存されたデータを読み込み
+    saved_instruction = product_data.get('designer_instruction', '')
+    if 'generated_instruction' not in st.session_state and saved_instruction:
+        st.session_state['generated_instruction'] = saved_instruction
+
+    if st.session_state.get('generated_instruction'):
         st.markdown("##### 指示書プレビュー（編集可能）")
+        
         edited_instr = st.text_area(
             "内容を編集できます",
             value=st.session_state['generated_instruction'],
@@ -789,11 +838,24 @@ def render_design_instruction_section(output_generator, product_data):
             key="instruction_preview",
             label_visibility="collapsed"
         )
-        st.session_state['generated_instruction'] = edited_instr
+        
+        # 変更があれば保存
+        if edited_instr != st.session_state['generated_instruction']:
+             st.session_state['generated_instruction'] = edited_instr
+             product_data['designer_instruction'] = edited_instr
+             # ここでの保存は頻度が多すぎるかもしれないのでボタン推奨だが、
+             # 現状はsession_state同期のみにしておき、保存ボタンを追加する形が良いが、
+             # 要望により「リロード後も表示」が必要なので保存しておく
+             pass
+
+        if st.button("💾 編集内容を保存", key="save_instr"):
+             product_data['designer_instruction'] = st.session_state['generated_instruction']
+             data_store.update_product(product_id, product_data)
+             st.success("指示書を保存しました")
         
         st.markdown("##### コピー用")
         st.caption("右上のコピーボタンで全文をコピーできます")
-        st.code(edited_instr, language=None)
+        st.code(st.session_state['generated_instruction'], language=None)
 
 def render_download_section(output_generator, product_data):
     st.markdown('<div class="step-header">ダウンロード</div>', unsafe_allow_html=True)
