@@ -174,7 +174,7 @@ def render_output_page():
         render_lp_generation_section(output_generator, ai_provider, prompt_manager, product_data, data_store, product_id, settings)
     
     with tab2:
-        render_design_instruction_section(output_generator, product_data)
+        render_design_instruction_section(output_generator, product_data, data_store, product_id)
     
     with tab3:
         render_download_section(output_generator, product_data)
@@ -486,7 +486,9 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                 img_col, btn_col = st.columns([3, 1])
                 
                 with img_col:
-                    if v_path and Path(v_path).exists():
+                    # パスがURLかローカルファイルかで判定
+                    is_url = v_path.startswith("http") if v_path else False
+                    if v_path and (is_url or Path(v_path).exists()):
                         st.image(v_path, width="stretch")
                     else:
                         st.warning("画像ファイルが見つかりません")
@@ -792,7 +794,7 @@ def generate_lp_page(ai_provider, prompt_manager, page, parsed_content, tone_man
         except Exception as e:
             st.error(f"エラー: {e}")
 
-def render_design_instruction_section(output_generator, product_data):
+def render_design_instruction_section(output_generator, product_data, data_store, product_id):
     st.markdown('<div class="step-header">デザイナー向け指示書</div>', unsafe_allow_html=True)
     
     instr_col1, instr_col2 = st.columns([6, 1])
