@@ -395,35 +395,27 @@ def render_input_page():
     render_sheets_upload(data_store, product_id)
     render_reference_images_upload(data_store, product_id)
 
-def render_product_images_upload(data_store, product_id):
-    '''製品画像アップロード'''
-    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="step-header">製品画像</div>', unsafe_allow_html=True)
+def handle_product_images_upload(product_id, data_store):
+    """製品画像アップロード時のコールバック処理"""
+    if "uploader_key_product" not in st.session_state:
+        st.session_state.uploader_key_product = 0
     
-    # 先頭で product を取得
-    product = data_store.get_product(product_id) or {}
-    
-    uploaded_files = st.file_uploader(
-        "製品画像をアップロードしてください",
-        type=['png', 'jpg', 'jpeg'],
-        accept_multiple_files=True,
-        key="product_images"
-    )
+    key = f"product_images_{st.session_state.uploader_key_product}"
+    uploaded_files = st.session_state.get(key)
     
     if uploaded_files:
         upload_dir = Path(f"data/uploads/{product_id}/product_images").resolve()
         upload_dir.mkdir(parents=True, exist_ok=True)
         
         image_paths = []
+        product = data_store.get_product(product_id) or {}
+        
         if not data_store.use_supabase:
             for uploaded_file in uploaded_files:
                 file_path = upload_dir / uploaded_file.name
                 with open(file_path, "wb") as f:
                     f.write(uploaded_file.getbuffer())
-                image_paths.append(str(file_path))  # 絶対パスとして保存
-                st.success(f"アップロード完了: {uploaded_file.name}")
-            
-            # データを更新 (既に先頭で取得済み)
+                image_paths.append(str(file_path))
             
             # 既存リストとマージ
             existing_images = product.get('product_images') or []
@@ -435,40 +427,46 @@ def render_product_images_upload(data_store, product_id):
         # Supabaseへアップロード
         if data_store.use_supabase:
             remote_urls = product.get('product_image_urls') or []
-            # 今回アップロードされたファイルをSync
             for uploaded_file in uploaded_files:
                 try:
                     uploaded_file.seek(0)
                     file_bytes = uploaded_file.read()
                     
-                    # ファイル名をサニタイズ（UUID + 拡張子）
                     ext = uploaded_file.name.split('.')[-1].lower() if '.' in uploaded_file.name else 'jpg'
                     safe_name = f"{uuid.uuid4().hex[:12]}.{ext}"
                     remote_path = f"{product_id}/product_images/{safe_name}"
                     
-                    # アップロード試行
                     url = data_store.upload_image(file_bytes, remote_path, bucket_name="lp-generator-images")
-                    
-                    if url:
-                        # 既存URLに含まれていなければ追加
-                        if url and url not in remote_urls:
-                            remote_urls.append(url)
-                            st.toast(f"クラウド保存完了: {uploaded_file.name}", icon="☁️")
-                    else:
-                        st.error(f"アップロード失敗: URLが取得できませんでした ({uploaded_file.name})")
-                        
+                    if url and url not in remote_urls:
+                        remote_urls.append(url)
                 except Exception as e:
                     st.error(f"Upload failed for {uploaded_file.name}: {e}")
             
-            # 保存前に重複を除去
             remote_urls = list(dict.fromkeys(remote_urls))
             product['product_image_urls'] = remote_urls
 
         # データベース更新
         if data_store.update_product(product_id, product):
-            st.success("製品情報を更新しました")
-        else:
-            st.error("データベースの更新に失敗しました")
+            st.session_state.uploader_key_product += 1
+            st.toast("製品画像を保存しました", icon="✅")
+            st.rerun()
+
+def render_product_images_upload(data_store, product_id):
+    '''製品画像アップロード'''
+    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="step-header">製品画像</div>', unsafe_allow_html=True)
+    
+    if "uploader_key_product" not in st.session_state:
+        st.session_state.uploader_key_product = 0
+        
+    st.file_uploader(
+        "製品画像をアップロードしてください",
+        type=['png', 'jpg', 'jpeg'],
+        accept_multiple_files=True,
+        key=f"product_images_{st.session_state.uploader_key_product}",
+        on_change=handle_product_images_upload,
+        args=(product_id, data_store)
+    )
     
     # アップロード済み画像を表示
     product = data_store.get_product(product_id)
@@ -1277,6 +1275,64 @@ def save_keyword_sheet(product_id, data_store):
         if data_store.update_product(product_id, product):
             st.toast("キーワード情報を保存しました")
 
+def handle_product_sheet_upload(product_id, data_store):
+    """製品情報シートアップロード時のコールバック処理"""
+    if "uploader_key_product_sheet" not in st.session_state:
+        st.session_state.uploader_key_product_sheet = 0
+    
+    key = f"product_sheet_{st.session_state.uploader_key_product_sheet}"
+    uploaded_file = st.session_state.get(key)
+    
+    if uploaded_file:
+        upload_dir = Path(f"data/uploads/{product_id}/sheets")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        
+        file_path = upload_dir / f"product_sheet_{uploaded_file.name}"
+        with open(file_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        
+        file_parser = FileParser()
+        try:
+            parsed_data = file_parser.parse(str(file_path))
+            product = data_store.get_product(product_id) or {}
+            product['product_sheet'] = str(file_path)
+            product['product_sheet_data'] = parsed_data
+            if data_store.update_product(product_id, product):
+                st.session_state.uploader_key_product_sheet += 1
+                st.toast("製品情報シートを保存しました", icon="✅")
+                st.rerun()
+        except Exception as e:
+            st.error(f"ファイル解析エラー: {e}")
+
+def handle_review_sheet_upload(product_id, data_store):
+    """競合レビューシートアップロード時のコールバック処理"""
+    if "uploader_key_review_sheet" not in st.session_state:
+        st.session_state.uploader_key_review_sheet = 0
+    
+    key = f"review_sheet_{st.session_state.uploader_key_review_sheet}"
+    uploaded_file = st.session_state.get(key)
+    
+    if uploaded_file:
+        upload_dir = Path(f"data/uploads/{product_id}/sheets")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        
+        file_path = upload_dir / f"review_sheet_{uploaded_file.name}"
+        with open(file_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        
+        file_parser = FileParser()
+        try:
+            parsed_data = file_parser.parse(str(file_path))
+            product = data_store.get_product(product_id) or {}
+            product['review_sheet'] = str(file_path)
+            product['review_sheet_data'] = parsed_data
+            if data_store.update_product(product_id, product):
+                st.session_state.uploader_key_review_sheet += 1
+                st.toast("競合レビューシートを保存しました", icon="✅")
+                st.rerun()
+        except Exception as e:
+            st.error(f"ファイル解析エラー: {e}")
+
 def render_sheets_upload(data_store, product_id):
     '''各種シートアップロード'''
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
@@ -1284,35 +1340,19 @@ def render_sheets_upload(data_store, product_id):
     
     col1, col2 = st.columns(2)
     
+    if "uploader_key_product_sheet" not in st.session_state:
+        st.session_state.uploader_key_product_sheet = 0
+    if "uploader_key_review_sheet" not in st.session_state:
+        st.session_state.uploader_key_review_sheet = 0
+
     with col1:
-        product_sheet = st.file_uploader(
+        st.file_uploader(
             "製品情報シート",
             type=['xlsx', 'csv', 'pdf'],
-            key="product_sheet"
+            key=f"product_sheet_{st.session_state.uploader_key_product_sheet}",
+            on_change=handle_product_sheet_upload,
+            args=(product_id, data_store)
         )
-        
-        if product_sheet:
-            upload_dir = Path(f"data/uploads/{product_id}/sheets")
-            upload_dir.mkdir(parents=True, exist_ok=True)
-            
-            file_path = upload_dir / f"product_sheet_{product_sheet.name}"
-            with open(file_path, "wb") as f:
-                f.write(product_sheet.getbuffer())
-            
-            file_parser = FileParser()
-            try:
-                parsed_data = file_parser.parse(str(file_path))
-                
-                product = data_store.get_product(product_id)
-                if not product:
-                    product = {}
-                product['product_sheet'] = str(file_path)
-                product['product_sheet_data'] = parsed_data
-                data_store.update_product(product_id, product)
-                
-                st.success("製品情報シートをアップロードしました")
-            except Exception as e:
-                st.error(f"ファイル解析エラー: {e}")
         
         # アップロード済み表示
         product = data_store.get_product(product_id)
@@ -1349,34 +1389,13 @@ def render_sheets_upload(data_store, product_id):
                     organize_sheet_data(product, data_store, product_id)
     
     with col2:
-        review_sheet = st.file_uploader(
+        st.file_uploader(
             "競合レビューシート",
             type=['xlsx', 'csv', 'pdf'],
-            key="review_sheet"
+            key=f"review_sheet_{st.session_state.uploader_key_review_sheet}",
+            on_change=handle_review_sheet_upload,
+            args=(product_id, data_store)
         )
-        
-        if review_sheet:
-            upload_dir = Path(f"data/uploads/{product_id}/sheets")
-            upload_dir.mkdir(parents=True, exist_ok=True)
-            
-            file_path = upload_dir / f"review_sheet_{review_sheet.name}"
-            with open(file_path, "wb") as f:
-                f.write(review_sheet.getbuffer())
-            
-            file_parser = FileParser()
-            try:
-                parsed_data = file_parser.parse(str(file_path))
-                
-                product = data_store.get_product(product_id)
-                if not product:
-                    product = {}
-                product['review_sheet'] = str(file_path)
-                product['review_sheet_data'] = parsed_data
-                data_store.update_product(product_id, product)
-                
-                st.success("競合レビューシートをアップロードしました")
-            except Exception as e:
-                st.error(f"ファイル解析エラー: {e}")
         
         # アップロード済み表示
         product = data_store.get_product(product_id)
