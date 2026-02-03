@@ -24,6 +24,29 @@ from modules.prompt_manager import PromptManager
 from modules.settings_manager import SettingsManager
 from pathlib import Path
 
+def render_lp_image(image_path, label=None, max_height="500px"):
+    """画像をスクロール可能なコンテナで表示するヘルパー"""
+    if not image_path:
+        st.warning("画像パスがありません")
+        return
+
+    if label:
+        st.caption(label)
+    
+    # URLの場合はHTMLを利用してスクロール可能なコンテナを作成
+    if str(image_path).startswith("http"):
+        st.markdown(f'''
+            <div style="max-height: {max_height}; overflow-y: auto; border: 1px solid #444; border-radius: 8px; margin-bottom: 10px; background-color: #1e1e1e;">
+                <img src="{image_path}" style="width: 100%; display: block;">
+            </div>
+        ''', unsafe_allow_html=True)
+    else:
+        # ローカルパスの場合は通常のst.imageを利用（パス解決が必要な場合があるため）
+        if Path(image_path).exists():
+            st.image(image_path, use_container_width=True)
+        else:
+            st.warning(f"画像が見つかりません: {image_path}")
+
 def get_element_guide(elem_type):
     """要素タイプごとの説明と入力例を返す"""
     guides = {
@@ -470,7 +493,7 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                 ref_image_path = ref_images[reference_page - 1]
     
     # ========== 決定事項・参照情報セクション ==========
-    with st.expander("決定事項・参照情報", expanded=True):
+    with st.expander("決定事項・参照情報", expanded=False):
         info_col1, info_col2 = st.columns([2, 1])
         
         with info_col1:
@@ -541,11 +564,7 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
             # 参照LP
             if ref_image_path:
                 st.markdown("**参照LP**")
-                is_local = not str(ref_image_path).startswith("http")
-                if not is_local or Path(ref_image_path).exists():
-                    st.image(ref_image_path, use_container_width=True)
-                else:
-                    st.warning("画像が見つかりません")
+                render_lp_image(ref_image_path, max_height="400px")
             
             # トーンマナー簡易表示
             if tone_manner:
@@ -578,8 +597,7 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                     # パスがURLかローカルファイルかで判定
                     is_url = v_path.startswith("http") if v_path else False
                     if v_path and (is_url or Path(v_path).exists()):
-                        with st.expander("🖼️ 生成画像を表示", expanded=False):
-                            st.image(v_path, use_container_width=True)
+                        render_lp_image(v_path, label="生成画像")
                     else:
                         st.warning("画像ファイルが見つかりません")
                 
@@ -680,11 +698,9 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                     st.markdown("**📐 ワイヤーフレーム**")
                     col_orig, col_wf = st.columns(2)
                     with col_orig:
-                        st.caption("デザイン案")
-                        st.image(v_path, use_container_width=True)
+                        render_lp_image(v_path, label="デザイン案", max_height="600px")
                     with col_wf:
-                        st.caption("ワイヤーフレーム")
-                        st.image(wireframe_url, use_container_width=True)
+                        render_lp_image(wireframe_url, label="ワイヤーフレーム", max_height="600px")
                 
                 # プロンプト表示（トグル）
                 if st.session_state.get(f'show_prompt_{page_id}_{v_id}'):
