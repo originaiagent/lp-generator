@@ -24,8 +24,8 @@ from modules.prompt_manager import PromptManager
 from modules.settings_manager import SettingsManager
 from pathlib import Path
 
-def render_lp_image(image_path, label=None, max_height="500px"):
-    """画像をスクロール可能なコンテナで表示するヘルパー"""
+def render_lp_image(image_path, label=None, column_ratio=[1, 1]):
+    """画像を狭いカラムで表示してサイズを縮小するヘルパー"""
     if not image_path:
         st.warning("画像パスがありません")
         return
@@ -33,19 +33,11 @@ def render_lp_image(image_path, label=None, max_height="500px"):
     if label:
         st.caption(label)
     
-    # URLの場合はHTMLを利用してスクロール可能なコンテナを作成
-    if str(image_path).startswith("http"):
-        st.markdown(f'''
-            <div style="max-height: {max_height}; overflow-y: auto; border: 1px solid #444; border-radius: 8px; margin-bottom: 10px; background-color: #1e1e1e;">
-                <img src="{image_path}" style="width: 100%; display: block;">
-            </div>
-        ''', unsafe_allow_html=True)
-    else:
-        # ローカルパスの場合は通常のst.imageを利用（パス解決が必要な場合があるため）
-        if Path(image_path).exists():
-            st.image(image_path, use_container_width=True)
-        else:
-            st.warning(f"画像が見つかりません: {image_path}")
+    # カラムを使用して画像を小さく表示（スクロールやmax-heightは使用しない）
+    col_img, col_space = st.columns(column_ratio)
+    with col_img:
+        # URLかローカルパスかに関わらず、st.imageを使用
+        st.image(image_path, use_container_width=True)
 
 def get_element_guide(elem_type):
     """要素タイプごとの説明と入力例を返す"""
@@ -421,6 +413,7 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                                 
                                 page_contents[p_id]['wireframes'][v_id] = wf_url
                                 data_store.update_product(product_id, {'page_contents': page_contents})
+                                st.info(f"DEBUG: Saved wireframe for {p_id}/{v_id}")
                     except Exception as e:
                         st.warning(f"P{item['index']+1} のワイヤーフレーム生成でエラー: {e}")
                 
@@ -564,7 +557,7 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
             # 参照LP
             if ref_image_path:
                 st.markdown("**参照LP**")
-                render_lp_image(ref_image_path, max_height="400px")
+                render_lp_image(ref_image_path, column_ratio=[1, 1])
             
             # トーンマナー簡易表示
             if tone_manner:
@@ -597,7 +590,7 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                     # パスがURLかローカルファイルかで判定
                     is_url = v_path.startswith("http") if v_path else False
                     if v_path and (is_url or Path(v_path).exists()):
-                        render_lp_image(v_path, label="生成画像")
+                        render_lp_image(v_path, label="生成画像", column_ratio=[2, 1])
                     else:
                         st.warning("画像ファイルが見つかりません")
                 
@@ -674,6 +667,7 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                                         data_store.update_product(product_id, {'page_contents': page_contents})
                                         
                                         st.success("ワイヤーフレームを生成しました")
+                                        st.info(f"DEBUG: Saved wireframe for {page_id}/{v_id}")
                                         st.rerun()
                                     else:
                                         st.error("画像のアップロードに失敗しました")
@@ -690,6 +684,9 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                     page_contents = product_data.get('page_contents') or {}
                     page_content = page_contents.get(page_id) or {}
                     if isinstance(page_content, dict):
+                        # デバッグ出力
+                        st.caption(f"DEBUG load: page_id={page_id}, v_id={v_id}, wireframes keys={list((page_content.get('wireframes') or {}).keys())}")
+                        
                         # バージョンごとの辞書から取得
                         wireframes = page_content.get('wireframes') or {}
                         wireframe_url = wireframes.get(v_id)
@@ -698,9 +695,9 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                     st.markdown("**📐 ワイヤーフレーム**")
                     col_orig, col_wf = st.columns(2)
                     with col_orig:
-                        render_lp_image(v_path, label="デザイン案", max_height="600px")
+                        render_lp_image(v_path, label="デザイン案")
                     with col_wf:
-                        render_lp_image(wireframe_url, label="ワイヤーフレーム", max_height="600px")
+                        render_lp_image(wireframe_url, label="ワイヤーフレーム")
                 
                 # プロンプト表示（トグル）
                 if st.session_state.get(f'show_prompt_{page_id}_{v_id}'):
