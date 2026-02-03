@@ -412,7 +412,12 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                                     page_contents[p_id]['wireframes'] = {}
                                 
                                 page_contents[p_id]['wireframes'][v_id] = wf_url
-                                data_store.update_product(product_id, {'page_contents': page_contents})
+                                st.info(f"DEBUG BATCH BEFORE SAVE: p_id={p_id}, v_id={v_id}")
+                                try:
+                                    res = data_store.update_product(product_id, {'page_contents': page_contents})
+                                    st.info(f"DEBUG BATCH: update_product returned: {res}")
+                                except Exception as e:
+                                    st.error(f"DEBUG BATCH: update_product FAILED: {e}")
                                 st.info(f"DEBUG: Saved wireframe for {p_id}/{v_id}")
                     except Exception as e:
                         st.warning(f"P{item['index']+1} のワイヤーフレーム生成でエラー: {e}")
@@ -664,7 +669,12 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                                             page_contents[page_id]['wireframes'] = {}
                                             
                                         page_contents[page_id]['wireframes'][v_id] = wireframe_url
-                                        data_store.update_product(product_id, {'page_contents': page_contents})
+                                        st.info(f"DEBUG BEFORE SAVE: page_id={page_id}, v_id={v_id}")
+                                        try:
+                                            result = data_store.update_product(product_id, {'page_contents': page_contents})
+                                            st.info(f"DEBUG: update_product returned: {result}")
+                                        except Exception as e:
+                                            st.error(f"DEBUG: update_product FAILED: {e}")
                                         
                                         st.success("ワイヤーフレームを生成しました")
                                         st.info(f"DEBUG: Saved wireframe for {page_id}/{v_id}")
