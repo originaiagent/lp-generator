@@ -401,24 +401,14 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                                 # セッションステートに保存
                                 st.session_state[f'wireframe_{p_id}_{v_id}'] = wf_url
                                 
-                                # プロダクトデータに保存（永続化：バージョンごとに保存）
-                                page_contents = product_data.get('page_contents') or {}
-                                if p_id not in page_contents:
-                                    page_contents[p_id] = {}
-                                elif not isinstance(page_contents[p_id], dict):
-                                    page_contents[p_id] = {'content': str(page_contents[p_id])}
-                                
-                                if 'wireframes' not in page_contents[p_id]:
-                                    page_contents[p_id]['wireframes'] = {}
-                                
-                                page_contents[p_id]['wireframes'][v_id] = wf_url
-                                st.info(f"DEBUG BATCH BEFORE SAVE: p_id={p_id}, v_id={v_id}")
-                                try:
-                                    res = data_store.update_product(product_id, {'page_contents': page_contents})
-                                    st.info(f"DEBUG BATCH: update_product returned: {res}")
-                                except Exception as e:
-                                    st.error(f"DEBUG BATCH: update_product FAILED: {e}")
-                                st.info(f"DEBUG: Saved wireframe for {p_id}/{v_id}")
+                                # lp_wireframesテーブルに保存（永続化）
+                                data_store.save_wireframe(
+                                    product_id=product_id,
+                                    page_id=p_id,
+                                    version_id=v_id,
+                                    wireframe_url=wf_url,
+                                    source_image_url=source
+                                )
                     except Exception as e:
                         st.warning(f"P{item['index']+1} のワイヤーフレーム生成でエラー: {e}")
                 
@@ -658,26 +648,19 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                                     if wireframe_url:
                                         st.session_state[f'wireframe_{page_id}_{v_id}'] = wireframe_url
                                         
-                                        # プロダクトデータに保存（永続化：バージョンごとに保存）
-                                        page_contents = product_data.get('page_contents') or {}
-                                        if page_id not in page_contents:
-                                            page_contents[page_id] = {}
-                                        elif not isinstance(page_contents[page_id], dict):
-                                            page_contents[page_id] = {'content': str(page_contents[page_id])}
+                                        # lp_wireframesテーブルに保存（永続化）
+                                        save_result = data_store.save_wireframe(
+                                            product_id=product_id,
+                                            page_id=page_id,
+                                            version_id=v_id,
+                                            wireframe_url=wireframe_url,
+                                            source_image_url=v_path
+                                        )
+                                        if save_result:
+                                            st.success("ワイヤーフレームを生成・保存しました")
+                                        else:
+                                            st.warning("ワイヤーフレームを生成しましたが、保存に失敗しました")
                                         
-                                        if 'wireframes' not in page_contents[page_id]:
-                                            page_contents[page_id]['wireframes'] = {}
-                                            
-                                        page_contents[page_id]['wireframes'][v_id] = wireframe_url
-                                        st.info(f"DEBUG BEFORE SAVE: page_id={page_id}, v_id={v_id}")
-                                        try:
-                                            result = data_store.update_product(product_id, {'page_contents': page_contents})
-                                            st.info(f"DEBUG: update_product returned: {result}")
-                                        except Exception as e:
-                                            st.error(f"DEBUG: update_product FAILED: {e}")
-                                        
-                                        st.success("ワイヤーフレームを生成しました")
-                                        st.info(f"DEBUG: Saved wireframe for {page_id}/{v_id}")
                                         st.rerun()
                                     else:
                                         st.error("画像のアップロードに失敗しました")
@@ -691,15 +674,7 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                 # ワイヤーフレーム表示（もし生成済みなら）
                 wireframe_url = st.session_state.get(f'wireframe_{page_id}_{v_id}')
                 if not wireframe_url:
-                    page_contents = product_data.get('page_contents') or {}
-                    page_content = page_contents.get(page_id) or {}
-                    if isinstance(page_content, dict):
-                        # デバッグ出力
-                        st.caption(f"DEBUG load: page_id={page_id}, v_id={v_id}, wireframes keys={list((page_content.get('wireframes') or {}).keys())}")
-                        
-                        # バージョンごとの辞書から取得
-                        wireframes = page_content.get('wireframes') or {}
-                        wireframe_url = wireframes.get(v_id)
+                    wireframe_url = data_store.get_wireframe(product_id, page_id, v_id)
                 
                 if wireframe_url:
                     st.markdown("**📐 ワイヤーフレーム**")

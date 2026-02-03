@@ -925,7 +925,6 @@ def organize_keyword_data(product, data_store, product_id):
             traced = save_with_trace(
                 result=result,
                 prompt_id="keyword_organize",
-                prompt_used=prompt,
                 input_refs={"ファイル": (product.get("review_sheet") or "")},
                 model=settings.get("llm_model", "unknown")
             )
@@ -1029,7 +1028,6 @@ def organize_sheet_data(product, data_store, product_id):
             traced = save_with_trace(
                 result=result,
                 prompt_id="sheet_organize",
-                prompt_used=prompt,
                 input_refs={"ファイル": (product.get("product_sheet") or "")},
                 model=settings.get("llm_model", "unknown")
             )
@@ -1070,7 +1068,6 @@ def analyze_competitor_text(text, product_id, data_store):
             traced_result = save_with_trace(
                 result=result,
                 prompt_id="competitor_analysis",
-                prompt_used=prompt,
                 input_refs={"競合テキスト": text[:200] + "..." if len(text) > 200 else text},
                 model=settings.get("llm_model", settings.get("llm_provider", "unknown"))
             )
@@ -2106,7 +2103,6 @@ def analyze_tone_manner_images(image_paths, product_id, data_store):
             traced = save_with_trace(
                 result=parsed,
                 prompt_id="tone_manner_analysis",
-                prompt_used=prompt,
                 input_refs={"画像": Path(image_path).name},
                 model=used_model
             )
@@ -2173,7 +2169,6 @@ def reanalyze_lp_image(product, data_store, product_id, index):
             traced = save_with_trace(
                 result=result,
                 prompt_id="lp_image_analysis",
-                prompt_used=prompt,
                 input_refs={"画像": img_path},
                 model=used_model
             )
@@ -2302,7 +2297,6 @@ def analyze_reference_images(image_analyzer, image_paths, product_id, data_store
                     traced = save_with_trace(
                         result=parsed,
                         prompt_id="lp_image_analysis",
-                        prompt_used=prompt,
                         input_refs={"画像": Path(image_path).name, "順番": i+1},
                         model=settings.get("llm_model", "unknown")
                     )

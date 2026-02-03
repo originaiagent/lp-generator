@@ -606,3 +606,55 @@ class DataStore:
         }
         return self.add_employee_feedback(data)
 
+    def save_wireframe(self, product_id: str, page_id: str, version_id: str, wireframe_url: str, source_image_url: str = None):
+        """Save wireframe URL to lp_wireframes table"""
+        try:
+            data = {
+                "product_id": product_id,
+                "page_id": page_id,
+                "version_id": version_id,
+                "wireframe_url": wireframe_url,
+                "source_image_url": source_image_url,
+                "updated_at": datetime.now().isoformat()
+            }
+            # Upsert: insert or update if exists
+            result = self.supabase.table("lp_wireframes").upsert(
+                data, 
+                on_conflict="product_id,page_id,version_id"
+            ).execute()
+            return bool(result.data)
+        except Exception as e:
+            print(f"[ERROR] save_wireframe: {e}")
+            return False
+
+    def get_wireframe(self, product_id: str, page_id: str, version_id: str):
+        """Get wireframe URL from lp_wireframes table"""
+        try:
+            result = self.supabase.table("lp_wireframes").select("wireframe_url").eq(
+                "product_id", product_id
+            ).eq("page_id", page_id).eq("version_id", version_id).execute()
+            if result.data and len(result.data) > 0:
+                return result.data[0].get("wireframe_url")
+            return None
+        except Exception as e:
+            print(f"[ERROR] get_wireframe: {e}")
+            return None
+
+    def get_wireframes_for_product(self, product_id: str):
+        """Get all wireframes for a product as dict {page_id: {version_id: url}}"""
+        try:
+            result = self.supabase.table("lp_wireframes").select("*").eq(
+                "product_id", product_id
+            ).execute()
+            wireframes = {}
+            for row in result.data or []:
+                page_id = row.get("page_id")
+                version_id = row.get("version_id")
+                if page_id not in wireframes:
+                    wireframes[page_id] = {}
+                wireframes[page_id][version_id] = row.get("wireframe_url")
+            return wireframes
+        except Exception as e:
+            print(f"[ERROR] get_wireframes_for_product: {e}")
+            return {}
+

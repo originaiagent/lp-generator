@@ -1,13 +1,12 @@
 import streamlit as st
 from datetime import datetime
 
-def save_with_trace(result, prompt_id, prompt_used, input_refs, model="unknown"):
+def save_with_trace(result, prompt_id, prompt_used=None, input_refs=None, model="unknown"):
     """生成結果にトレース情報を付与して返す"""
     return {
         "result": result,
         "trace": {
             "prompt_id": prompt_id,
-            "prompt_used": prompt_used,
             "input_refs": input_refs,
             "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "model": model
@@ -37,8 +36,8 @@ def show_trace(data, label="生成情報"):
             else:
                 st.write(f"- **{key}:** {value}")
         
-        with st.expander("🔍 プロンプト全文", expanded=False):
-            st.code(trace.get("prompt_used", "なし"), language=None)
+        # プロンプト全文の表示は廃止（DBサイズ削減のため）
+        pass
 
 
 def show_lp_analysis(data):
