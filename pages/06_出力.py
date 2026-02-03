@@ -386,14 +386,17 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                                 # セッションステートに保存
                                 st.session_state[f'wireframe_{p_id}_{v_id}'] = wf_url
                                 
-                                # プロダクトデータに保存（永続化）
+                                # プロダクトデータに保存（永続化：バージョンごとに保存）
                                 page_contents = product_data.get('page_contents') or {}
                                 if p_id not in page_contents:
                                     page_contents[p_id] = {}
                                 elif not isinstance(page_contents[p_id], dict):
                                     page_contents[p_id] = {'content': str(page_contents[p_id])}
                                 
-                                page_contents[p_id]['wireframe_url'] = wf_url
+                                if 'wireframes' not in page_contents[p_id]:
+                                    page_contents[p_id]['wireframes'] = {}
+                                
+                                page_contents[p_id]['wireframes'][v_id] = wf_url
                                 data_store.update_product(product_id, {'page_contents': page_contents})
                     except Exception as e:
                         st.warning(f"P{item['index']+1} のワイヤーフレーム生成でエラー: {e}")
@@ -575,7 +578,8 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                     # パスがURLかローカルファイルかで判定
                     is_url = v_path.startswith("http") if v_path else False
                     if v_path and (is_url or Path(v_path).exists()):
-                        st.image(v_path, use_container_width=True)
+                        with st.expander("🖼️ 生成画像を表示", expanded=False):
+                            st.image(v_path, use_container_width=True)
                     else:
                         st.warning("画像ファイルが見つかりません")
                 
@@ -638,14 +642,17 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                                     if wireframe_url:
                                         st.session_state[f'wireframe_{page_id}_{v_id}'] = wireframe_url
                                         
-                                        # プロダクトデータに保存（永続化）
+                                        # プロダクトデータに保存（永続化：バージョンごとに保存）
                                         page_contents = product_data.get('page_contents') or {}
                                         if page_id not in page_contents:
                                             page_contents[page_id] = {}
                                         elif not isinstance(page_contents[page_id], dict):
                                             page_contents[page_id] = {'content': str(page_contents[page_id])}
+                                        
+                                        if 'wireframes' not in page_contents[page_id]:
+                                            page_contents[page_id]['wireframes'] = {}
                                             
-                                        page_contents[page_id]['wireframe_url'] = wireframe_url
+                                        page_contents[page_id]['wireframes'][v_id] = wireframe_url
                                         data_store.update_product(product_id, {'page_contents': page_contents})
                                         
                                         st.success("ワイヤーフレームを生成しました")
@@ -665,7 +672,9 @@ def render_lp_generation_section(output_generator, ai_provider, prompt_manager, 
                     page_contents = product_data.get('page_contents') or {}
                     page_content = page_contents.get(page_id) or {}
                     if isinstance(page_content, dict):
-                        wireframe_url = page_content.get('wireframe_url')
+                        # バージョンごとの辞書から取得
+                        wireframes = page_content.get('wireframes') or {}
+                        wireframe_url = wireframes.get(v_id)
                 
                 if wireframe_url:
                     st.markdown("**📐 ワイヤーフレーム**")
