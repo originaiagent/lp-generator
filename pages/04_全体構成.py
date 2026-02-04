@@ -356,6 +356,7 @@ def extract_appeal_points(product, data_store, product_id):
             )
             
             product['appeal_points'] = traced
+            product['selected_appeals'] = []  # 訴求ポイント再抽出時は選択をリセット
             data_store.update_product(product_id, product)
             st.success("訴求ポイント抽出完了")
             st.rerun()
