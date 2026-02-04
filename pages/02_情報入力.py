@@ -2221,6 +2221,7 @@ def analyze_reference_images(image_analyzer, image_paths, product_id, data_store
     from modules.settings_manager import SettingsManager
     from modules.ai_provider import AIProvider
     import json
+    import time
     
     with st.spinner('参考LP画像を分析中...'):
         try:
@@ -2287,6 +2288,11 @@ def analyze_reference_images(image_analyzer, image_paths, product_id, data_store
 
                     # 画像分析（Vision API）
                     # 画像分析（Vision API）
+                    # レート制限対策：2枚目以降は2秒待機
+                    if i > 0:
+                        status_text.text(f"API制限対策: 2秒待機中... (次: {i+1}/{len(image_paths)}枚目)")
+                        time.sleep(2)
+
                     result = ai_provider.analyze_image(target_path, prompt)
                     
                     # 一時ファイルの削除
@@ -2344,7 +2350,8 @@ def analyze_reference_images(image_analyzer, image_paths, product_id, data_store
                          pass
                          
                 except Exception as e:
-                    st.warning(f"画像分析スキップ（{Path(image_path).name}）: {e}")
+                    st.error(f"❌ 画像分析失敗（{Path(image_path).name}）: {e}")
+                    st.info("💡 連続エラーの場合はAPIレート制限の可能性があります。少し時間を置いて再実行してください。")
                     # エラー時も一時ファイルがあれば削除
                     if 'is_temp' in locals() and is_temp and 'target_path' in locals() and os.path.exists(target_path):
                         try:
