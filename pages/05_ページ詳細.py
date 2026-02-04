@@ -237,6 +237,7 @@ def generate_brushup_query(original_text, product, direction=None):
     })
     
     result = ai_provider.ask(prompt, "brushup_copy")
+    print(f"[DEBUG] brushup raw result: {result[:1000] if result else 'None'}")
     
     try:
         if "```json" in result:
@@ -247,6 +248,8 @@ def generate_brushup_query(original_text, product, direction=None):
             json_str = result
         
         parsed = json_module.loads(json_str.strip())
+        print(f"[DEBUG] parsed keys: {parsed.keys() if isinstance(parsed, dict) else type(parsed)}")
+        print(f"[DEBUG] candidates: {parsed.get('candidates', 'NOT FOUND')}")
         return parsed.get("candidates", [])
     except Exception as e:
         st.error(f"AI提案のパースに失敗しました: {e}")
