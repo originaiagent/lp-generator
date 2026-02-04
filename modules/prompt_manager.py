@@ -476,6 +476,31 @@ NGポイント: {employee_ng_points}
 ```
 JSONのみを出力し、他のテキストは含めないでください。"""
         },
+        "brushup_copy": {
+            "name": "コピーのブラッシュアップ",
+            "description": "コピーのブラッシュアップ案を複数の方向性で生成します",
+            "template": """あなたはEC販売を熟知した超一流のコピーライターです。
+
+【元のコピー】
+{original_text}
+
+【製品情報】
+{product_info}
+
+【指示】
+{instruction}
+
+【出力形式】
+必ず以下のJSON形式のみで回答してください。余計な説明文は不要です。
+
+{{
+  "candidates": [
+    {{"direction": "方向性の説明", "text": "提案コピー"}},
+    {{"direction": "方向性の説明", "text": "提案コピー"}},
+    {{"direction": "方向性の説明", "text": "提案コピー"}}
+  ]
+}}"""
+        },
         "wireframe_generation": {
             "name": "ワイヤーフレーム生成",
             "description": "生成されたLP画像をワイヤーフレーム（構成案）画像に変換する",
