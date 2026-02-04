@@ -357,6 +357,12 @@ def extract_appeal_points(product, data_store, product_id):
             
             product['appeal_points'] = traced
             product['selected_appeals'] = []  # 訴求ポイント再抽出時は選択をリセット
+            
+            # session_state内のチェックボックス状態もクリア
+            keys_to_delete = [k for k in st.session_state.keys() if k.startswith(('own_', 'comp_', 'diff_'))]
+            for k in keys_to_delete:
+                del st.session_state[k]
+                
             data_store.update_product(product_id, product)
             st.success("訴求ポイント抽出完了")
             st.rerun()
