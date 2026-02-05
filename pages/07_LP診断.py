@@ -1218,6 +1218,26 @@ def render_content_check_tab(product):
             ai_provider = AIProvider(settings)
             structured = get_structured_lp_content_for_check(product)
             
+            # デバッグ：AIに渡されるデータを確認
+            with st.expander("🐛 デバッグ：AIに渡されるデータ", expanded=False):
+                st.markdown("**製品情報シート（正のソース）：**")
+                sheet = product.get('product_sheet_organized', '')
+                if sheet:
+                    st.text(sheet[:2000] + "..." if len(str(sheet)) > 2000 else str(sheet))
+                else:
+                    st.error("product_sheet_organized が空です！")
+                
+                st.markdown("**LP構造化データ：**")
+                for page in structured:
+                    st.markdown(f"**P{page['page_number']}: {page['title']}**")
+                    if page['elements']:
+                        for elem in page['elements']:
+                            st.text(f"  要素{elem.get('order','')} [{elem.get('type','')}]: {str(elem.get('content', elem.get('description','')))[:200]}")
+                    elif page['full_text']:
+                        st.text(page['full_text'][:300])
+                    else:
+                        st.warning("  → コンテンツなし")
+            
             if not structured:
                 st.error("LPの構成データが取得できません")
                 return
