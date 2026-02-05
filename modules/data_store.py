@@ -681,3 +681,34 @@ class DataStore:
             print(f"Error getting employee diagnosis: {e}")
             return None
 
+    def save_content_check(self, product_id, check_type, results):
+        """コンテンツチェック結果を保存"""
+        try:
+            data = {
+                "product_id": product_id,
+                "check_type": check_type,
+                "results": results
+            }
+            response = self.supabase.table("dev_lp_content_checks").insert(data).execute()
+            return response.data[0] if response.data else None
+        except Exception as e:
+            print(f"Error saving content check: {e}")
+            return None
+
+    def get_latest_content_checks(self, product_id):
+        """最新のコンテンツチェック結果を全タイプ取得"""
+        try:
+            response = self.supabase.table("dev_lp_content_checks").select("*").eq("product_id", product_id).order("created_at", desc=True).limit(10).execute()
+            if not response.data:
+                return {}
+            # 各check_typeの最新1件を取得
+            latest = {}
+            for row in response.data:
+                ct = row.get('check_type')
+                if ct and ct not in latest:
+                    latest[ct] = row
+            return latest
+        except Exception as e:
+            print(f"Error getting content checks: {e}")
+            return {}
+

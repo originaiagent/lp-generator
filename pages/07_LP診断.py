@@ -501,7 +501,7 @@ def render_diagnosis_page():
     )
 
     # タブ分け
-    tab_persona, tab_employee = st.tabs(["👥 消費者ペルソナ診断", "🏢 メンバーAI診断"])
+    tab_persona, tab_employee, tab_content_check = st.tabs(["👥 消費者ペルソナ診断", "🏢 メンバーAI診断", "📋 コンテンツチェック"])
 
     with tab_persona:
         # 診断実行ボタン
@@ -510,6 +510,9 @@ def render_diagnosis_page():
 
     with tab_employee:
         render_employee_diagnosis_tab(product, exposure_type, diagnosis_target)
+
+    with tab_content_check:
+        render_content_check_tab(product)
 
     # 改善案の生成と表示フロー (これは消費者ペルソナ診断の結果から呼ばれることが多い)
     if st.session_state.get('improvement_step') == 'generating':
@@ -931,6 +934,444 @@ def render_improvement_review(product_id, data_store):
                     if k in st.session_state:
                         del st.session_state[k]
                 st.rerun()
+
+def get_structured_lp_content_for_check(product):
+    """チェック用にページ・要素単位で構造化したLPコンテンツを取得"""
+    raw_structure = product.get('structure', {})
+    if isinstance(raw_structure, dict) and "result" in raw_structure:
+        structure = raw_structure["result"]
+    else:
+        structure = raw_structure
+    
+    pages = structure.get('pages', []) if isinstance(structure, dict) else []
+    page_contents = product.get('page_contents') or {}
+    
+    structured = []
+    for i, page in enumerate(pages):
+        page_id = page.get('id', f"page_{i+1}")
+        title = page.get('title', '無題')
+        role = page.get('role', page.get('summary', ''))
+        
+        content_item = page_contents.get(page_id, {})
+        elements = []
+        page_text = ""
+        
+        if isinstance(content_item, dict) and "result" in content_item:
+            result_data = content_item["result"]
+            if isinstance(result_data, dict):
+                if "parsed" in result_data:
+                    parsed = result_data["parsed"]
+                    elements = parsed.get("elements", [])
+                if "display" in result_data:
+                    page_text = result_data["display"]
+                else:
+                    page_text = str(result_data)
+        elif isinstance(content_item, dict):
+            page_text = content_item.get('content', '')
+        
+        structured.append({
+            "page_number": i + 1,
+            "page_id": page_id,
+            "title": title,
+            "role": role,
+            "elements": elements,
+            "full_text": page_text
+        })
+    
+    return structured
+
+
+def run_spec_check(ai_provider, product, structured_content):
+    """スペック整合性チェック"""
+    product_sheet = product.get('product_sheet_organized', '')
+    if not product_sheet:
+        return {"error": "製品情報シートの整理済みデータがありません。情報入力ページで製品シートをアップロード・整理してください。"}
+    
+    # 各ページの内容をテキスト化
+    lp_text = ""
+    for page in structured_content:
+        lp_text += f"\n--- P{page['page_number']}: {page['title']} (役割: {page['role']}) ---\n"
+        if page['elements']:
+            for elem in page['elements']:
+                e_type = elem.get('type', '')
+                e_order = elem.get('order', '')
+                e_content = elem.get('content', elem.get('description', ''))
+                lp_text += f"[要素{e_order} {e_type}] {e_content}\n"
+        elif page['full_text']:
+            lp_text += page['full_text'] + "\n"
+    
+    prompt = f"""あなたはLPの品質管理の専門家です。
+以下の「製品の正式な情報（製品情報シート）」と「LPの記載内容」を比較し、矛盾・誤り・不正確な表現を徹底的にチェックしてください。
+
+## チェック基準
+- 数値（サイズ、重量、価格、個数など）が製品情報と一致しているか
+- 素材、成分、材質などの記述が正確か
+- 機能・効果の説明が製品情報の範囲を逸脱していないか（誇大表現）
+- 用途・対象の説明が製品情報と矛盾していないか
+- 「※完全防犯はNG」のような注意事項がLPでも正しく反映されているか
+
+## 重要
+- 問題がない場合は空の配列を返してください
+- 推測や憶測は禁止。製品情報シートに明記されている内容との比較のみ行ってください
+- 製品情報シートに記載がない内容については「確認不可」としてください
+
+## 製品情報シート（正）
+{{product_sheet}}
+
+## LP記載内容（チェック対象）
+{{lp_text}}
+
+## 出力形式（JSON）
+```json
+{{
+  "issues": [
+    {{
+      "severity": "高|中|低",
+      "page_number": 1,
+      "page_title": "ページタイトル",
+      "element_info": "要素番号とタイプ（例：要素3 テキスト）",
+      "problematic_text": "LP上の問題のある記述（そのまま引用）",
+      "correct_info": "製品情報シートでの正しい記述（そのまま引用）",
+      "issue_description": "何が問題か（具体的に）"
+    }}
+  ],
+  "summary": "全体的な所見（1-2文）"
+}}
+```"""
+    # Use format or manual replacement if needed, but since it's an f-string in the request, I should be careful.
+    # The request provided the prompt as an f-string.
+    prompt = prompt.replace("{{product_sheet}}", product_sheet).replace("{{lp_text}}", lp_text)
+    
+    response = ai_provider.ask(prompt, "content_check_spec")
+    return _parse_check_response(response)
+
+
+def run_duplicate_check(ai_provider, structured_content):
+    """重複コンテンツチェック"""
+    lp_text = ""
+    for page in structured_content:
+        lp_text += f"\n--- P{page['page_number']}: {page['title']} (役割: {page['role']}) ---\n"
+        if page['elements']:
+            for elem in page['elements']:
+                e_type = elem.get('type', '')
+                e_order = elem.get('order', '')
+                e_content = elem.get('content', elem.get('description', ''))
+                lp_text += f"[要素{e_order} {e_type}] {e_content}\n"
+        elif page['full_text']:
+            lp_text += page['full_text'] + "\n"
+    
+    prompt = f"""あなたはLPの構成・コンテンツの専門家です。
+以下のLP全ページの内容を分析し、不要な重複がないか徹底的にチェックしてください。
+
+## 重複の判定基準（重要）
+
+### これは重複ではない（OK）：
+- ファーストビューでアイコン・キャッチコピーとして簡潔に触れ、後のページで詳細解説 → OK（概要→詳細の流れ）
+- 比較表で他社との対比として同じスペックに再度言及 → OK（比較文脈での再利用）
+- CTAボタン周辺で訴求ポイントを再度まとめる → OK（行動喚起のためのリマインド）
+- 異なる切り口（機能面 vs ユーザー体験面）で同じ特徴に触れる → OK
+
+### これは重複（NG）：
+- 同じ訴求ポイントを、同じ切り口・同じ深さで2回以上書いている
+- ほぼ同じ文章・表現が別のページに存在する
+- 構造的な理由なく、同じ情報を繰り返している
+
+## LP全ページ内容
+{{lp_text}}
+
+## 出力形式（JSON）
+```json
+{{
+  "issues": [
+    {{
+      "severity": "高|中|低",
+      "location_1": "P番号・要素番号（例：P2 要素3）",
+      "text_1": "1箇所目の該当テキスト（抜粋）",
+      "location_2": "P番号・要素番号（例：P5 要素2）",
+      "text_2": "2箇所目の該当テキスト（抜粋）",
+      "issue_description": "なぜ不要な重複と判断したか（構造的に必要ない理由）",
+      "suggestion": "改善案（片方を削除、統合、切り口を変えるなど）"
+    }}
+  ],
+  "summary": "全体的な所見（1-2文）"
+}}
+```"""
+    prompt = prompt.replace("{{lp_text}}", lp_text)
+    
+    response = ai_provider.ask(prompt, "content_check_duplicate")
+    return _parse_check_response(response)
+
+
+def run_typo_check(ai_provider, structured_content):
+    """誤字脱字チェック"""
+    lp_text = ""
+    for page in structured_content:
+        lp_text += f"\n--- P{page['page_number']}: {page['title']} (役割: {page['role']}) ---\n"
+        if page['elements']:
+            for elem in page['elements']:
+                e_type = elem.get('type', '')
+                e_order = elem.get('order', '')
+                e_content = elem.get('content', elem.get('description', ''))
+                lp_text += f"[要素{e_order} {e_type}] {e_content}\n"
+        elif page['full_text']:
+            lp_text += page['full_text'] + "\n"
+    
+    prompt = f"""あなたは日本語の校正・校閲の専門家です。
+以下のLPテキストを徹底的にチェックし、誤字脱字・文法ミス・表記揺れを指摘してください。
+
+## チェック項目
+- 誤字（漢字の間違い、送り仮名の誤り）
+- 脱字（文字の抜け落ち）
+- 文法ミス（助詞の誤用、文のねじれ）
+- 表記揺れ（同じ言葉が異なる表記で使われている：例「お客様」と「お客さま」）
+- 不自然な日本語表現
+- 句読点の不備
+
+## 重要
+- 広告コピーとして意図的に崩した表現（体言止め、倒置法など）はOK
+- 画像指示文（ビジュアルの説明文）はチェック対象外
+- 問題がない場合は空の配列を返してください
+
+## LP全ページ内容
+{{lp_text}}
+
+## 出力形式（JSON）
+```json
+{{
+  "issues": [
+    {{
+      "severity": "高|中|低",
+      "page_number": 1,
+      "page_title": "ページタイトル",
+      "element_info": "要素番号とタイプ",
+      "problematic_text": "問題のある記述（そのまま引用）",
+      "corrected_text": "修正後の正しい記述",
+      "issue_description": "誤字/脱字/文法/表記揺れ のいずれか + 説明"
+    }}
+  ],
+  "summary": "全体的な所見（1-2文）"
+}}
+```"""
+    prompt = prompt.replace("{{lp_text}}", lp_text)
+    
+    response = ai_provider.ask(prompt, "content_check_typo")
+    return _parse_check_response(response)
+
+
+def _parse_check_response(response):
+    """AIレスポンスをJSONパース"""
+    try:
+        if "```json" in response:
+            json_str = response.split("```json")[1].split("```")[0]
+        elif "```" in response:
+            json_str = response.split("```")[1].split("```")[0]
+        else:
+            json_str = response
+        return json.loads(json_str.strip())
+    except Exception as e:
+        return {"error": f"AIレスポンスの解析に失敗: {e}", "raw": response}
+
+
+def render_content_check_tab(product):
+    """コンテンツチェックタブのレンダリング"""
+    ds = DataStore()
+    product_id = product.get('id')
+    
+    st.subheader("📋 コンテンツチェック")
+    st.caption("AIがLPの内容を3つの観点から徹底チェックします")
+    
+    # チェック項目の説明
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown("**🔍 スペック整合性**")
+        st.caption("製品情報シートとLPの記述に矛盾がないか")
+    with col2:
+        st.markdown("**📝 重複チェック**")
+        st.caption("不要な内容の重複がないか")
+    with col3:
+        st.markdown("**✏️ 誤字脱字**")
+        st.caption("誤字・脱字・文法ミス・表記揺れ")
+    
+    # 製品情報シートの有無チェック
+    product_sheet = product.get('product_sheet_organized', '')
+    if not product_sheet:
+        st.warning("⚠️ 製品情報シートが未整理です。スペック整合性チェックを行うには、情報入力ページで製品シートをアップロード・整理してください。")
+    
+    # ページコンテンツの有無チェック
+    page_contents = product.get('page_contents') or {}
+    if not page_contents:
+        st.error("ページ詳細が未生成です。先にページ詳細を生成してください。")
+        return
+    
+    # チェック実行ボタン
+    check_options = st.multiselect(
+        "実行するチェックを選択",
+        ["🔍 スペック整合性", "📝 重複チェック", "✏️ 誤字脱字"],
+        default=["🔍 スペック整合性", "📝 重複チェック", "✏️ 誤字脱字"]
+    )
+    
+    if st.button("チェックを実行", type="primary", use_container_width=True):
+        if not check_options:
+            st.error("チェック項目を1つ以上選択してください")
+        else:
+            settings = SettingsManager().get_settings()
+            ai_provider = AIProvider(settings)
+            structured = get_structured_lp_content_for_check(product)
+            
+            if not structured:
+                st.error("LPの構成データが取得できません")
+                return
+            
+            all_results = {}
+            
+            if "🔍 スペック整合性" in check_options:
+                with st.spinner("スペック整合性をチェック中..."):
+                    result = run_spec_check(ai_provider, product, structured)
+                    all_results["spec"] = result
+                    ds.save_content_check(product_id, "spec", result)
+            
+            if "📝 重複チェック" in check_options:
+                with st.spinner("重複コンテンツをチェック中..."):
+                    result = run_duplicate_check(ai_provider, structured)
+                    all_results["duplicate"] = result
+                    ds.save_content_check(product_id, "duplicate", result)
+            
+            if "✏️ 誤字脱字" in check_options:
+                with st.spinner("誤字脱字をチェック中..."):
+                    result = run_typo_check(ai_provider, structured)
+                    all_results["typo"] = result
+                    ds.save_content_check(product_id, "typo", result)
+            
+            st.session_state['content_check_results'] = all_results
+            st.rerun()
+    
+    # 結果表示（session_stateになければDBから読み込み）
+    if 'content_check_results' not in st.session_state:
+        saved = ds.get_latest_content_checks(product_id)
+        if saved:
+            loaded = {}
+            for check_type, row in saved.items():
+                loaded[check_type] = row.get('results', {})
+            if loaded:
+                st.session_state['content_check_results'] = loaded
+    
+    if 'content_check_results' in st.session_state:
+        results = st.session_state['content_check_results']
+        display_content_check_results(results)
+
+
+def display_content_check_results(results):
+    """チェック結果の表示"""
+    
+    st.markdown("---")
+    
+    # サマリー表示
+    total_issues = 0
+    high_count = 0
+    for check_type, data in results.items():
+        if isinstance(data, dict) and "issues" in data:
+            issues = data["issues"]
+            total_issues += len(issues)
+            high_count += sum(1 for iss in issues if iss.get("severity") == "高")
+    
+    if total_issues == 0:
+        st.success("🎉 チェック完了！問題は見つかりませんでした。")
+    else:
+        if high_count > 0:
+            st.error(f"⚠️ {total_issues}件の問題が見つかりました（うち重要度「高」: {high_count}件）")
+        else:
+            st.warning(f"📝 {total_issues}件の問題が見つかりました")
+    
+    # スペック整合性
+    if "spec" in results:
+        data = results["spec"]
+        if "error" in data:
+            st.error(f"スペックチェックエラー: {data['error']}")
+        else:
+            issues = data.get("issues", [])
+            with st.expander(f"🔍 スペック整合性（{len(issues)}件）", expanded=len(issues) > 0):
+                if data.get("summary"):
+                    st.info(data["summary"])
+                if not issues:
+                    st.success("問題なし")
+                for j, issue in enumerate(issues):
+                    severity = issue.get("severity", "中")
+                    icon = {"高": "🔴", "中": "🟡", "低": "🟢"}.get(severity, "⚪")
+                    
+                    st.markdown(f"{icon} **[{severity}] P{issue.get('page_number', '?')} {issue.get('page_title', '')}** — {issue.get('element_info', '')}")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.markdown("**❌ LP上の記述：**")
+                        st.error(issue.get("problematic_text", ""))
+                    with col2:
+                        st.markdown("**✅ 製品情報シート（正）：**")
+                        st.success(issue.get("correct_info", ""))
+                    
+                    st.caption(issue.get("issue_description", ""))
+                    if j < len(issues) - 1:
+                        st.divider()
+    
+    # 重複チェック
+    if "duplicate" in results:
+        data = results["duplicate"]
+        if "error" in data:
+            st.error(f"重複チェックエラー: {data['error']}")
+        else:
+            issues = data.get("issues", [])
+            with st.expander(f"📝 重複チェック（{len(issues)}件）", expanded=len(issues) > 0):
+                if data.get("summary"):
+                    st.info(data["summary"])
+                if not issues:
+                    st.success("問題なし")
+                for j, issue in enumerate(issues):
+                    severity = issue.get("severity", "中")
+                    icon = {"高": "🔴", "中": "🟡", "低": "🟢"}.get(severity, "⚪")
+                    
+                    st.markdown(f"{icon} **[{severity}] 重複検出**")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.markdown(f"**📍 {issue.get('location_1', '')}**")
+                        st.warning(issue.get("text_1", ""))
+                    with col2:
+                        st.markdown(f"**📍 {issue.get('location_2', '')}**")
+                        st.warning(issue.get("text_2", ""))
+                    
+                    st.caption(f"理由: {issue.get('issue_description', '')}")
+                    st.caption(f"💡 改善案: {issue.get('suggestion', '')}")
+                    if j < len(issues) - 1:
+                        st.divider()
+    
+    # 誤字脱字
+    if "typo" in results:
+        data = results["typo"]
+        if "error" in data:
+            st.error(f"誤字脱字チェックエラー: {data['error']}")
+        else:
+            issues = data.get("issues", [])
+            with st.expander(f"✏️ 誤字脱字（{len(issues)}件）", expanded=len(issues) > 0):
+                if data.get("summary"):
+                    st.info(data["summary"])
+                if not issues:
+                    st.success("問題なし")
+                for j, issue in enumerate(issues):
+                    severity = issue.get("severity", "中")
+                    icon = {"高": "🔴", "中": "🟡", "低": "🟢"}.get(severity, "⚪")
+                    
+                    st.markdown(f"{icon} **[{severity}] P{issue.get('page_number', '?')} {issue.get('page_title', '')}** — {issue.get('element_info', '')}")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.markdown("**❌ 現在：**")
+                        st.error(issue.get("problematic_text", ""))
+                    with col2:
+                        st.markdown("**✅ 修正後：**")
+                        st.success(issue.get("corrected_text", ""))
+                    
+                    st.caption(issue.get("issue_description", ""))
+                    if j < len(issues) - 1:
+                        st.divider()
 
 if __name__ == "__main__":
     render_diagnosis_page()
