@@ -1040,7 +1040,7 @@ def run_spec_check(ai_provider, product, structured_content):
 ```"""
     # Use format or manual replacement if needed, but since it's an f-string in the request, I should be careful.
     # The request provided the prompt as an f-string.
-    prompt = prompt.replace("{{product_sheet}}", product_sheet).replace("{{lp_text}}", lp_text)
+    prompt = prompt.replace("{product_sheet}", product_sheet).replace("{lp_text}", lp_text)
     
     response = ai_provider.ask(prompt, "content_check_spec")
     return _parse_check_response(response)
@@ -1096,7 +1096,7 @@ def run_duplicate_check(ai_provider, structured_content):
   "summary": "全体的な所見（1-2文）"
 }}
 ```"""
-    prompt = prompt.replace("{{lp_text}}", lp_text)
+    prompt = prompt.replace("{lp_text}", lp_text)
     
     response = ai_provider.ask(prompt, "content_check_duplicate")
     return _parse_check_response(response)
@@ -1152,7 +1152,7 @@ def run_typo_check(ai_provider, structured_content):
   "summary": "全体的な所見（1-2文）"
 }}
 ```"""
-    prompt = prompt.replace("{{lp_text}}", lp_text)
+    prompt = prompt.replace("{lp_text}", lp_text)
     
     response = ai_provider.ask(prompt, "content_check_typo")
     return _parse_check_response(response)
