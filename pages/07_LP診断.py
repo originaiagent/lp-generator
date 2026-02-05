@@ -1218,25 +1218,30 @@ def render_content_check_tab(product):
             ai_provider = AIProvider(settings)
             structured = get_structured_lp_content_for_check(product)
             
-            # デバッグ：AIに渡されるデータを確認
-            with st.expander("🐛 デバッグ：AIに渡されるデータ", expanded=False):
-                st.markdown("**製品情報シート（正のソース）：**")
-                sheet = product.get('product_sheet_organized', '')
-                if sheet:
-                    st.text(sheet[:2000] + "..." if len(str(sheet)) > 2000 else str(sheet))
-                else:
-                    st.error("product_sheet_organized が空です！")
-                
-                st.markdown("**LP構造化データ：**")
-                for page in structured:
-                    st.markdown(f"**P{page['page_number']}: {page['title']}**")
-                    if page['elements']:
-                        for elem in page['elements']:
-                            st.text(f"  要素{elem.get('order','')} [{elem.get('type','')}]: {str(elem.get('content', elem.get('description','')))[:200]}")
-                    elif page['full_text']:
-                        st.text(page['full_text'][:300])
-                    else:
-                        st.warning("  → コンテンツなし")
+            # デバッグデータをsession_stateに保存（rerun後も参照可能に）
+            debug_info = {
+                "product_sheet_organized": str(product.get('product_sheet_organized', ''))[:3000],
+                "product_sheet_organized_empty": not bool(product.get('product_sheet_organized', '')),
+                "structured_pages": []
+            }
+            for page in structured:
+                page_debug = {
+                    "page_number": page['page_number'],
+                    "title": page['title'],
+                    "has_elements": bool(page['elements']),
+                    "has_full_text": bool(page['full_text']),
+                    "element_count": len(page['elements']) if page['elements'] else 0,
+                    "elements_preview": [],
+                    "full_text_preview": page['full_text'][:300] if page['full_text'] else ""
+                }
+                if page['elements']:
+                    for elem in page['elements']:
+                        page_debug["elements_preview"].append(
+                            f"要素{elem.get('order','')} [{elem.get('type','')}]: {str(elem.get('content', elem.get('description','')))[:200]}"
+                        )
+                debug_info["structured_pages"].append(page_debug)
+            
+            st.session_state['content_check_debug'] = debug_info
             
             if not structured:
                 st.error("LPの構成データが取得できません")
@@ -1283,6 +1288,28 @@ def render_content_check_tab(product):
 def display_content_check_results(results):
     """チェック結果の表示"""
     
+    # デバッグ表示
+    if 'content_check_debug' in st.session_state:
+        debug = st.session_state['content_check_debug']
+        with st.expander("🐛 デバッグ：AIに渡されたデータ", expanded=False):
+            st.markdown("**製品情報シート（正のソース）：**")
+            if debug.get("product_sheet_organized_empty"):
+                st.error("❌ product_sheet_organized が空です！データが渡されていません。")
+            else:
+                st.text(debug.get("product_sheet_organized", ""))
+            
+            st.markdown("**LP構造化データ：**")
+            for page in debug.get("structured_pages", []):
+                st.markdown(f"**P{page['page_number']}: {page['title']}**")
+                if page['has_elements']:
+                    st.caption(f"要素数: {page['element_count']}")
+                    for preview in page.get("elements_preview", []):
+                        st.text(f"  {preview}")
+                elif page['has_full_text']:
+                    st.text(page['full_text_preview'])
+                else:
+                    st.warning("  → コンテンツなし")
+
     st.markdown("---")
     
     # サマリー表示
