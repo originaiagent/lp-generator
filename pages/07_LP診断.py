@@ -1169,7 +1169,8 @@ def _parse_check_response(response):
             json_str = response
         return json.loads(json_str.strip())
     except Exception as e:
-        return {"error": f"AIレスポンスの解析に失敗: {e}", "raw": response}
+        raw_preview = response[:500] if response else "(空のレスポンス)"
+        return {"error": f"AIレスポンスの解析に失敗: {e}", "raw": response, "raw_preview": raw_preview, "raw_length": len(response) if response else 0}
 
 
 def render_content_check_tab(product):
@@ -1334,6 +1335,8 @@ def display_content_check_results(results):
         data = results["spec"]
         if "error" in data:
             st.error(f"スペックチェックエラー: {data['error']}")
+            if "raw_preview" in data:
+                st.code(f"レスポンス長: {data.get('raw_length', '?')}文字\n内容: {data['raw_preview']}", language="text")
         else:
             issues = data.get("issues", [])
             with st.expander(f"🔍 スペック整合性（{len(issues)}件）", expanded=len(issues) > 0):
@@ -1364,6 +1367,8 @@ def display_content_check_results(results):
         data = results["duplicate"]
         if "error" in data:
             st.error(f"重複チェックエラー: {data['error']}")
+            if "raw_preview" in data:
+                st.code(f"レスポンス長: {data.get('raw_length', '?')}文字\n内容: {data['raw_preview']}", language="text")
         else:
             issues = data.get("issues", [])
             with st.expander(f"📝 重複チェック（{len(issues)}件）", expanded=len(issues) > 0):
@@ -1395,6 +1400,8 @@ def display_content_check_results(results):
         data = results["typo"]
         if "error" in data:
             st.error(f"誤字脱字チェックエラー: {data['error']}")
+            if "raw_preview" in data:
+                st.code(f"レスポンス長: {data.get('raw_length', '?')}文字\n内容: {data['raw_preview']}", language="text")
         else:
             issues = data.get("issues", [])
             with st.expander(f"✏️ 誤字脱字（{len(issues)}件）", expanded=len(issues) > 0):
