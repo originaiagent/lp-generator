@@ -554,6 +554,17 @@ def render_employee_diagnosis_tab(product, exposure_type, diagnosis_target):
         else:
             run_employee_diagnosis(product, exposure_type, diagnosis_target, selected_employee_ids)
 
+    # 最新の診断情報を表示
+    latest_emp_info = ds.get_latest_employee_diagnosis(product.get('id'))
+    if latest_emp_info:
+        st.info(f"最終メンバーAI診断: {latest_emp_info['created_at'][:10]} - {latest_emp_info.get('exposure_type', '')}")
+
+    # session_stateになければDBから最新を読み込む
+    if 'employee_diagnosis_results' not in st.session_state:
+        latest_emp_diag = ds.get_latest_employee_diagnosis(product.get('id'))
+        if latest_emp_diag:
+            st.session_state.employee_diagnosis_results = latest_emp_diag.get('results', [])
+
     # 保存された結果があれば表示
     if 'employee_diagnosis_results' in st.session_state:
         # Build LP content text from product data
@@ -610,6 +621,32 @@ def run_employee_diagnosis(product, exposure_type, diagnosis_target, employee_id
         progress_bar.progress((i + 1) / len(selected_employees))
     
     st.session_state.employee_diagnosis_results = results
+    
+    # Supabaseに保存
+    product_id = product.get('id')
+    if product_id and results:
+        save_data = []
+        for r in results:
+            save_data.append({
+                "employee": {
+                    "id": r["employee"]["id"],
+                    "name": r["employee"]["name"],
+                    "avatar_url": r["employee"].get("avatar_url", ""),
+                    "evaluation_perspective": r["employee"].get("evaluation_perspective", ""),
+                    "personality_traits": r["employee"].get("personality_traits", ""),
+                    "pain_points": r["employee"].get("pain_points", ""),
+                    "info_literacy": r["employee"].get("info_literacy", ""),
+                    "purchase_trigger": r["employee"].get("purchase_trigger", ""),
+                    "lifestyle": r["employee"].get("lifestyle", ""),
+                    "psychographic": r["employee"].get("psychographic", ""),
+                    "demographic": r["employee"].get("demographic", ""),
+                    "buying_behavior": r["employee"].get("buying_behavior", ""),
+                    "ng_points": r["employee"].get("ng_points", ""),
+                },
+                "evaluation": r["evaluation"]
+            })
+        ds.save_employee_diagnosis(product_id, exposure_type, save_data)
+    
     st.rerun()
 
 def display_employee_results(results, product_id, employees_list, exposure_type, lp_content_text):

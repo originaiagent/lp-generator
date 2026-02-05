@@ -658,3 +658,26 @@ class DataStore:
             print(f"[ERROR] get_wireframes_for_product: {e}")
             return {}
 
+    def save_employee_diagnosis(self, product_id, exposure_type, results):
+        """メンバーAI診断結果を保存"""
+        try:
+            data = {
+                "product_id": product_id,
+                "exposure_type": exposure_type,
+                "results": results
+            }
+            response = self.supabase.table("dev_lp_employee_diagnoses").insert(data).execute()
+            return response.data[0] if response.data else None
+        except Exception as e:
+            print(f"Error saving employee diagnosis: {e}")
+            return None
+
+    def get_latest_employee_diagnosis(self, product_id):
+        """最新のメンバーAI診断結果を取得"""
+        try:
+            response = self.supabase.table("dev_lp_employee_diagnoses").select("*").eq("product_id", product_id).order("created_at", desc=True).limit(1).execute()
+            return response.data[0] if response.data else None
+        except Exception as e:
+            print(f"Error getting employee diagnosis: {e}")
+            return None
+
