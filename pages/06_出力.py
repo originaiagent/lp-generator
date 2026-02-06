@@ -192,7 +192,7 @@ def render_output_page():
         render_design_instruction_section(output_generator, product_data, data_store, product_id)
     
     with tab3:
-        render_download_section(output_generator, product_data)
+        render_download_section(output_generator, product_data, product_id)
 
 def generate_page_image_logic(ai_provider, prompt_manager, page, parsed_content, tone_manner, ref_image_path, product_data, data_store, product_id, variation_of=None, custom_prompt=None):
     """画像生成のコアロジック（個別・一括共通）"""
@@ -959,6 +959,8 @@ def render_design_instruction_section(output_generator, product_data, data_store
                 st.toast(f"入力: {u.get('input_tokens', 0):,} / 出力: {u.get('output_tokens', 0):,} / ¥{u.get('cost_jpy', 0):.2f}")
             else:
                 st.toast("まだ生成していません")
+    instruction_key = f"generated_instruction_{product_id}"
+    
     if instr_clicked:
         with st.spinner("AIが指示書を生成中..."):
             try:
@@ -966,7 +968,7 @@ def render_design_instruction_section(output_generator, product_data, data_store
                 
                 if instruction:
                     # DBに保存
-                    st.session_state['generated_instruction'] = instruction
+                    st.session_state[instruction_key] = instruction
                     product_data['designer_instruction'] = instruction
                     data_store.update_product(product_id, product_data)
                     st.success("指示書の生成が完了しました！DBに保存しました。")
@@ -979,23 +981,23 @@ def render_design_instruction_section(output_generator, product_data, data_store
     
     # 保存されたデータを読み込み
     saved_instruction = product_data.get('designer_instruction', '')
-    if not st.session_state.get('generated_instruction') and saved_instruction:
-        st.session_state['generated_instruction'] = saved_instruction
+    if not st.session_state.get(instruction_key) and saved_instruction:
+        st.session_state[instruction_key] = saved_instruction
 
-    if st.session_state.get('generated_instruction'):
+    if st.session_state.get(instruction_key):
         st.markdown("##### 指示書プレビュー（編集可能）")
         
         edited_instr = st.text_area(
             "内容を編集できます",
-            value=st.session_state['generated_instruction'],
+            value=st.session_state[instruction_key],
             height=500,
             key="instruction_preview",
             label_visibility="collapsed"
         )
         
         # 変更があれば保存
-        if edited_instr != st.session_state['generated_instruction']:
-             st.session_state['generated_instruction'] = edited_instr
+        if edited_instr != st.session_state[instruction_key]:
+             st.session_state[instruction_key] = edited_instr
              product_data['designer_instruction'] = edited_instr
              # ここでの保存は頻度が多すぎるかもしれないのでボタン推奨だが、
              # 現状はsession_state同期のみにしておき、保存ボタンを追加する形が良いが、
@@ -1003,24 +1005,25 @@ def render_design_instruction_section(output_generator, product_data, data_store
              pass
 
         if st.button("💾 編集内容を保存", key="save_instr"):
-             product_data['designer_instruction'] = st.session_state['generated_instruction']
+             product_data['designer_instruction'] = st.session_state[instruction_key]
              data_store.update_product(product_id, product_data)
              st.success("指示書を保存しました")
         
         st.markdown("##### コピー用")
         st.caption("右上のコピーボタンで全文をコピーできます")
-        st.code(st.session_state['generated_instruction'], language=None)
+        st.code(st.session_state[instruction_key], language=None)
 
-def render_download_section(output_generator, product_data):
+def render_download_section(output_generator, product_data, product_id):
     st.markdown('<div class="step-header">ダウンロード</div>', unsafe_allow_html=True)
+    instruction_key = f"generated_instruction_{product_id}"
     
     col1, col2 = st.columns(2)
     
     with col1:
-        if 'generated_instruction' in st.session_state:
+        if instruction_key in st.session_state:
             st.download_button(
                 "📋 指示書 (TXT)",
-                data=st.session_state['generated_instruction'],
+                data=st.session_state[instruction_key],
                 file_name=f"{product_data.get('name', 'product')}_instruction.txt",
                 mime="text/plain",
                 width="stretch"
